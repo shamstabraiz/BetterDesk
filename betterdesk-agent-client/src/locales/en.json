@@ -2,8 +2,30 @@
   "sidebar": {
     "status": "Status",
     "chat": "Chat",
-    "help": "Help Request",
-    "settings": "Settings"
+    "help": "Help",
+    "settings": "Settings",
+    "more": "More"
+  },
+  "app": {
+    "close_agent": "Close agent",
+    "close_confirm": "Are you sure you want to close the agent? It will no longer be available for remote assistance.",
+    "quit_title": "Quit BetterDesk Agent",
+    "quit_sudo_hint": "Enter your user password to close the agent.",
+    "admin_only": "Administrator only",
+    "admin_only_hint": "This section is restricted to administrators. Run the agent with administrator privileges to access it."
+  },
+  "auth": {
+    "title": "Authentication Required",
+    "subtitle": "Enter your user password to access this section.",
+    "settings_subtitle": "Enter your current user password for sudo access. The root password is not used here.",
+    "password": "Password",
+    "password_placeholder": "Enter your password",
+    "submit": "Authenticate",
+    "cancel": "Cancel",
+    "verifying": "Verifying\u2026",
+    "wrong_password": "Incorrect password. Please try again.",
+    "enter_password_error": "Password cannot be empty.",
+    "sudo_error": "Authentication service is not available on this system."
   },
   "admin_required": {
     "title": "Administrator rights required",
@@ -28,13 +50,26 @@
     "reconnect": "Reconnect",
     "send_diagnostics": "Send Diagnostics",
     "diagnostics_sent": "Diagnostics sent to server",
-    "diagnostics_error": "Failed to send diagnostics"
+    "diagnostics_error": "Failed to send diagnostics",
+    "sidecar_title": "CDAP Agent",
+    "sidecar_running": "Running",
+    "sidecar_stopped": "Stopped",
+    "sidecar_not_configured": "Not configured",
+    "sidecar_restarts_hint": "Number of automatic restarts",
+    "sidecar_start": "Start",
+    "sidecar_stop": "Stop",
+    "sidecar_restart": "Restart"
   },
   "setup": {
     "title": "Server Setup",
     "subtitle": "Connect this device to a BetterDesk server",
     "server_address": "Server address",
-    "server_placeholder": "e.g. betterdesk.example.com or 192.168.1.100",
+    "server_placeholder": "e.g. https://betterdesk.example.com:5443 or 192.168.1.100",
+    "lan_discovery_title": "Find server on local network",
+    "lan_discovery_hint": "Search BetterDesk servers announced on your LAN and fill the address automatically.",
+    "search_lan": "Search LAN",
+    "searching_lan": "Searching...",
+    "lan_discovery_empty": "No BetterDesk servers were discovered automatically. You can still enter the address manually.",
     "next": "Next",
     "back": "Back",
     "finish": "Finish",
@@ -63,7 +98,13 @@
     "error_unreachable": "Server is not reachable",
     "error_protocol": "Protocol version mismatch",
     "error_registration": "Server does not accept registrations",
-    "error_certificate": "Certificate validation failed"
+    "error_certificate": "Certificate validation failed",
+    "pending_title": "Awaiting Administrator Approval",
+    "pending_message": "Your device registration has been submitted and is pending approval.",
+    "pending_hint": "Please ask an administrator to approve this device in the web console → Registrations tab.",
+    "pending_device_id": "Device ID",
+    "pending_cancel": "Cancel and retry",
+    "approval_rejected": "Registration was rejected by the administrator"
   },
   "chat": {
     "title": "Chat",
@@ -97,13 +138,24 @@
     "test_connection": "Test Connection",
     "connection_ok": "Connection successful",
     "connection_failed": "Connection failed",
-    "section_privacy": "Privacy & Consent",
-    "allow_remote": "Allow remote access",
-    "allow_remote_hint": "Operators can view and control this device",
+    "section_cdap": "CDAP Agent",
+    "api_key": "API Key",
+    "api_key_placeholder": "Paste API key from server",
+    "api_key_hint": "Create an API key in the web console under Server → API Keys.",
+    "cdap_port": "CDAP port",
+    "auto_start_sidecar": "Auto-start CDAP agent",
+    "auto_start_sidecar_hint": "Start the Go CDAP agent automatically with the app",
+    "section_privacy": "Privacy & Capabilities",
+    "allow_screen_capture": "Allow screen capture",
+    "allow_screen_capture_hint": "Operators can view and control this device’s screen",
     "require_consent": "Require consent for each session",
-    "require_consent_hint": "You will be asked before each remote session",
-    "allow_file_transfer": "Allow file transfer",
-    "allow_file_transfer_hint": "Operators can send and receive files",
+    "require_consent_hint": "A dialog will appear asking for approval before each remote session",
+    "allow_terminal": "Allow terminal access",
+    "allow_terminal_hint": "Operators can open a remote shell on this device",
+    "allow_file_browser": "Allow file browser",
+    "allow_file_browser_hint": "Operators can browse and transfer files",
+    "allow_clipboard": "Allow clipboard sync",
+    "allow_clipboard_hint": "Clipboard content is synced with the operator",
     "section_general": "General",
     "language": "Language",
     "start_with_system": "Start with system",
@@ -125,5 +177,13 @@
     "yes": "Yes",
     "no": "No",
     "ok": "OK"
+  },
+  "consent": {
+    "title": "Screen Access Request",
+    "operator_suffix": "wants to view your screen.",
+    "hint": "The operator will be able to see your current screen but cannot control your computer unless you also grant input access.",
+    "auto_deny_in": "Auto-deny in",
+    "allow": "Allow",
+    "deny": "Deny"
   }
 }

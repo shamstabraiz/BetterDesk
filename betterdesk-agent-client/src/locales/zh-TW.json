@@ -5,6 +5,19 @@
     "help": "求助請求",
     "settings": "設定"
   },
+  "auth": {
+    "title": "需要驗證",
+    "subtitle": "請輸入你的使用者密碼以存取此區段。",
+    "settings_subtitle": "請輸入目前使用者的 sudo 密碼。這裡不會使用 root 密碼。",
+    "password": "密碼",
+    "password_placeholder": "請輸入密碼",
+    "submit": "驗證",
+    "cancel": "取消",
+    "verifying": "驗證中…",
+    "wrong_password": "密碼錯誤，請再試一次。",
+    "enter_password_error": "密碼不能為空。",
+    "sudo_error": "此系統上的驗證服務不可用。"
+  },
   "admin_required": {
     "title": "需要管理員權限",
     "message": "此頁面僅在代理以本地管理員權限運行時可用。",
@@ -34,7 +47,12 @@
     "title": "伺服器設定",
     "subtitle": "將此裝置連線到 BetterDesk 伺服器",
     "server_address": "伺服器位址",
-    "server_placeholder": "例如 betterdesk.example.com 或 192.168.1.100",
+    "server_placeholder": "例如 https://betterdesk.example.com:5443 或 192.168.1.100",
+    "lan_discovery_title": "在本機網路中尋找伺服器",
+    "lan_discovery_hint": "搜尋區域網路中廣播的 BetterDesk 伺服器，並自動填入地址。",
+    "search_lan": "搜尋區域網路",
+    "searching_lan": "搜尋中...",
+    "lan_discovery_empty": "未自動發現 BetterDesk 伺服器。你仍然可以手動輸入地址。",
     "next": "下一步",
     "back": "上一步",
     "finish": "完成",
@@ -63,7 +81,13 @@
     "error_unreachable": "無法連線到伺服器",
     "error_protocol": "通訊協定版本不符",
     "error_registration": "伺服器不接受註冊",
-    "error_certificate": "憑證驗證失敗"
+    "error_certificate": "憑證驗證失敗",
+    "pending_title": "等待管理員批准",
+    "pending_message": "裝置註冊申請已送出，等待管理員批准。",
+    "pending_hint": "請管理員在網頁主控台 → 註冊分頁中批准此裝置。",
+    "pending_device_id": "裝置 ID",
+    "pending_cancel": "取消並重試",
+    "approval_rejected": "管理員拒絕了此裝置的註冊申請"
   },
   "chat": {
     "title": "聊天",

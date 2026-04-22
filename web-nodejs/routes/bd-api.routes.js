@@ -506,6 +506,67 @@ router.post('/help-request', identifyDevice, async (req, res) => {
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
+//  POST /api/bd/chat/send — Agent client sends a message to connected operators
+// ---------------------------------------------------------------------------
+
+// In-memory chat history per device (max 200 messages per device, auto-pruned).
+const chatHistory = new Map(); // deviceId → [{id, device_id, sender, content, timestamp}]
+
+router.post('/chat/send', identifyDevice, async (req, res) => {
+    try {
+        const { device_id, sender, content, timestamp } = req.body;
+
+        if (!device_id || typeof device_id !== 'string') {
+            return res.status(400).json({ error: 'Missing device_id' });
+        }
+        if (!content || typeof content !== 'string' || content.trim().length === 0) {
+            return res.status(400).json({ error: 'Missing content' });
+        }
+        if (content.length > 4096) {
+            return res.status(400).json({ error: 'Message too long (max 4096 chars)' });
+        }
+
+        const sanitizedSender = typeof sender === 'string' ? sender.trim().slice(0, 128) : device_id;
+        const message = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            device_id: String(device_id).slice(0, 64),
+            sender: sanitizedSender,
+            content: content.trim().slice(0, 4096),
+            timestamp: typeof timestamp === 'string' ? timestamp : new Date().toISOString(),
+        };
+
+        // Persist in memory for dashboard polling
+        if (!chatHistory.has(message.device_id)) chatHistory.set(message.device_id, []);
+        const history = chatHistory.get(message.device_id);
+        history.push(message);
+        if (history.length > 200) history.splice(0, history.length - 200);
+
+        // Push to all connected browser clients
+        if (io) {
+            io.emit('chat-message', message);
+        }
+
+        res.json({ success: true, message_id: message.id });
+    } catch (err) {
+        console.error('[BD-API] Chat send error:', err.message);
+        res.status(500).json({ error: 'Failed to send message' });
+    }
+});
+
+// ---------------------------------------------------------------------------
+//  GET /api/bd/chat/history — Fetch recent messages for a device
+// ---------------------------------------------------------------------------
+
+router.get('/chat/history', requireDeviceAuth, async (req, res) => {
+    const deviceId = String(req.query.device_id || '').slice(0, 64);
+    if (!deviceId) return res.status(400).json({ error: 'Missing device_id' });
+
+    const history = chatHistory.get(deviceId) || [];
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+    res.json(history.slice(-limit));
+});
+
+// ---------------------------------------------------------------------------
 //  POST /api/bd/operator/login — Authenticate operator from desktop client
 // ---------------------------------------------------------------------------
 
