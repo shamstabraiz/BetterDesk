@@ -545,6 +545,32 @@ router.get('/api/settings/updates/server-info', requireAuth, requirePermission('
 });
 
 /**
+ * POST /api/settings/updates/install-go - Download & install the Go toolchain
+ * into data/go-toolchain/ so the console can compile the Go server even when
+ * Go is not present on the host. Idempotent.
+ */
+router.post('/api/settings/updates/install-go', requireAuth, requirePermission('server.config'), async (req, res) => {
+    req.setTimeout(600000);
+    res.setTimeout(600000);
+    try {
+        const result = await updateService.installGoToolchain();
+        await db.logAction(
+            req.session?.userId,
+            'system_install_go',
+            result.success ? `Installed Go toolchain (${result.version})` : `Go toolchain install failed: ${result.error}`,
+            req.ip
+        );
+        if (!result.success) {
+            return res.status(500).json({ success: false, error: result.error || 'Toolchain install failed' });
+        }
+        res.json({ success: true, data: { version: result.version, binPath: result.binPath } });
+    } catch (err) {
+        console.error('Go toolchain install error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
  * GET /api/settings/updates/check - Check for available updates
  */
 router.get('/api/settings/updates/check', requireAuth, requirePermission('server.config'), async (req, res) => {

@@ -246,15 +246,76 @@ function copyDirRecursive(src, dest) {
 
 /**
  * Check if Go toolchain is available.
- * @returns {{ available: boolean, version: string|null }}
+ * Searches PATH first, then well-known install locations (snap, tarball,
+ * Homebrew, vendored toolchain). Returns the absolute path so callers can
+ * `exec` it even when the console process started without a complete PATH.
+ *
+ * @returns {{ available: boolean, version: string|null, binPath: string|null, source: string|null }}
  */
 function checkGoAvailable() {
+    // 1. Try the regular PATH lookup first
     try {
         const version = execSync('go version', { timeout: 10000, stdio: 'pipe' }).toString().trim();
-        return { available: true, version };
-    } catch (_e) {
-        return { available: false, version: null };
+        let binPath = null;
+        try {
+            binPath = execSync(IS_WINDOWS ? 'where go' : 'command -v go', {
+                timeout: 5000, stdio: 'pipe'
+            }).toString().split(/\r?\n/)[0].trim() || null;
+        } catch (_e) { /* ok */ }
+        return { available: true, version, binPath: binPath || 'go', source: 'path' };
+    } catch (_e) { /* fall through */ }
+
+    // 2. Scan well-known install locations
+    const home = process.env.HOME || process.env.USERPROFILE || '';
+    const localGoBin = path.join(config.dataDir, 'go-toolchain', 'go', 'bin', IS_WINDOWS ? 'go.exe' : 'go');
+    const candidates = IS_WINDOWS
+        ? [
+            localGoBin,
+            'C:\\Go\\bin\\go.exe',
+            'C:\\Program Files\\Go\\bin\\go.exe',
+            path.join(home, 'go', 'bin', 'go.exe'),
+            path.join(home, '.local', 'go', 'bin', 'go.exe')
+        ]
+        : [
+            localGoBin,
+            '/usr/local/go/bin/go',
+            '/snap/bin/go',
+            '/opt/go/bin/go',
+            '/usr/lib/go/bin/go',
+            '/usr/lib/go-1.22/bin/go',
+            '/usr/lib/go-1.23/bin/go',
+            '/usr/lib/go-1.24/bin/go',
+            path.join(home, 'go', 'bin', 'go'),
+            path.join(home, '.local', 'go', 'bin', 'go'),
+            '/opt/homebrew/bin/go',
+            '/usr/local/bin/go'
+        ];
+
+    for (const candidate of candidates) {
+        if (!candidate || !fs.existsSync(candidate)) continue;
+        try {
+            const version = execSync(`"${candidate}" version`, {
+                timeout: 10000, stdio: 'pipe'
+            }).toString().trim();
+            const source = candidate === localGoBin ? 'vendored' : 'system';
+            return { available: true, version, binPath: candidate, source };
+        } catch (_e) { /* candidate broken, try next */ }
     }
+
+    return { available: false, version: null, binPath: null, source: null };
+}
+
+/**
+ * Wrap an exec environment so a manually located `go` binary is on PATH.
+ */
+function buildEnvWithGo(goBinPath) {
+    const env = { ...process.env, CGO_ENABLED: '0' };
+    if (goBinPath && goBinPath !== 'go') {
+        const goBinDir = path.dirname(goBinPath);
+        const sep = IS_WINDOWS ? ';' : ':';
+        env.PATH = goBinDir + sep + (env.PATH || '');
+    }
+    return env;
 }
 
 /**
@@ -392,28 +453,197 @@ async function buildGoServer() {
     const binaryName = IS_WINDOWS ? 'betterdesk-server.exe' : 'betterdesk-server';
     const outputPath = path.join(serverDir, binaryName);
     const start = Date.now();
-    const buildEnv = { ...process.env, CGO_ENABLED: '0' };
+    const goBin = goCheck.binPath || 'go';
+    const buildEnv = buildEnvWithGo(goBin);
+    // Quote when path contains spaces (Windows "Program Files")
+    const goCmd = /\s/.test(goBin) ? `"${goBin}"` : goBin;
 
     try {
-        await execPromise('go mod download', {
+        await execPromise(`${goCmd} mod download`, {
             cwd: serverDir,
             timeout: 120000,
             env: buildEnv
         });
 
         await execPromise(
-            `go build -trimpath -ldflags="-s -w" -o "${binaryName}" .`,
-            { cwd: serverDir, timeout: 300000, env: buildEnv }
+            `${goCmd} build -trimpath -ldflags="-s -w" -o "${binaryName}" .`,
+            { cwd: serverDir, timeout: 600000, env: buildEnv }
         );
 
         if (!fs.existsSync(outputPath)) {
             return { success: false, binaryPath: null, error: 'Build completed but binary not found' };
         }
 
-        return { success: true, binaryPath: outputPath, duration: Date.now() - start };
+        return { success: true, binaryPath: outputPath, duration: Date.now() - start, goVersion: goCheck.version, goSource: goCheck.source };
     } catch (err) {
         const stderr = (err.stderr || '').toString().slice(0, 500);
         return { success: false, binaryPath: null, error: `Build failed: ${stderr || err.message}`.trim() };
+    }
+}
+
+// ---------- Vendored Go toolchain bootstrap ----------
+
+const GO_TOOLCHAIN_DIR = path.join(config.dataDir, 'go-toolchain');
+// Minimum Go version required to build the server (must match
+// betterdesk-server/go.mod). The actual point release is selected at
+// install time from the live go.dev manifest.
+const GO_MIN_VERSION = '1.23.0';
+
+function getToolchainKey() {
+    const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+    if (IS_WINDOWS) return { os: 'windows', arch, kind: 'archive' };
+    if (process.platform === 'darwin') return { os: 'darwin', arch, kind: 'archive' };
+    return { os: 'linux', arch, kind: 'archive' };
+}
+
+/**
+ * Compare semantic-ish Go versions ("go1.23.4" or "1.23.4").
+ * Returns >0 if a > b, 0 if equal, <0 if a < b.
+ */
+function compareGoVersion(a, b) {
+    const norm = (v) => String(v || '').replace(/^go/, '').split(/[^\d]+/).map(Number).filter(Number.isFinite);
+    const aa = norm(a), bb = norm(b);
+    const len = Math.max(aa.length, bb.length);
+    for (let i = 0; i < len; i++) {
+        const x = aa[i] || 0, y = bb[i] || 0;
+        if (x !== y) return x - y;
+    }
+    return 0;
+}
+
+/**
+ * Download a binary file via HTTPS (with up to 5 redirects).
+ * @returns {Promise<Buffer>}
+ */
+function httpsDownload(url, redirects = 5) {
+    return new Promise((resolve, reject) => {
+        if (redirects < 0) return reject(new Error('Too many redirects'));
+        const req = https.get(url, { headers: { 'User-Agent': USER_AGENT } }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                res.resume();
+                return resolve(httpsDownload(res.headers.location, redirects - 1));
+            }
+            if (res.statusCode !== 200) {
+                res.resume();
+                return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+            }
+            const chunks = [];
+            res.on('data', (c) => chunks.push(c));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+            res.on('error', reject);
+        });
+        req.on('error', reject);
+        req.setTimeout(600000, () => req.destroy(new Error('Download timeout')));
+    });
+}
+
+/**
+ * Resolve the latest stable Go release for this OS/arch by querying
+ * https://go.dev/dl/?mode=json. Returns the asset metadata including
+ * the canonical SHA-256 sum so the download can be verified securely.
+ */
+async function resolveGoRelease() {
+    const key = getToolchainKey();
+    const data = await httpsDownload('https://go.dev/dl/?mode=json');
+    const releases = JSON.parse(data.toString('utf8'));
+    if (!Array.isArray(releases) || !releases.length) {
+        throw new Error('go.dev manifest empty');
+    }
+    // Pick the highest stable release that meets GO_MIN_VERSION.
+    const stable = releases
+        .filter(r => r.stable && compareGoVersion(r.version, GO_MIN_VERSION) >= 0)
+        .sort((a, b) => compareGoVersion(b.version, a.version));
+    const target = stable[0] || releases[0];
+    const ext = key.os === 'windows' ? 'zip' : 'tar.gz';
+    const file = (target.files || []).find(f =>
+        f.os === key.os && f.arch === key.arch && f.kind === 'archive' && f.filename && f.filename.endsWith(ext)
+    );
+    if (!file || !file.sha256 || !file.filename) {
+        throw new Error(`No Go ${target.version} archive for ${key.os}/${key.arch}`);
+    }
+    return {
+        version: target.version,
+        filename: file.filename,
+        sha256: file.sha256,
+        size: file.size || 0,
+        url: `https://go.dev/dl/${file.filename}`
+    };
+}
+
+/**
+ * Install (or refresh) the Go toolchain into data/go-toolchain/.
+ *
+ * @param {(phase: string, detail?: string) => void} [onProgress]
+ * @returns {Promise<{ success: boolean, binPath: string|null, version: string|null, error?: string }>}
+ */
+async function installGoToolchain(onProgress) {
+    const log = (phase, detail) => { try { (onProgress || (() => {}))(phase, detail); } catch (_e) { /* ignore */ } };
+    const goRoot = path.join(GO_TOOLCHAIN_DIR, 'go');
+    const goBin  = path.join(goRoot, 'bin', IS_WINDOWS ? 'go.exe' : 'go');
+
+    // Reuse existing install if it still works
+    if (fs.existsSync(goBin)) {
+        try {
+            const v = execSync(`"${goBin}" version`, { timeout: 5000, stdio: 'pipe' }).toString().trim();
+            log('ready', v);
+            return { success: true, binPath: goBin, version: v };
+        } catch (_e) { /* fall through and reinstall */ }
+    }
+
+    fs.mkdirSync(GO_TOOLCHAIN_DIR, { recursive: true });
+
+    let release;
+    try {
+        log('resolving', 'go.dev/dl');
+        release = await resolveGoRelease();
+    } catch (err) {
+        return { success: false, binPath: null, version: null, error: `Cannot resolve Go release: ${err.message}` };
+    }
+
+    const archivePath = path.join(GO_TOOLCHAIN_DIR, release.filename);
+    try {
+        log('downloading', `${release.version} (${Math.round((release.size || 0) / 1048576)} MB)`);
+        const buf = await httpsDownload(release.url);
+
+        const crypto = require('crypto');
+        const sha = crypto.createHash('sha256').update(buf).digest('hex');
+        if (sha.toLowerCase() !== release.sha256.toLowerCase()) {
+            return {
+                success: false, binPath: null, version: null,
+                error: `Go toolchain checksum mismatch (expected ${release.sha256.slice(0, 12)}…, got ${sha.slice(0, 12)}…)`
+            };
+        }
+        fs.writeFileSync(archivePath, buf);
+        log('extracting', release.filename);
+
+        if (fs.existsSync(goRoot)) {
+            try { fs.rmSync(goRoot, { recursive: true, force: true }); } catch (_e) { /* ignore */ }
+        }
+
+        if (IS_WINDOWS) {
+            await execPromise(
+                `powershell -NoProfile -Command "Expand-Archive -Force -Path '${archivePath.replace(/'/g, "''")}' -DestinationPath '${GO_TOOLCHAIN_DIR.replace(/'/g, "''")}'"`,
+                { timeout: 300000 }
+            );
+        } else {
+            await execPromise(`tar -xzf "${archivePath}" -C "${GO_TOOLCHAIN_DIR}"`, { timeout: 300000 });
+        }
+
+        try { fs.unlinkSync(archivePath); } catch (_e) { /* ignore */ }
+
+        if (!fs.existsSync(goBin)) {
+            return { success: false, binPath: null, version: null, error: 'Extraction succeeded but go binary not found' };
+        }
+        if (!IS_WINDOWS) {
+            try { fs.chmodSync(goBin, 0o755); } catch (_e) { /* ignore */ }
+        }
+
+        const v = execSync(`"${goBin}" version`, { timeout: 5000, stdio: 'pipe' }).toString().trim();
+        log('ready', v);
+        return { success: true, binPath: goBin, version: v };
+    } catch (err) {
+        try { if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath); } catch (_e) { /* ignore */ }
+        return { success: false, binPath: null, version: null, error: err.message || String(err) };
     }
 }
 
@@ -579,10 +809,16 @@ function getServerUpdateInfo() {
     const goInfo = checkGoAvailable();
     const binaryPath = detectServerBinaryPath();
     const sourcePresent = fs.existsSync(path.join(COMPONENTS.server.localRoot || '', 'go.mod'));
+    const vendoredGoPath = path.join(GO_TOOLCHAIN_DIR, 'go', 'bin', IS_WINDOWS ? 'go.exe' : 'go');
+    const vendoredGoInstalled = fs.existsSync(vendoredGoPath);
 
     return {
         goAvailable: goInfo.available,
         goVersion: goInfo.version,
+        goPath: goInfo.binPath,
+        goSource: goInfo.source,           // 'path' | 'system' | 'vendored' | null
+        vendoredGoInstalled,
+        canInstallGo: true,                // toolchain bootstrap is always available
         binaryPath,
         sourcePresent,
         canAutoUpdate: goInfo.available,
@@ -889,12 +1125,55 @@ async function applyUpdate(remoteSHA, changedData, opts = {}) {
 
     // ---- Server source files + compile/download + deploy ----
     if (changedData.grouped.server?.length && selectedComponents.includes('server')) {
-        const strategy = opts.serverStrategy || 'auto'; // 'auto', 'compile', 'download'
-        const goAvailable = checkGoAvailable().available;
+        const strategy = opts.serverStrategy || 'auto'; // 'auto', 'compile', 'download', 'install-go'
+        let goAvailable = checkGoAvailable().available;
         let serverBinaryPath = null;
         let buildUsed = null;
 
-        if (strategy === 'compile' || (strategy === 'auto' && goAvailable)) {
+        // ---- Strategy: download Go toolchain on demand ----
+        // Triggered explicitly ('install-go') or by auto-fallback (no Go + no
+        // matching pre-built binary).
+        let toolchainInstalled = false;
+        if (strategy === 'install-go' && !goAvailable) {
+            const tc = await installGoToolchain();
+            results.toolchainInstall = {
+                success: tc.success,
+                version: tc.version || null,
+                error: tc.error || null,
+                binPath: tc.binPath || null
+            };
+            if (tc.success) {
+                toolchainInstalled = true;
+                goAvailable = true;
+            }
+        } else if (strategy === 'auto' && !goAvailable) {
+            // Auto-fallback: only attempt toolchain install if no pre-built
+            // release is reachable. This keeps the default path light.
+            try {
+                const prebuilt = await checkPrebuiltAvailable();
+                if (!prebuilt.available || !prebuilt.downloadUrl) {
+                    const tc = await installGoToolchain();
+                    results.toolchainInstall = {
+                        success: tc.success,
+                        version: tc.version || null,
+                        error: tc.error || null,
+                        binPath: tc.binPath || null,
+                        autoTriggered: true
+                    };
+                    if (tc.success) {
+                        toolchainInstalled = true;
+                        goAvailable = true;
+                    }
+                }
+            } catch (err) {
+                console.error('[UPDATE] auto-fallback toolchain install failed:', err.message);
+            }
+        }
+
+        const wantsCompile = strategy === 'compile' || strategy === 'install-go' || toolchainInstalled
+            || (strategy === 'auto' && goAvailable);
+
+        if (wantsCompile && goAvailable) {
             // ---- Strategy: Compile from source ----
             // 1. Ensure full source is present (downloads if missing)
             try {
@@ -1209,5 +1488,7 @@ module.exports = {
     saveLocalSHA,
     getServerUpdateInfo,
     getPrebuiltInfo,
+    installGoToolchain,
+    checkGoAvailable,
     COMPONENTS
 };

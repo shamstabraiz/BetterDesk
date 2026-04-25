@@ -1386,6 +1386,13 @@
                             <span>${_('updates.strategy_compile')}</span>
                             <span id="strategy-compile-badge" class="badge badge-sm" style="margin-left:4px;"></span>
                         </label>
+                        <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;font-size:13px;">
+                            <input type="radio" name="server-strategy" value="install-go" id="strategy-install-go">
+                            <span class="material-icons" style="font-size:16px;">download_for_offline</span>
+                            <span>${_('updates.strategy_install_go')}</span>
+                            <span id="strategy-install-go-badge" class="badge badge-info badge-sm" style="margin-left:4px;">${_('updates.auto_strategy')}</span>
+                        </label>
+                        <div id="strategy-install-go-hint" class="text-muted" style="font-size:11px;margin-top:4px;">${_('updates.strategy_install_go_hint')}</div>
                     </div>
                     <div id="update-server-info" class="text-muted" style="font-size:11px;"></div>
                 </div>`;
@@ -1407,26 +1414,28 @@
         const strategySection = document.getElementById('update-server-strategy');
         const downloadRadio = document.getElementById('strategy-download');
         const compileRadio = document.getElementById('strategy-compile');
+        const installGoRadio = document.getElementById('strategy-install-go');
         const downloadBadge = document.getElementById('strategy-download-badge');
         const compileBadge = document.getElementById('strategy-compile-badge');
+        const installGoBadge = document.getElementById('strategy-install-go-badge');
         if (!statusEl || !toggleEl) return;
-        
+
         try {
             const info = await Utils.api('/api/settings/updates/server-info');
-            const hasGo = info.goAvailable;
+            const hasGo = !!info.goAvailable;
             const prebuilt = info.prebuilt || {};
-            const hasDownload = prebuilt.available;
-            const canUpdate = hasGo || hasDownload;
-            
-            // Always enable the checkbox if at least one strategy is available
+            const hasDownload = !!prebuilt.available;
+            const canInstallGo = !!info.canInstallGo;
+            const vendoredReady = !!info.vendoredGoInstalled;
+
+            // Server rebuild is always offered: if no Go and no release, the
+            // "auto-install Go" path will take over.
+            const canUpdate = hasGo || hasDownload || canInstallGo;
             toggleEl.disabled = !canUpdate;
-            if (!canUpdate) toggleEl.checked = false;
-            
-            // Show strategy section when checkbox is enabled
+
             if (strategySection && canUpdate) {
                 strategySection.style.display = '';
-                
-                // Show/enable strategy options based on availability
+
                 if (downloadRadio) {
                     downloadRadio.disabled = !hasDownload;
                     if (downloadBadge) {
@@ -1452,36 +1461,46 @@
                         }
                     }
                 }
-                
+                if (installGoRadio && installGoBadge) {
+                    installGoRadio.disabled = false;
+                    if (vendoredReady) {
+                        installGoBadge.className = 'badge badge-success badge-sm';
+                        installGoBadge.textContent = _('updates.toolchain_ready');
+                    } else {
+                        installGoBadge.className = 'badge badge-info badge-sm';
+                        installGoBadge.textContent = _('updates.auto_strategy');
+                    }
+                }
+
                 // Auto-select the best available strategy
                 if (hasDownload && downloadRadio) downloadRadio.checked = true;
                 else if (hasGo && compileRadio) compileRadio.checked = true;
+                else if (installGoRadio) installGoRadio.checked = true;
             }
-            
+
             // Status badge
-            if (canUpdate) {
-                if (hasGo && hasDownload) {
-                    statusEl.className = 'badge badge-success badge-sm';
-                    statusEl.textContent = _('updates.both_available');
-                } else if (hasDownload) {
-                    statusEl.className = 'badge badge-info badge-sm';
-                    statusEl.textContent = _('updates.download_available');
-                } else {
-                    statusEl.className = 'badge badge-success badge-sm';
-                    statusEl.textContent = info.goVersion ? info.goVersion.replace('go version ', '') : 'Go';
-                }
+            if (hasGo && hasDownload) {
+                statusEl.className = 'badge badge-success badge-sm';
+                statusEl.textContent = _('updates.both_available');
+            } else if (hasDownload) {
+                statusEl.className = 'badge badge-info badge-sm';
+                statusEl.textContent = _('updates.download_available');
+            } else if (hasGo) {
+                statusEl.className = 'badge badge-success badge-sm';
+                statusEl.textContent = info.goVersion ? info.goVersion.replace('go version ', '') : 'Go';
             } else {
-                statusEl.className = 'badge badge-danger badge-sm';
-                statusEl.textContent = _('updates.no_method');
+                statusEl.className = 'badge badge-info badge-sm';
+                statusEl.textContent = _('updates.auto_available');
             }
-            
+
             // Info line
             if (infoEl) {
                 const parts = [];
                 if (info.binaryPath) parts.push(`Binary: ${info.binaryPath}`);
                 if (info.sourcePresent) parts.push('Source: present');
                 if (hasDownload && prebuilt.releaseName) parts.push(`Release: ${prebuilt.releaseName}`);
-                if (!hasGo && !hasDownload) parts.push(_('updates.install_go_hint'));
+                if (info.goSource && info.goSource !== 'path') parts.push(`Go: ${info.goSource}`);
+                if (!hasGo && !hasDownload) parts.push(_('updates.toolchain_will_install'));
                 infoEl.textContent = parts.join(' · ');
             }
         } catch (_e) {
@@ -1491,124 +1510,314 @@
         }
     }
     
+    // ---------- Update progress modal ----------
+
+    const UPDATE_PHASES = [
+        { id: 'confirm',  icon: 'task_alt',          key: 'updates.phase_confirm' },
+        { id: 'backup',   icon: 'inventory',         key: 'updates.phase_backup' },
+        { id: 'console',  icon: 'cloud_download',    key: 'updates.phase_console' },
+        { id: 'server',   icon: 'memory',            key: 'updates.phase_server' },
+        { id: 'restart',  icon: 'restart_alt',       key: 'updates.phase_restart' },
+        { id: 'done',     icon: 'check_circle',      key: 'updates.phase_done' }
+    ];
+
+    function buildUpdateModalContent() {
+        const items = UPDATE_PHASES.map(p => `
+            <div class="update-phase" data-phase="${p.id}">
+                <span class="update-phase-icon material-icons">${p.icon}</span>
+                <span class="update-phase-label">${_(p.key)}</span>
+                <span class="update-phase-state" data-phase-state="${p.id}">
+                    <span class="material-icons">radio_button_unchecked</span>
+                </span>
+            </div>
+        `).join('');
+        return `
+            <div class="update-progress-modal">
+                <div class="update-progress-bar"><div class="update-progress-bar-fill" id="update-modal-bar" style="width:0%"></div></div>
+                <div class="update-phases">${items}</div>
+                <div class="update-progress-detail" id="update-modal-detail">${_('updates.preparing')}</div>
+                <pre class="update-progress-log" id="update-modal-log" aria-live="polite"></pre>
+            </div>
+        `;
+    }
+
+    function setUpdatePhase(phaseId, state, detail) {
+        // state: 'pending' | 'active' | 'done' | 'error' | 'skipped'
+        const stateEl = document.querySelector(`[data-phase-state="${phaseId}"]`);
+        if (stateEl) {
+            const icons = {
+                pending: 'radio_button_unchecked',
+                active:  'sync',
+                done:    'check_circle',
+                error:   'error',
+                skipped: 'remove_circle_outline'
+            };
+            const cls = {
+                pending: '',
+                active:  'spinning',
+                done:    '',
+                error:   '',
+                skipped: ''
+            };
+            stateEl.innerHTML = `<span class="material-icons ${cls[state] || ''}">${icons[state] || 'help'}</span>`;
+            stateEl.dataset.state = state;
+        }
+        if (detail) {
+            const det = document.getElementById('update-modal-detail');
+            if (det) det.textContent = detail;
+        }
+        // Advance progress bar based on phase index
+        const idx = UPDATE_PHASES.findIndex(p => p.id === phaseId);
+        if (idx >= 0) {
+            const pct = state === 'done' ? Math.round(((idx + 1) / UPDATE_PHASES.length) * 100)
+                : state === 'active' ? Math.round((idx / UPDATE_PHASES.length) * 100)
+                : null;
+            const bar = document.getElementById('update-modal-bar');
+            if (bar && pct !== null) bar.style.width = pct + '%';
+        }
+    }
+
+    function logUpdate(line) {
+        const log = document.getElementById('update-modal-log');
+        if (!log) return;
+        const ts = new Date().toLocaleTimeString();
+        log.textContent += `[${ts}] ${line}\n`;
+        log.scrollTop = log.scrollHeight;
+    }
+
     async function installUpdate() {
         const installBtn = document.getElementById('update-install-btn');
-        const progressEl = document.getElementById('update-progress');
-        const progressFill = document.getElementById('update-progress-fill');
-        const progressText = document.getElementById('update-progress-text');
-        
+
         if (!_updateState.remoteSHA) {
             Notifications.error(_('updates.no_version'));
             return;
         }
-        
+
         const includeServer = document.getElementById('update-include-server')?.checked || false;
         const serverStrategy = includeServer
             ? (document.querySelector('input[name="server-strategy"]:checked')?.value || 'auto')
             : null;
-        const confirmMsg = includeServer
-            ? _('updates.install_confirm') + '\n\n' + (serverStrategy === 'compile' ? _('updates.server_build_note') : _('updates.server_download_note'))
-            : _('updates.install_confirm');
-        
-        if (!confirm(confirmMsg)) return;
-        
+        const createBackup = document.getElementById('update-backup-toggle')?.checked ?? true;
+
+        // Pre-flight confirmation modal
+        let strategyNote = '';
+        if (includeServer) {
+            if (serverStrategy === 'compile') strategyNote = _('updates.server_build_note');
+            else if (serverStrategy === 'install-go') strategyNote = _('updates.strategy_install_go_hint');
+            else if (serverStrategy === 'download') strategyNote = _('updates.server_download_note');
+            else strategyNote = _('updates.auto_strategy_hint');
+        }
+        const confirmHtml = `
+            <p>${Utils.escapeHtml(_('updates.install_confirm'))}</p>
+            <ul style="margin:8px 0 0 0;padding-left:20px;font-size:13px;color:var(--text-secondary);">
+                <li>${Utils.escapeHtml(createBackup ? _('updates.confirm_with_backup') : _('updates.confirm_no_backup'))}</li>
+                ${includeServer ? `<li>${Utils.escapeHtml(strategyNote || '')}</li>` : ''}
+            </ul>
+        `;
+        const proceed = await new Promise((resolve) => {
+            window.Modal.show({
+                title: _('updates.confirm_title'),
+                content: confirmHtml,
+                buttons: [
+                    { label: _('actions.cancel'),  class: 'btn-secondary', onClick: () => { window.Modal.close(); resolve(false); } },
+                    { label: _('updates.install'), class: 'btn-primary', icon: 'system_update', onClick: () => { window.Modal.close(); resolve(true); } }
+                ],
+                closable: true,
+                onClose: () => resolve(false)
+            });
+        });
+        if (!proceed) return;
+
         if (installBtn) installBtn.disabled = true;
-        if (progressEl) progressEl.style.display = '';
-        if (progressFill) progressFill.style.width = '10%';
-        if (progressText) progressText.textContent = _('updates.installing');
-        
+
+        // Open progress modal (non-closable while running)
+        window.Modal.show({
+            title: _('updates.modal_title'),
+            content: buildUpdateModalContent(),
+            buttons: [],
+            closable: false,
+            size: 'large'
+        });
+
+        UPDATE_PHASES.forEach(p => setUpdatePhase(p.id, 'pending'));
+        setUpdatePhase('confirm', 'done');
+        if (createBackup) setUpdatePhase('backup', 'active', _('updates.creating_backup'));
+        else setUpdatePhase('backup', 'skipped', _('updates.backup_skipped'));
+        logUpdate(`Starting update to ${_updateState.remoteSHA.slice(0, 7)}…`);
+
         try {
-            const createBackup = document.getElementById('update-backup-toggle')?.checked ?? true;
             const components = ['console', 'scripts'];
             if (includeServer) components.push('server');
-            
-            if (progressFill) progressFill.style.width = '20%';
-            if (progressText) progressText.textContent = createBackup ? _('updates.creating_backup') : _('updates.downloading');
-            
+
+            // Console download phase indicator (we cannot stream backend
+            // progress today, so we just mark it active until response arrives)
+            setTimeout(() => {
+                setUpdatePhase('backup', 'done');
+                setUpdatePhase('console', 'active', _('updates.downloading'));
+            }, 800);
+
             if (includeServer) {
-                // Server build/download can take time — show an informative message
+                const serverDetailKey =
+                    serverStrategy === 'install-go' ? 'updates.toolchain_downloading' :
+                    serverStrategy === 'compile'    ? 'updates.server_building' :
+                    serverStrategy === 'download'   ? 'updates.server_downloading' :
+                                                       'updates.server_processing';
                 setTimeout(() => {
-                    if (progressFill && progressFill.style.width !== '100%') {
-                        progressFill.style.width = '50%';
-                        if (progressText) progressText.textContent = serverStrategy === 'compile' ? _('updates.server_building') : _('updates.server_downloading');
-                    }
-                }, 5000);
+                    setUpdatePhase('console', 'done');
+                    setUpdatePhase('server', 'active', _(serverDetailKey));
+                }, 4000);
             }
-            
+
             const result = await Utils.api('/api/settings/updates/install', {
                 method: 'POST',
                 body: { remoteSHA: _updateState.remoteSHA, createBackup, components, serverStrategy: serverStrategy || 'auto' }
             });
-            
-            if (progressFill) progressFill.style.width = '100%';
-            
-            let msg = `${_('updates.applied')}: ${result.applied?.length || 0}`;
-            if (result.failed?.length) msg += `, ${_('updates.failed')}: ${result.failed.length}`;
-            if (result.removed?.length) msg += `, ${_('updates.removed')}: ${result.removed.length}`;
-            
-            // Server build/deploy results
-            if (result.serverBuild) {
-                if (result.serverBuild.success) {
-                    if (result.serverBuild.method === 'download') {
-                        const sizeMB = result.serverBuild.size ? ` (${(result.serverBuild.size / (1024 * 1024)).toFixed(1)} MB)` : '';
-                        msg += `. ${_('updates.server_downloaded')}${sizeMB}`;
+
+            // Mark earlier phases done if not already
+            ['backup', 'console'].forEach(p => {
+                const st = document.querySelector(`[data-phase-state="${p}"]`)?.dataset?.state;
+                if (st !== 'done' && st !== 'skipped') setUpdatePhase(p, 'done');
+            });
+
+            // Server result
+            if (includeServer) {
+                if (result.toolchainInstall) {
+                    if (result.toolchainInstall.success) {
+                        logUpdate(`Go toolchain ready: ${result.toolchainInstall.version || ''}`.trim());
                     } else {
-                        const secs = Math.round((result.serverBuild.duration || 0) / 1000);
-                        msg += `. ${_('updates.server_built')}` + (secs ? ` (${secs}s)` : '');
+                        logUpdate(`Go toolchain install failed: ${result.toolchainInstall.error || 'unknown'}`);
+                    }
+                }
+                if (result.serverBuild) {
+                    if (result.serverBuild.success) {
+                        const ms = result.serverBuild.duration || 0;
+                        const secs = ms ? Math.round(ms / 1000) : 0;
+                        const sizeMB = result.serverBuild.size ? ` (${(result.serverBuild.size / (1024 * 1024)).toFixed(1)} MB)` : '';
+                        const detail = result.serverBuild.method === 'download'
+                            ? `${_('updates.server_downloaded')}${sizeMB}`
+                            : `${_('updates.server_built')}${secs ? ` · ${secs}s` : ''}`;
+                        setUpdatePhase('server', 'done', detail);
+                        logUpdate(detail);
+                    } else {
+                        const detail = result.serverBuild.method === 'download'
+                            ? _('updates.server_download_failed')
+                            : _('updates.server_build_failed');
+                        setUpdatePhase('server', 'error', detail);
+                        logUpdate(`${detail}: ${result.serverBuild.error || ''}`);
                     }
                 } else {
-                    msg += `. ${result.serverBuild.method === 'download' ? _('updates.server_download_failed') : _('updates.server_build_failed')}`;
-                    if (result.serverBuild.error) Notifications.error(result.serverBuild.error);
+                    setUpdatePhase('server', 'skipped', _('updates.server_skipped'));
                 }
-            }
-            if (result.serverDeploy) {
-                if (result.serverDeploy.success) {
-                    msg += `. ${_('updates.server_deployed')}`;
-                } else {
-                    msg += `. ${_('updates.server_deploy_failed')}`;
-                    if (result.serverDeploy.error) Notifications.error(result.serverDeploy.error);
+                if (result.serverDeploy && !result.serverDeploy.success) {
+                    logUpdate(`Deploy failed: ${result.serverDeploy.error || ''}`);
                 }
-            }
-            
-            if (result.needsConsoleRestart) {
-                if (progressText) progressText.textContent = _('updates.restarting');
-                Notifications.success(msg);
-                setTimeout(() => pollServerRestart(), 3000);
             } else {
-                Notifications.success(msg);
-                if (progressEl) setTimeout(() => { progressEl.style.display = 'none'; }, 5000);
+                setUpdatePhase('server', 'skipped', _('updates.server_not_selected'));
+            }
+
+            const applied = result.applied?.length || 0;
+            const failed  = result.failed?.length || 0;
+            const removed = result.removed?.length || 0;
+            logUpdate(`${_('updates.applied')}: ${applied} · ${_('updates.failed')}: ${failed} · ${_('updates.removed')}: ${removed}`);
+
+            if (result.needsConsoleRestart) {
+                setUpdatePhase('restart', 'active', _('updates.restarting'));
+                logUpdate(_('updates.console_will_restart'));
+                setTimeout(() => pollConsoleRestart(), 2500);
+            } else {
+                setUpdatePhase('restart', 'skipped', _('updates.no_restart_needed'));
+                setUpdatePhase('done', 'done', _('updates.complete'));
+                showUpdateCompletionModal(result);
                 if (installBtn) installBtn.disabled = false;
             }
         } catch (error) {
+            const activePhase = UPDATE_PHASES.find(p => {
+                const st = document.querySelector(`[data-phase-state="${p.id}"]`)?.dataset?.state;
+                return st === 'active';
+            });
+            if (activePhase) setUpdatePhase(activePhase.id, 'error', error.message || _('updates.install_failed'));
+            logUpdate(`ERROR: ${error.message || error}`);
+
+            // Replace empty footer with a Close button so the user can dismiss
+            window.Modal.close();
+            await window.Modal.alert({
+                title: _('updates.install_failed'),
+                message: error.message || _('errors.server_error')
+            });
             Notifications.error(error.message || _('updates.install_failed'));
-            if (progressEl) progressEl.style.display = 'none';
             if (installBtn) installBtn.disabled = false;
         }
     }
-    
-    function pollServerRestart() {
-        const progressText = document.getElementById('update-progress-text');
+
+    function showUpdateCompletionModal(result) {
+        const lines = [];
+        lines.push(`<p>${Utils.escapeHtml(_('updates.complete_summary'))}</p>`);
+        const stats = [
+            { label: _('updates.applied'), value: result.applied?.length || 0 },
+            { label: _('updates.failed'),  value: result.failed?.length  || 0 },
+            { label: _('updates.removed'), value: result.removed?.length || 0 }
+        ];
+        lines.push(`<ul style="margin:8px 0;padding-left:20px;font-size:13px;">${stats.map(s => `<li>${Utils.escapeHtml(s.label)}: <strong>${s.value}</strong></li>`).join('')}</ul>`);
+        if (result.serverBuild?.success) {
+            const note = result.serverBuild.method === 'download' ? _('updates.server_downloaded') : _('updates.server_built');
+            lines.push(`<p style="font-size:13px;color:var(--text-secondary);">${Utils.escapeHtml(note)}</p>`);
+        }
+        // Some updates require manual reload (e.g., static asset changes)
+        const needsReload = (result.applied || []).some(p => /\.(js|css|html|ejs)$/i.test(p));
+        if (needsReload) {
+            lines.push(`<p style="font-size:13px;margin-top:8px;">${Utils.escapeHtml(_('updates.refresh_recommended'))}</p>`);
+        }
+
+        window.Modal.close();
+        window.Modal.show({
+            title: _('updates.modal_done_title'),
+            content: lines.join(''),
+            buttons: [
+                { label: _('updates.modal_close'),     class: 'btn-secondary', onClick: () => { window.Modal.close(); } },
+                { label: _('updates.modal_reload_now'), class: 'btn-primary', icon: 'refresh', onClick: () => { window.location.reload(); } }
+            ],
+            closable: true
+        });
+    }
+
+    function pollConsoleRestart() {
         let attempts = 0;
         const maxAttempts = 30;
-        
         const interval = setInterval(async () => {
             attempts++;
-            if (progressText) progressText.textContent = `${_('updates.restarting')} (${attempts}/${maxAttempts})`;
-            
+            setUpdatePhase('restart', 'active', `${_('updates.restarting')} (${attempts}/${maxAttempts})`);
             try {
-                const resp = await fetch('/api/settings/info', { credentials: 'same-origin' });
+                const resp = await fetch('/api/settings/info?_=' + Date.now(), { credentials: 'same-origin' });
                 if (resp.ok) {
                     clearInterval(interval);
-                    Notifications.success(_('updates.restart_complete'));
-                    setTimeout(() => window.location.reload(), 1000);
+                    setUpdatePhase('restart', 'done', _('updates.restart_complete'));
+                    setUpdatePhase('done', 'done', _('updates.complete'));
+                    logUpdate(_('updates.restart_complete'));
+
+                    // Final modal: tell operator to refresh
+                    window.Modal.close();
+                    window.Modal.show({
+                        title: _('updates.modal_done_title'),
+                        content: `<p>${Utils.escapeHtml(_('updates.restart_complete_msg'))}</p>`,
+                        buttons: [
+                            { label: _('updates.modal_close'),     class: 'btn-secondary', onClick: () => { window.Modal.close(); } },
+                            { label: _('updates.modal_reload_now'), class: 'btn-primary', icon: 'refresh', onClick: () => { window.location.reload(); } }
+                        ],
+                        closable: true
+                    });
+
+                    // Auto-reload after a short grace period so operators do
+                    // not have to click — gives them time to read the modal.
+                    setTimeout(() => { window.location.reload(); }, 8000);
+                    return;
                 }
-            } catch {
+            } catch (_e) {
                 // Server still down, keep polling
             }
-            
             if (attempts >= maxAttempts) {
                 clearInterval(interval);
-                if (progressText) progressText.textContent = _('updates.restart_timeout');
+                setUpdatePhase('restart', 'error', _('updates.restart_timeout'));
+                logUpdate(_('updates.restart_timeout'));
             }
         }, 2000);
     }
