@@ -214,7 +214,7 @@ router.post('/api/heartbeat', async (req, res) => {
             }
             return res.json({ modified_at: new Date().toISOString(), sysinfo: true });
         }
-        
+
         // Check if sysinfo is older than 1 hour
         const updatedAt = new Date(sysinfo.updated_at).getTime();
         const oneHourAgo = Date.now() - (60 * 60 * 1000);
@@ -357,7 +357,7 @@ router.post('/api/sysinfo', async (req, res) => {
 router.post('/api/sysinfo_ver', async (req, res) => {
     const body = req.body || {};
     const deviceId = sanitizeStr(body.id || body.uuid || '', MAX_ID_LEN);
-    
+
     if (!deviceId || !isValidDeviceId(deviceId)) {
         return res.type('text/plain').send('');
     }
@@ -781,7 +781,7 @@ router.post('/api/login', async (req, res) => {
 
     try {
         const body = req.body || {};
-        
+
         // Debug: log exact body for Issue #104 investigation
         console.log('[API:LOGIN] Request from', ip, '- body:', JSON.stringify({
             username: body.username,
@@ -796,7 +796,7 @@ router.post('/api/login', async (req, res) => {
         const rawPassword = body.password;
         const username = typeof rawUsername === 'string' ? rawUsername.trim() : '';
         const password = typeof rawPassword === 'string' ? rawPassword : '';
-        
+
         // Debug: log extraction result for Issue #104
         console.log(`[API:LOGIN] Extracted credentials: username=${JSON.stringify(username)} (from raw type: ${typeof rawUsername}), password=${password ? '[SET]' : '[EMPTY]'}`);
 
@@ -858,6 +858,30 @@ router.post('/api/login', async (req, res) => {
 
         // Check if TOTP 2FA is required
         if (user.totpRequired) {
+            // Issue #104: stock RustDesk OSS clients (v1.4.6 and earlier) do
+            // not implement the `tfa_check` response shape and reject it as
+            // "bad response from server". When the operator has explicitly
+            // opted in via RUSTDESK_API_DISABLE_TOTP=true, skip 2FA on this
+            // (RustDesk-only) endpoint and issue an access token directly.
+            // The web panel routes still enforce TOTP independently.
+            if (config.rustdeskApiDisableTotp) {
+                authService.recordAttempt(username, ip, true);
+                const token = await authService.generateAccessToken(user.id, clientId, clientUuid, ip);
+                await db.updateLastLogin(user.id);
+                await db.logAction(
+                    user.id,
+                    'api_login_success_totp_bypassed',
+                    `Client: ${clientId || 'unknown'} (RUSTDESK_API_DISABLE_TOTP=true)`,
+                    ip
+                );
+                console.warn(`[API:LOGIN] TOTP bypass active for user '${username}' (RUSTDESK_API_DISABLE_TOTP=true)`);
+                return res.json({
+                    type: 'access_token',
+                    access_token: token,
+                    user: buildUserPayload(user)
+                });
+            }
+
             // Generate a temporary secret for the TFA session
             const tfaSessionSecret = require('crypto').randomBytes(16).toString('hex');
 

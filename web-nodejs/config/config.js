@@ -117,16 +117,31 @@ module.exports = {
     nodeEnv: NODE_ENV,
     isProduction,
     isDocker,
-    
+
     // Server
     port: parseInt(process.env.PORT, 10) || 5000,
     host: process.env.HOST || '127.0.0.1',
-    
+
     // RustDesk Client API (dedicated WAN-facing port)
     apiPort: parseInt(process.env.API_PORT, 10) || 21121,
     apiHost: process.env.API_HOST || '127.0.0.1',
     apiEnabled: (process.env.API_ENABLED || 'true').toLowerCase() !== 'false',
-    
+
+    // Issue #104 mitigation:
+    // Stock RustDesk OSS clients (e.g. v1.4.6) do not implement the
+    // `tfa_check` 2FA challenge response shape returned by this API when a
+    // user has TOTP enabled — they reject it as "bad response from server".
+    // Setting RUSTDESK_API_DISABLE_TOTP=true makes /api/login on the
+    // dedicated client API port (:21121) skip TOTP enforcement and issue an
+    // access token directly after password auth. The web panel (port 5000 /
+    // HTTPS 5443) is unaffected — TOTP is still enforced there.
+    // Trade-off: any caller of /api/login with a valid username+password
+    // will obtain a token without 2FA. Mitigations:
+    //   - keep :21121 firewalled to LAN/VPN where possible,
+    //   - use a dedicated low-privilege RustDesk service account,
+    //   - rely on device bans / API key for admin endpoints.
+    rustdeskApiDisableTotp: (process.env.RUSTDESK_API_DISABLE_TOTP || 'false').toLowerCase() === 'true',
+
     // HTTPS / SSL
     httpsEnabled: (process.env.HTTPS_ENABLED || 'false').toLowerCase() === 'true',
     httpsPort: parseInt(process.env.HTTPS_PORT, 10) || 5443,
@@ -134,7 +149,7 @@ module.exports = {
     sslKeyPath: process.env.SSL_KEY_PATH || '',
     sslCaPath: process.env.SSL_CA_PATH || '',
     httpRedirect: (process.env.HTTP_REDIRECT_HTTPS || 'true').toLowerCase() === 'true',
-    
+
     // Paths
     dataDir: DATA_DIR,
     keysPath: KEYS_PATH,
@@ -142,20 +157,20 @@ module.exports = {
     dbPath: DB_PATH,
     pubKeyPath: PUB_KEY_PATH,
     apiKeyPath: API_KEY_PATH,
-    
+
     // Server backend (BetterDesk Go server)
     serverBackend: 'betterdesk',
-    
+
     // BetterDesk Go Server API
     hbbsApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
     hbbsApiKey: apiKey,
     hbbsApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT || process.env.HBBS_API_TIMEOUT, 10) || 3000,
-    
+
     // BetterDesk Go Server API (preferred names)
     betterdeskApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
     betterdeskApiKey: process.env.BETTERDESK_API_KEY || apiKey,
     betterdeskApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT, 10) || 5000,
-    
+
     // TLS certificate verification (BD-2026-002)
     // Default is false (reject self-signed certs) for production safety.
     // Set ALLOW_SELF_SIGNED_CERTS=true only in dev/local environments where
@@ -164,20 +179,20 @@ module.exports = {
     // SMTP TLS verification — separate control for outbound email.
     // Set to 'true' when using a trusted SMTP server with valid certificates.
     smtpTlsVerify: (process.env.SMTP_TLS_VERIFY || 'false').toLowerCase() === 'true',
-    
+
     // Session
     sessionSecret: sessionSecret,
     sessionMaxAge: parseInt(process.env.SESSION_MAX_AGE, 10) || 24 * 60 * 60 * 1000, // 24 hours
-    
+
     // Rate limiting
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 60 * 1000, // 1 minute
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
     loginRateLimitMax: parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 5,
-    
+
     // i18n
     defaultLanguage: process.env.DEFAULT_LANGUAGE || 'en',
     langDir: path.join(__dirname, '..', 'lang'),
-    
+
     // WebSocket Proxy (for remote desktop web client)
     wsProxy: {
         hbbsHost: process.env.WS_HBBS_HOST || 'localhost',
@@ -185,7 +200,7 @@ module.exports = {
         hbbrHost: process.env.WS_HBBR_HOST || 'localhost',
         hbbrPort: parseInt(process.env.WS_HBBR_PORT, 10) || 21117
     },
-    
+
     // Database type: 'sqlite' (default) or 'postgres' (auto-detected from DATABASE_URL)
     dbType: (() => {
         const explicit = (process.env.DB_TYPE || '').toLowerCase();
@@ -195,7 +210,7 @@ module.exports = {
         return 'sqlite';
     })(),
     databaseUrl: process.env.DATABASE_URL || '',
-    
+
     // App info
     appName: 'BetterDesk Console',
     appVersion: pkgVersion
