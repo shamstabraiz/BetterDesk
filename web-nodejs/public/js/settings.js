@@ -1249,6 +1249,7 @@
         installBtn?.addEventListener('click', installUpdate);
         
         loadUpdateBackups();
+        loadBackupRetention();
     }
     
     async function checkForUpdates() {
@@ -1612,9 +1613,86 @@
         }, 2000);
     }
     
+    function formatBytes(n) {
+        if (!Number.isFinite(n) || n <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let i = 0;
+        let v = n;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    async function loadBackupRetention() {
+        const input = document.getElementById('backup-retention-input');
+        if (!input) return;
+        try {
+            const data = await Utils.api('/api/settings/backup/retention');
+            const count = (data && typeof data.count === 'number') ? data.count : 0;
+            input.value = String(count);
+        } catch {
+            input.value = '0';
+        }
+    }
+
+    async function saveBackupRetention() {
+        const input = document.getElementById('backup-retention-input');
+        if (!input) return;
+        const count = parseInt(input.value, 10);
+        if (!Number.isFinite(count) || count < 0 || count > 1000) {
+            Notifications.error(_('updates.retention_invalid'));
+            return;
+        }
+        try {
+            await Utils.api('/api/settings/backup/retention', {
+                method: 'PUT',
+                body: { count }
+            });
+            Notifications.success(_('updates.retention_saved'));
+        } catch (err) {
+            Notifications.error(err.message || _('errors.server_error'));
+        }
+    }
+
+    async function pruneBackupsNow() {
+        const input = document.getElementById('backup-retention-input');
+        const count = parseInt(input?.value, 10);
+        if (!Number.isFinite(count) || count <= 0) {
+            Notifications.error(_('updates.retention_required_for_prune'));
+            return;
+        }
+        if (!confirm(_('updates.prune_confirm').replace('{n}', String(count)))) return;
+        try {
+            const data = await Utils.api('/api/settings/updates/backups/prune', {
+                method: 'POST',
+                body: { keep: count }
+            });
+            const deleted = (data && Array.isArray(data.deleted)) ? data.deleted.length : 0;
+            Notifications.success(_('updates.prune_done').replace('{n}', String(deleted)));
+            await loadUpdateBackups();
+        } catch (err) {
+            Notifications.error(err.message || _('errors.server_error'));
+        }
+    }
+
+    async function deleteBackup(name, btn) {
+        if (!confirm(_('updates.delete_confirm').replace('{name}', name))) return;
+        if (btn) btn.disabled = true;
+        try {
+            await Utils.api(`/api/settings/updates/backups/${encodeURIComponent(name)}`, {
+                method: 'DELETE'
+            });
+            Notifications.success(_('updates.delete_success'));
+            await loadUpdateBackups();
+        } catch (err) {
+            Notifications.error(err.message || _('errors.server_error'));
+            if (btn) btn.disabled = false;
+        }
+    }
+
     async function loadUpdateBackups() {
         const listEl = document.getElementById('update-backups-list');
         if (!listEl) return;
+        const summaryEl = document.getElementById('backup-summary');
         
         try {
             const data = await Utils.api('/api/settings/updates/backups');
@@ -1622,30 +1700,42 @@
             
             if (!backups.length) {
                 listEl.innerHTML = `<p class="text-muted">${_('updates.no_backups')}</p>`;
+                if (summaryEl) summaryEl.textContent = '';
                 return;
+            }
+
+            const totalBytes = backups.reduce((acc, b) => acc + (b.sizeBytes || 0), 0);
+            if (summaryEl) {
+                summaryEl.textContent = `${_('updates.total_size')}: ${formatBytes(totalBytes)} · ${backups.length} ${_('updates.backups_count')}`;
             }
             
             let html = '<div class="update-backups">';
             for (const b of backups) {
                 const date = b.timestamp ? new Date(b.timestamp).toLocaleString() : '';
                 const sha = b.sha ? ` · ${Utils.escapeHtml(b.sha)}` : '';
+                const size = formatBytes(b.sizeBytes || 0);
                 html += `<div class="update-backup-item">
                     <div class="update-backup-info">
                         <strong>${Utils.escapeHtml(b.name)}</strong>
-                        <span class="text-muted">${date}${sha} · ${b.fileCount || b.filesBackedUp || 0} ${_('updates.files')}</span>
+                        <span class="text-muted">${date}${sha} · ${b.fileCount || b.filesBackedUp || 0} ${_('updates.files')} · ${size}</span>
                     </div>
-                    <button class="btn btn-sm btn-outline" data-backup="${Utils.escapeHtml(b.name)}">
-                        <span class="material-icons">restore</span> ${_('updates.restore')}
-                    </button>
+                    <div class="update-backup-actions">
+                        <button class="btn btn-sm btn-outline" data-backup-restore="${Utils.escapeHtml(b.name)}">
+                            <span class="material-icons">restore</span> ${_('updates.restore')}
+                        </button>
+                        <button class="btn btn-sm btn-danger" data-backup-delete="${Utils.escapeHtml(b.name)}">
+                            <span class="material-icons">delete</span> ${_('updates.delete')}
+                        </button>
+                    </div>
                 </div>`;
             }
             html += '</div>';
             listEl.innerHTML = html;
             
             // Attach restore handlers
-            listEl.querySelectorAll('[data-backup]').forEach(btn => {
+            listEl.querySelectorAll('[data-backup-restore]').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    const name = btn.dataset.backup;
+                    const name = btn.dataset.backupRestore;
                     if (!confirm(_('updates.restore_confirm'))) return;
                     
                     btn.disabled = true;
@@ -1662,9 +1752,26 @@
                     }
                 });
             });
+
+            // Attach delete handlers
+            listEl.querySelectorAll('[data-backup-delete]').forEach(btn => {
+                btn.addEventListener('click', () => deleteBackup(btn.dataset.backupDelete, btn));
+            });
         } catch {
             listEl.innerHTML = `<p class="text-muted">${_('updates.no_backups')}</p>`;
+            if (summaryEl) summaryEl.textContent = '';
         }
     }
+
+    // Wire retention controls (idempotent — handles tab re-mount)
+    document.addEventListener('click', (ev) => {
+        const target = ev.target.closest('#backup-retention-save, #backup-prune-now');
+        if (!target) return;
+        if (target.id === 'backup-retention-save') saveBackupRetention();
+        else if (target.id === 'backup-prune-now') pruneBackupsNow();
+    });
+
+    // Expose retention loader so tab activation can call it
+    window.loadBackupRetention = loadBackupRetention;
     
 })();

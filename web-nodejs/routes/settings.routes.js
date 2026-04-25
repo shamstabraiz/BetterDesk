@@ -679,4 +679,92 @@ router.post('/api/settings/updates/restore', requireAuth, requirePermission('ser
     }
 });
 
+/**
+ * DELETE /api/settings/updates/backups/:name - Delete a single pre-update backup
+ */
+router.delete('/api/settings/updates/backups/:name', requireAuth, requirePermission('server.config'), async (req, res) => {
+    try {
+        const name = req.params.name;
+        const result = updateService.deleteBackup(name);
+        await db.logAction(req.session?.userId, 'backup_deleted', `Deleted update backup: ${name}`, req.ip);
+        res.json({ success: true, data: result });
+    } catch (err) {
+        console.error('Delete backup error:', err);
+        // 400 for validation errors, 500 for unexpected ones
+        const status = /invalid|not found|outside/i.test(err.message) ? 400 : 500;
+        res.status(status).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * POST /api/settings/updates/backups/prune - Apply retention now
+ * Body: { keep: number } — keep N newest, delete the rest
+ */
+router.post('/api/settings/updates/backups/prune', requireAuth, requirePermission('server.config'), async (req, res) => {
+    try {
+        const keep = parseInt(req.body?.keep, 10);
+        if (!Number.isFinite(keep) || keep <= 0) {
+            return res.status(400).json({ success: false, error: 'keep must be a positive integer' });
+        }
+        const result = updateService.pruneBackups(keep);
+        if (result.deleted.length) {
+            await db.logAction(
+                req.session?.userId, 'backup_pruned',
+                `Manual prune: kept ${keep}, deleted ${result.deleted.length} backup(s)`,
+                req.ip
+            );
+        }
+        res.json({ success: true, data: result });
+    } catch (err) {
+        console.error('Prune backups error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/settings/backup/retention - Read current retention count
+ * Resolution: DB setting → env var BACKUP_RETENTION_COUNT → 0 (unlimited)
+ */
+router.get('/api/settings/backup/retention', requireAuth, requirePermission('server.config'), async (req, res) => {
+    try {
+        const dbVal = await db.getSetting('backup_retention_count');
+        let count = 0;
+        let source = 'unset';
+        if (dbVal !== null && dbVal !== undefined && dbVal !== '') {
+            const parsed = parseInt(dbVal, 10);
+            if (Number.isFinite(parsed)) { count = parsed; source = 'database'; }
+        } else if (process.env.BACKUP_RETENTION_COUNT) {
+            const parsed = parseInt(process.env.BACKUP_RETENTION_COUNT, 10);
+            if (Number.isFinite(parsed)) { count = parsed; source = 'environment'; }
+        }
+        res.json({ success: true, data: { count, source } });
+    } catch (err) {
+        console.error('Get retention error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
+/**
+ * PUT /api/settings/backup/retention - Update retention count
+ * Body: { count: number } — 0 means "keep all"
+ */
+router.put('/api/settings/backup/retention', requireAuth, requirePermission('server.config'), async (req, res) => {
+    try {
+        const count = parseInt(req.body?.count, 10);
+        if (!Number.isFinite(count) || count < 0 || count > 1000) {
+            return res.status(400).json({ success: false, error: 'count must be an integer between 0 and 1000' });
+        }
+        await db.setSetting('backup_retention_count', String(count));
+        await db.logAction(
+            req.session?.userId, 'backup_retention_changed',
+            `Backup retention set to ${count === 0 ? 'unlimited' : count}`,
+            req.ip
+        );
+        res.json({ success: true, data: { count } });
+    } catch (err) {
+        console.error('Set retention error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
 module.exports = router;

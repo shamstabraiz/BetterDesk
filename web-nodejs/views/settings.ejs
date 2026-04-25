@@ -753,6 +753,23 @@
                     <p class="settings-section-desc">${_('updates.backups_desc')}</p>
                 </div>
                 <div class="settings-section-body">
+                    <div class="backup-retention-row">
+                        <label for="backup-retention-input" class="backup-retention-label">
+                            ${_('updates.retention_label')}
+                            <small class="text-muted">${_('updates.retention_hint')}</small>
+                        </label>
+                        <div class="backup-retention-controls">
+                            <input type="number" id="backup-retention-input" min="0" max="1000" step="1" value="0">
+                            <button class="btn btn-sm btn-primary" id="backup-retention-save">
+                                ${_('common.save')}
+                            </button>
+                            <button class="btn btn-sm btn-outline" id="backup-prune-now">
+                                <span class="material-icons">cleaning_services</span>
+                                ${_('updates.prune_now')}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="backup-summary text-muted" id="backup-summary"></div>
                     <div id="update-backups-list">
                         <p class="text-muted">${_('common.loading')}</p>
                     </div>

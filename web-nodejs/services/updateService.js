@@ -768,6 +768,31 @@ async function createPreUpdateBackup(allFiles) {
         files: allFiles.filter(f => f.component === 'console' && f.localPath).map(f => f.localPath)
     }, null, 2));
 
+    // Auto-prune old backups based on retention setting.
+    // Resolution order: DB setting `backup_retention_count` → env var
+    // BACKUP_RETENTION_COUNT → 0 (keep all). Operator-controlled.
+    try {
+        let retention = 0;
+        try {
+            const db = require('./database');
+            const dbVal = await db.getSetting('backup_retention_count');
+            if (dbVal !== null && dbVal !== undefined && dbVal !== '') {
+                retention = parseInt(dbVal, 10);
+            }
+        } catch (_e) { /* DB unavailable — fall through to env */ }
+        if (!Number.isFinite(retention) || retention <= 0) {
+            retention = parseInt(process.env.BACKUP_RETENTION_COUNT, 10);
+        }
+        if (Number.isFinite(retention) && retention > 0) {
+            const pruneResult = pruneBackups(retention);
+            if (pruneResult.deleted.length) {
+                console.log(`[UPDATE] Pruned ${pruneResult.deleted.length} old backup(s) (retention=${retention})`);
+            }
+        }
+    } catch (err) {
+        console.warn(`[UPDATE] Auto-prune failed: ${err.message}`);
+    }
+
     return { backupPath, backedUp };
 }
 
@@ -1034,6 +1059,28 @@ function restartService(serviceName) {
 }
 
 /**
+ * Recursively compute total size in bytes of a directory.
+ * Returns 0 on error so the UI can still render.
+ */
+function getDirectorySize(dirPath) {
+    let total = 0;
+    try {
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const full = path.join(dirPath, entry.name);
+            try {
+                if (entry.isDirectory()) {
+                    total += getDirectorySize(full);
+                } else if (entry.isFile()) {
+                    total += fs.statSync(full).size;
+                }
+            } catch (_e) { /* skip unreadable entry */ }
+        }
+    } catch (_e) { /* skip unreadable dir */ }
+    return total;
+}
+
+/**
  * List pre-update backups (newest first).
  */
 function listBackups() {
@@ -1054,17 +1101,75 @@ function listBackups() {
                 sha: (m.sha || '').slice(0, 7),
                 timestamp: m.timestamp || '',
                 filesBackedUp: m.filesBackedUp || 0,
-                fileCount: m.filesBackedUp || 0
+                fileCount: m.filesBackedUp || 0,
+                sizeBytes: getDirectorySize(dir)
             };
         })
         .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
 /**
+ * Validate a backup directory name to prevent path traversal.
+ * Only allows the canonical `pre-update-{ISO-timestamp}` format.
+ */
+function isValidBackupName(name) {
+    return typeof name === 'string' && /^pre-update-[\d\-T]+$/.test(name);
+}
+
+/**
+ * Recursively delete a directory. Refuses to delete anything outside
+ * BACKUP_DIR to defend against path-traversal bugs upstream.
+ */
+function deleteBackup(name) {
+    if (!isValidBackupName(name)) {
+        throw new Error('Invalid backup name');
+    }
+    const target = path.resolve(BACKUP_DIR, name);
+    const root = path.resolve(BACKUP_DIR);
+    if (!target.startsWith(root + path.sep) && target !== root) {
+        throw new Error('Backup path is outside the backup directory');
+    }
+    if (target === root) {
+        throw new Error('Refusing to delete the backup directory itself');
+    }
+    if (!fs.existsSync(target)) {
+        throw new Error('Backup not found');
+    }
+    fs.rmSync(target, { recursive: true, force: true });
+    return { deleted: name };
+}
+
+/**
+ * Apply retention: keep the `keep` newest backups, delete older ones.
+ * keep <= 0 means "keep everything" (no-op).
+ */
+function pruneBackups(keep) {
+    const n = parseInt(keep, 10);
+    if (!Number.isFinite(n) || n <= 0) {
+        return { kept: -1, deleted: [] };
+    }
+    const all = listBackups();
+    if (all.length <= n) {
+        return { kept: n, deleted: [] };
+    }
+    const toDelete = all.slice(n);
+    const deleted = [];
+    for (const b of toDelete) {
+        try {
+            deleteBackup(b.name);
+            deleted.push(b.name);
+        } catch (err) {
+            console.error(`[UPDATE] Failed to prune backup ${b.name}: ${err.message}`);
+        }
+    }
+    return { kept: n, deleted };
+}
+
+/**
  * Restore console files from a pre-update backup and revert the SHA.
  */
 function restoreFromBackup(backupName) {
-    if (!/^pre-update-[\d\-T]+$/.test(backupName)) throw new Error('Invalid backup name');
+    if (!isValidBackupName(backupName)) throw new Error('Invalid backup name');
     const backupPath = path.join(BACKUP_DIR, backupName);
     if (!fs.existsSync(backupPath)) throw new Error('Backup not found');
 
@@ -1096,6 +1201,8 @@ module.exports = {
     applyUpdate,
     restartService,
     listBackups,
+    deleteBackup,
+    pruneBackups,
     restoreFromBackup,
     getLocalVersion,
     getLocalSHA,
