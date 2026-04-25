@@ -2915,6 +2915,8 @@
     "no_restart_needed": "Restart nie jest wymagany",
     "complete": "Aktualizacja zastosowana",
     "complete_summary": "Aktualizacja została zastosowana pomyślnie.",
+    "complete_with_errors": "Aktualizacja zakończona, ale niektóre kroki się nie powiodły. Szczegóły poniżej.",
+    "modal_done_with_errors_title": "Aktualizacja zakończona z błędami",
     "console_will_restart": "Proces konsoli zostanie teraz zrestartowany…",
     "restart_complete_msg": "Konsola zakończyła restart. Kliknij Odśwież, aby załadować nową wersję. Strona zostanie odświeżona automatycznie za 8 sekund.",
     "refresh_recommended": "Zmieniły się statyczne zasoby — odśwież stronę, aby zobaczyć nowy interfejs.",

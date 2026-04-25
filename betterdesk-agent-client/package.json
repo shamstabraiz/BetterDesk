@@ -7,7 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "test": "vitest run --environment node",
+    "test:watch": "vitest --environment node",
+    "tauri": "tauri",
+    "tauri:build": "APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1 tauri build",
+    "tauri:build:deb": "APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1 tauri build --bundles deb",
+    "tauri:build:appimage": "APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1 tauri build --bundles appimage",
+    "tauri:dev": "tauri dev"
   },
   "dependencies": {
     "@solidjs/router": "^0.14.0",
@@ -17,6 +23,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
     "typescript": "^5.6.0",
+    "vitest": "^3.2.4",
     "vite": "^6.0.0",
     "vite-plugin-solid": "^2.10.0"
   }

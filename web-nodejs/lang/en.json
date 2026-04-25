@@ -2915,6 +2915,8 @@
     "no_restart_needed": "No restart required",
     "complete": "Update applied",
     "complete_summary": "The update has been applied successfully.",
+    "complete_with_errors": "The update finished, but some steps failed. See details below.",
+    "modal_done_with_errors_title": "Update finished with errors",
     "console_will_restart": "Console process will restart now…",
     "restart_complete_msg": "The console finished restarting. Click reload to load the new version. The page will reload automatically in 8 seconds.",
     "refresh_recommended": "Static assets changed — reload the page to see the new UI.",

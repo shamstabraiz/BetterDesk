@@ -144,7 +144,7 @@
     "api_key_hint": "Utwórz klucz API w konsoli webowej: Serwer → Klucze API.",
     "cdap_port": "Port CDAP",
     "auto_start_sidecar": "Automatyczne uruchamianie agenta CDAP",
-    "auto_start_sidecar_hint": "Uruchamia agenta Go CDAP razem z aplikacją",
+    "auto_start_sidecar_hint": "Uruchamia połączenie CDAP automatycznie podczas startu aplikacji",
     "section_privacy": "Prywatność i uprawnienia",
     "allow_screen_capture": "Zezwól na przechwytywanie ekranu",
     "allow_screen_capture_hint": "Operatorzy mogą wyświetlać i sterować ekranem urządzenia",

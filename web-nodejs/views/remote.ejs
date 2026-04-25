@@ -196,6 +196,10 @@
                         <span class="material-icons">refresh</span>
                         ${_('remote.reconnect')}
                     </button>
+                    <button class="btn btn-secondary session-btn-cdap-fallback" style="display:none;margin-top:8px;" title="${_('remote.cdap_fallback_hint')}">
+                        <span class="material-icons">photo_camera</span>
+                        ${_('remote.use_cdap_fallback')}
+                    </button>
                 </div>
             </div>
         </div>
@@ -297,6 +301,7 @@
 <script nonce="${cspNonce}">
     window.__initialDeviceId = ` + JSON.stringify(deviceId) + `;
     window.__initialDeviceName = ` + JSON.stringify(device && device.hostname ? device.hostname : '') + `;
+    window.__capabilities = ` + JSON.stringify(capabilities || { transport: 'rd' }) + `;
 </script>
 
 `

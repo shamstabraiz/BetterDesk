@@ -1183,7 +1183,15 @@ class RDClient {
 
     _handleError(err) {
         console.error('[RDClient]', err);
-        this._emit('error', err.message || err);
+        const msg = err && err.message ? err.message : String(err);
+        // Detect peer-offline scenarios where the agent is reachable through
+        // bd-signal/CDAP but not through the RustDesk relay (no peer registration).
+        // In that case, signal the UI that a CDAP fallback viewer is available.
+        const offlineHint = /target offline|relay refused|peer.*offline|not online|not registered/i.test(msg);
+        this._emit('error', msg, { cdapFallback: offlineHint });
+        if (offlineHint) {
+            this._emit('cdap_fallback_available', this.deviceId);
+        }
         this._cleanup();
         this._setState('error');
     }

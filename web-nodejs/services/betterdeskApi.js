@@ -432,7 +432,9 @@ function normalisePeer(peer) {
         status_tier: peer.live_status || (peer.live_online ? 'online' : 'offline'),
         uuid: peer.uuid || '',
         nat_type: peer.nat_type || 0,
-        disabled: !!(peer.disabled || peer.soft_deleted)
+        disabled: !!(peer.disabled || peer.soft_deleted),
+        device_type: peer.device_type || '',
+        cdap_connected: !!peer.cdap_connected
     };
 }
 

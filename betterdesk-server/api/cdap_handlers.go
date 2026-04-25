@@ -3,10 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -17,8 +19,136 @@ import (
 // commandCounter generates unique command IDs for CDAP commands.
 var commandCounter atomic.Int64
 
-// cdapDeviceIDRegexp validates CDAP device ID format: "CDAP-" + 6-16 hex chars, or standard peer IDs.
-var cdapDeviceIDRegexp = regexp.MustCompile(`^(CDAP-[A-Fa-f0-9]{6,16}|[A-Za-z0-9_-]{6,16})$`)
+// cdapDeviceIDRegexp validates CDAP device ID format:
+//   - "CDAP-" + 6-16 hex chars  (e.g. CDAP-1A2B3C4D)
+//   - "BD-"   + 16-32 hex chars (e.g. BD-37109D6FA4527A4C7A272E7D749C9D36)
+//   - standard peer IDs: 1-64 alphanumeric/dash/underscore chars
+var cdapDeviceIDRegexp = regexp.MustCompile(`^(CDAP-[A-Fa-f0-9]{6,16}|BD-[A-Fa-f0-9]{16,32}|[A-Za-z0-9_-]{1,64})$`)
+
+type desktopWSMessage struct {
+	Type        string          `json:"type"`
+	InputType   string          `json:"input_type,omitempty"`
+	X           int             `json:"x,omitempty"`
+	Y           int             `json:"y,omitempty"`
+	Button      int             `json:"button,omitempty"`
+	Key         string          `json:"key,omitempty"`
+	Code        string          `json:"code,omitempty"`
+	Text        string          `json:"text,omitempty"`
+	Modifiers   json.RawMessage `json:"modifiers,omitempty"`
+	Down        *bool           `json:"down,omitempty"`
+	DeltaX      int             `json:"delta_x,omitempty"`
+	DeltaY      int             `json:"delta_y,omitempty"`
+	DeltaXCamel int             `json:"deltaX,omitempty"`
+	DeltaYCamel int             `json:"deltaY,omitempty"`
+	Width       int             `json:"width,omitempty"`
+	Height      int             `json:"height,omitempty"`
+	Format      string          `json:"format,omitempty"`
+	Data        string          `json:"data,omitempty"`
+	SessionID   string          `json:"session_id,omitempty"`
+	Index       int             `json:"index,omitempty"`
+	Raw         json.RawMessage `json:"-"`
+}
+
+func buildDesktopInputPayload(msg *desktopWSMessage) *cdap.DesktopInputPayload {
+	inputType := strings.ToLower(strings.TrimSpace(msg.InputType))
+	switch inputType {
+	case "mouse":
+		mouseType := msg.Button & 7
+		payload := &cdap.DesktopInputPayload{
+			X:      msg.X,
+			Y:      msg.Y,
+			Button: decodeDesktopMouseButton(msg.Button >> 3),
+			DeltaX: pickDesktopDelta(msg.DeltaX, msg.DeltaXCamel),
+			DeltaY: pickDesktopDelta(msg.DeltaY, msg.DeltaYCamel),
+		}
+		switch mouseType {
+		case 1:
+			payload.Type = "mouse_down"
+		case 2:
+			payload.Type = "mouse_up"
+		case 3:
+			payload.Type = "mouse_scroll"
+		default:
+			payload.Type = "mouse_move"
+		}
+		return payload
+	case "keyboard":
+		pressed := msg.Down == nil || *msg.Down
+		payload := &cdap.DesktopInputPayload{
+			Key:       msg.Key,
+			Code:      msg.Code,
+			Modifiers: decodeDesktopModifiers(msg.Modifiers),
+			Pressed:   pressed,
+		}
+		if pressed {
+			payload.Type = "key_press"
+		} else {
+			payload.Type = "key_release"
+		}
+		return payload
+	case "text":
+		if strings.TrimSpace(msg.Text) == "" {
+			return nil
+		}
+		return &cdap.DesktopInputPayload{
+			Type: "text",
+			Text: msg.Text,
+		}
+	default:
+		return nil
+	}
+}
+
+func pickDesktopDelta(primary, secondary int) int {
+	if primary != 0 {
+		return primary
+	}
+	return secondary
+}
+
+func decodeDesktopMouseButton(buttonBits int) int {
+	switch buttonBits {
+	case 1:
+		return 1
+	case 2:
+		return 2
+	case 4:
+		return 3
+	default:
+		return 0
+	}
+}
+
+func decodeDesktopModifiers(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	var flags map[string]bool
+	if err := json.Unmarshal(raw, &flags); err == nil {
+		modifiers := make([]string, 0, 4)
+		if flags["ctrl"] || flags["control"] {
+			modifiers = append(modifiers, "ctrl")
+		}
+		if flags["alt"] {
+			modifiers = append(modifiers, "alt")
+		}
+		if flags["shift"] {
+			modifiers = append(modifiers, "shift")
+		}
+		if flags["meta"] || flags["super"] {
+			modifiers = append(modifiers, "super")
+		}
+		return modifiers
+	}
+
+	var modifiers []string
+	if err := json.Unmarshal(raw, &modifiers); err == nil {
+		return modifiers
+	}
+
+	return nil
+}
 
 // handleCDAPDeviceInfo returns full device info for a connected CDAP device.
 // GET /api/cdap/devices/{id}
@@ -588,49 +718,40 @@ func (s *Server) handleCDAPDesktop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Dead-man switch (Phase 3.5): every browser read has a hard deadline.
+	// The web client emits `presence_ping` every 15s; missing two pings in a
+	// row terminates the session so a crashed/frozen operator browser does
+	// not leave the agent capturing forever. The deadline resets on every
+	// successful read, including pings.
+	const desktopBrowserPresenceTimeout = 30 * time.Second
+
 	for {
-		_, msgData, err := wsConn.Read(ctx)
+		readCtx, readCancel := context.WithTimeout(ctx, desktopBrowserPresenceTimeout)
+		_, msgData, err := wsConn.Read(readCtx)
+		readCancel()
 		if err != nil {
-			s.cdapGw.EndDesktopSession(ctx, session.ID, "browser disconnected")
+			reason := "browser disconnected"
+			if errors.Is(err, context.DeadlineExceeded) {
+				reason = "browser presence timeout"
+			}
+			s.cdapGw.EndDesktopSession(ctx, session.ID, reason)
 			return
 		}
 
-		var msg struct {
-			Type      string          `json:"type"`
-			InputType string          `json:"input_type,omitempty"`
-			X         int             `json:"x,omitempty"`
-			Y         int             `json:"y,omitempty"`
-			Button    int             `json:"button,omitempty"`
-			Key       string          `json:"key,omitempty"`
-			Code      string          `json:"code,omitempty"`
-			Modifiers int             `json:"modifiers,omitempty"`
-			DeltaX    int             `json:"delta_x,omitempty"`
-			DeltaY    int             `json:"delta_y,omitempty"`
-			Width     int             `json:"width,omitempty"`
-			Height    int             `json:"height,omitempty"`
-			Format    string          `json:"format,omitempty"`
-			Data      string          `json:"data,omitempty"`
-			SessionID string          `json:"session_id,omitempty"`
-			Index     int             `json:"index,omitempty"`
-			Raw       json.RawMessage `json:"-"`
-		}
+		var msg desktopWSMessage
 		if err := json.Unmarshal(msgData, &msg); err != nil {
 			continue
 		}
 		msg.Raw = json.RawMessage(msgData)
 
 		switch msg.Type {
+		case "presence_ping":
+			// Read deadline already reset above — nothing else to do.
+			continue
 		case "input":
-			input := &cdap.DesktopInputPayload{
-				InputType: msg.InputType,
-				X:         msg.X,
-				Y:         msg.Y,
-				Button:    msg.Button,
-				Key:       msg.Key,
-				Code:      msg.Code,
-				Modifiers: msg.Modifiers,
-				DeltaX:    msg.DeltaX,
-				DeltaY:    msg.DeltaY,
+			input := buildDesktopInputPayload(&msg)
+			if input == nil {
+				continue
 			}
 			if err := s.cdapGw.RelayDesktopInput(ctx, session.ID, input); err != nil {
 				s.cdapGw.EndDesktopSession(ctx, session.ID, "relay input failed")

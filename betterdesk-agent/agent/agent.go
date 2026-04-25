@@ -1,12 +1,15 @@
 package agent
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,8 +41,15 @@ type Agent struct {
 	sessionID string
 
 	// Session managers
-	terminals    sync.Map // session_id → *TerminalSession
-	fileHandlers sync.Map // session_id → context.CancelFunc
+	terminals      sync.Map // session_id → *TerminalSession
+	fileHandlers   sync.Map // session_id → context.CancelFunc
+	desktopStreams sync.Map // session_id → *DesktopStreamer
+
+	// Consent system: when require_consent=true, handleDesktopStart prints
+	// CONSENT_REQUEST to stdout and waits on a channel stored here.
+	// The Tauri wrapper reads stdout, shows a dialog, then writes
+	// CONSENT_GRANTED / CONSENT_DENIED to stdin.
+	consentWaiters sync.Map // session_id → chan bool
 
 	// System modules
 	sysCollector *SystemCollector
@@ -72,6 +82,13 @@ func New(cfg *Config, version string) *Agent {
 func (a *Agent) Run() error {
 	delay := time.Duration(a.cfg.ReconnectSec) * time.Second
 	maxDelay := time.Duration(a.cfg.MaxReconnect) * time.Second
+
+	// Start stdin reader for consent responses when running as a Tauri sidecar.
+	// The Tauri wrapper writes "CONSENT_GRANTED:<session_id>" or
+	// "CONSENT_DENIED:<session_id>" to our stdin after showing the UI dialog.
+	if a.cfg.RequireConsent {
+		go a.stdinConsentReader()
+	}
 
 	for {
 		select {
@@ -316,12 +333,16 @@ func (a *Agent) dispatch(msg *Message) {
 	// ── Clipboard ──
 	case "clipboard_set":
 		a.handleClipboardSet(msg)
+	case "clipboard_get":
+		a.handleClipboardGet(msg)
 
-	// ── Desktop (basic screenshot mode) ──
+	// ── Desktop (Screenshot + Streaming) ──
 	case "desktop_start":
 		a.handleDesktopStart(msg)
+	case "desktop_stop":
+		a.handleDesktopStop(msg)
 	case "desktop_input":
-		// No input injection in os_agent mode
+		a.handleDesktopInput(msg)
 
 	// ── Video / Audio (not supported in os_agent) ──
 	case "video_start", "audio_start", "audio_input":
@@ -330,7 +351,9 @@ func (a *Agent) dispatch(msg *Message) {
 	// ── Codec / Media Control ──
 	case "codec_offer":
 		a.handleCodecOffer(msg)
-	case "monitor_select", "keyframe_request", "key_exchange", "quality_adjust":
+	case "monitor_select":
+		a.handleMonitorSelect(msg)
+	case "keyframe_request", "key_exchange", "quality_adjust":
 		// Acknowledged — no real-time media to adjust
 
 	// ── Errors ──
@@ -628,65 +651,29 @@ func (a *Agent) handleClipboardSet(msg *Message) {
 	}
 }
 
-// ── Desktop (Screenshot Mode) ────────────────────────────────────────
+// handleClipboardGet responds with the current clipboard text contents.
+// Capability gated by cfg.Clipboard; no-op (with short error response) when
+// disabled so the operator UI can show a meaningful state.
+func (a *Agent) handleClipboardGet(msg *Message) {
+	var p struct {
+		RequestID string `json:"request_id"`
+	}
+	_ = json.Unmarshal(msg.Payload, &p)
 
-func (a *Agent) handleDesktopStart(msg *Message) {
-	if !a.cfg.Screenshot {
+	resp := map[string]any{
+		"request_id": p.RequestID,
+		"format":     "text",
+	}
+
+	if !a.cfg.Clipboard {
+		resp["error"] = "clipboard capability disabled"
+		resp["data"] = ""
+		a.sendMessage("clipboard_data", resp)
 		return
 	}
-	var p struct {
-		SessionID string `json:"session_id"`
-		Width     int    `json:"width"`
-		Height    int    `json:"height"`
-		Quality   int    `json:"quality"`
-		FPS       int    `json:"fps"`
-	}
-	if err := json.Unmarshal(msg.Payload, &p); err != nil {
-		return
-	}
 
-	// In os_agent mode, send a single screenshot frame
-	go func() {
-		data, err := CaptureScreenshot()
-		if err != nil {
-			log.Printf("[agent] Screenshot capture failed: %v", err)
-			return
-		}
-		a.sendMessage("desktop_frame", map[string]any{
-			"session_id": p.SessionID,
-			"format":     "jpeg",
-			"width":      0,
-			"height":     0,
-			"data":       base64.StdEncoding.EncodeToString(data),
-			"timestamp":  time.Now().UnixMilli(),
-		})
-	}()
-}
-
-func (a *Agent) captureAndSendScreenshot() (any, error) {
-	data, err := CaptureScreenshot()
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{
-		"format": "jpeg",
-		"size":   len(data),
-		"data":   base64.StdEncoding.EncodeToString(data),
-	}, nil
-}
-
-// ── Codec Offer ──────────────────────────────────────────────────────
-
-func (a *Agent) handleCodecOffer(msg *Message) {
-	var p struct {
-		SessionID string `json:"session_id"`
-	}
-	json.Unmarshal(msg.Payload, &p)
-	a.sendMessage("codec_answer", map[string]any{
-		"session_id":  p.SessionID,
-		"video_codec": "jpeg",
-		"audio_codec": "",
-	})
+	resp["data"] = a.clipboard.Get()
+	a.sendMessage("clipboard_data", resp)
 }
 
 // ── Session Cleanup ──────────────────────────────────────────────────
@@ -702,6 +689,11 @@ func (a *Agent) cleanupSessions() {
 			cancel()
 		}
 		a.fileHandlers.Delete(key)
+		return true
+	})
+	a.desktopStreams.Range(func(key, value any) bool {
+		value.(*DesktopStreamer).Stop()
+		a.desktopStreams.Delete(key)
 		return true
 	})
 }
@@ -733,6 +725,22 @@ func (a *Agent) sendMessage(msgType string, payload any) error {
 	return a.conn.Write(ctx, websocket.MessageText, raw)
 }
 
+// sendBinary writes a raw binary WebSocket frame on the agent's CDAP
+// connection. Used by high-throughput media paths (e.g. desktop JPEG
+// frames) where the per-message JSON+base64 cost is the bottleneck.
+// Callers must encode any framing they need (e.g. a session ID prefix)
+// directly inside the data buffer.
+func (a *Agent) sendBinary(data []byte) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.conn == nil {
+		return fmt.Errorf("no connection")
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
+	defer cancel()
+	return a.conn.Write(ctx, websocket.MessageBinary, data)
+}
+
 func (a *Agent) readMessage() (*Message, error) {
 	_, data, err := a.conn.Read(a.ctx)
 	if err != nil {
@@ -743,4 +751,42 @@ func (a *Agent) readMessage() (*Message, error) {
 		return nil, fmt.Errorf("invalid message: %w", err)
 	}
 	return &msg, nil
+}
+
+// ── Consent stdin reader ──────────────────────────────────────────────────
+//
+// When running as a Tauri sidecar (require_consent=true), the Tauri wrapper
+// shows a native dialog and writes the response back on stdin:
+//
+//	CONSENT_GRANTED:<session_id>
+//	CONSENT_DENIED:<session_id>
+//
+// This goroutine reads these lines and signals the waiting handleDesktopStart.
+func (a *Agent) stdinConsentReader() {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		var granted bool
+		var sessionID string
+		switch {
+		case strings.HasPrefix(line, "CONSENT_GRANTED:"):
+			granted = true
+			sessionID = strings.TrimPrefix(line, "CONSENT_GRANTED:")
+		case strings.HasPrefix(line, "CONSENT_DENIED:"):
+			granted = false
+			sessionID = strings.TrimPrefix(line, "CONSENT_DENIED:")
+		default:
+			continue
+		}
+		sessionID = strings.TrimSpace(sessionID)
+		if sessionID == "" {
+			continue
+		}
+		if ch, ok := a.consentWaiters.Load(sessionID); ok {
+			select {
+			case ch.(chan bool) <- granted:
+			default:
+			}
+		}
+	}
 }

@@ -1,154 +1,348 @@
 import { Component, createSignal, onMount, onCleanup, Show } from "solid-js";
-import { Router, Route, useNavigate, useLocation } from "@solidjs/router";
+import { HashRouter as Router, Route } from "@solidjs/router";
 import StatusPanel from "./components/StatusPanel";
 import SetupWizard from "./components/SetupWizard";
 import ChatPanel from "./components/ChatPanel";
 import HelpRequest from "./components/HelpRequest";
 import SettingsPanel from "./components/SettingsPanel";
-import AdminRequired from "./components/AdminRequired";
+import ConsentDialog from "./components/ConsentDialog";
+import SudoAuthDialog from "./components/SudoAuthDialog";
 import { initI18n, t } from "./lib/i18n";
+import { frontendLog } from "./lib/logger";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-// Component that handles navigation events from the tray menu.
-// Must be inside <Router> to access useNavigate().
-const NavigationListener: Component = () => {
-  const navigate = useNavigate();
+// ── Navigation listener (tray menu events → router) ──────────────────────────
+const getCurrentHashRoute = (): string => {
+  if (typeof window === "undefined") {
+    return "/";
+  }
 
+  const raw = window.location.hash.replace(/^#/, "") || "/";
+  return raw.startsWith("/") ? raw : `/${raw}`;
+};
+
+const getCurrentHashPath = (): string => getCurrentHashRoute().split("?")[0] || "/";
+
+const navigateHashRoute = (route: string): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const normalized = route.startsWith("/") ? route : `/${route}`;
+  if (getCurrentHashRoute() === normalized) {
+    return;
+  }
+
+  window.location.hash = normalized;
+};
+
+const NavigationListener: Component = () => {
   onMount(() => {
     const unlistenPromise = listen<string>("navigate", (event) => {
-      try {
-        const route = event.payload;
-        if (typeof route === "string" && route.startsWith("/")) {
-          navigate(route);
-        }
-      } catch {
-        // Ignore malformed navigation payloads — safer to stay on current page.
+      const route = event.payload;
+      if (typeof route === "string" && route.startsWith("/")) {
+        navigateHashRoute(route);
       }
     });
-
-    onCleanup(async () => {
-      try {
-        const un = await unlistenPromise;
-        un();
-      } catch {
-        // Cleanup is best-effort on unmount.
-      }
-    });
+    onCleanup(async () => (await unlistenPromise)());
   });
 
   return null;
 };
 
-// Bottom tab bar — provides in-app navigation for the small agent window.
-const BottomNav: Component = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+// ── Bottom navigation bar ─────────────────────────────────────────────────────
+// Visible tabs: Status | Chat | Help | Settings
+// The "Close" action is in the overflow menu (requires sudo auth for non-admins).
+interface BottomNavProps {
+  isAdmin: boolean;
+  onQuit: () => void;
+}
 
-  const tabs = [
+interface RegisteredShellProps {
+  isAdmin: boolean;
+  onQuit: () => void;
+}
+
+const BottomNav: Component<BottomNavProps> = (props) => {
+  const [showMenu, setShowMenu] = createSignal(false);
+  const [currentPath, setCurrentPath] = createSignal(getCurrentHashPath());
+
+  const isActive = (path: string) =>
+    path === "/" ? currentPath() === "/" : currentPath().startsWith(path);
+
+  // Close overflow menu on outside click
+  onMount(() => {
+    const handler = () => setShowMenu(false);
+    const syncPath = () => setCurrentPath(getCurrentHashPath());
+
+    document.addEventListener("click", handler, { capture: true });
+    window.addEventListener("hashchange", syncPath);
+    onCleanup(() => {
+      document.removeEventListener("click", handler, { capture: true });
+      window.removeEventListener("hashchange", syncPath);
+    });
+  });
+
+  const mainTabs = [
     { path: "/", icon: "monitoring", label: () => t("sidebar.status") },
     { path: "/chat", icon: "chat", label: () => t("sidebar.chat") },
     { path: "/help", icon: "support_agent", label: () => t("sidebar.help") },
-    { path: "/settings", icon: "settings", label: () => t("sidebar.settings") },
   ];
-
-  const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
-    return location.pathname.startsWith(path);
-  };
 
   return (
     <nav class="bottom-nav">
-      {tabs.map((tab) => (
+      {mainTabs.map((tab) => (
         <button
           class={`bottom-nav-item ${isActive(tab.path) ? "active" : ""}`}
-          onClick={() => navigate(tab.path)}
+          onClick={() => navigateHashRoute(tab.path)}
         >
           <span class="material-symbols-rounded">{tab.icon}</span>
           <span class="bottom-nav-label">{tab.label()}</span>
         </button>
       ))}
-    </nav>
+
+            {/* Settings / overflow */}
+          <div class="bottom-nav-overflow" onClick={(e) => e.stopPropagation()}>
+            <button
+              class={`bottom-nav-item ${isActive("/settings") ? "active" : ""}`}
+              onClick={() => setShowMenu((v) => !v)}
+            >
+              <span class="material-symbols-rounded">more_vert</span>
+              <span class="bottom-nav-label">{t("sidebar.more")}</span>
+            </button>
+
+            <Show when={showMenu()}>
+              <div class="overflow-menu">
+                {/* Settings — always visible, SudoAuthDialog gates controls inside */}
+                <button
+                  class="overflow-menu-item"
+                  onClick={() => { navigateHashRoute("/settings"); setShowMenu(false); }}
+                >
+                  <span class="material-symbols-rounded">settings</span>
+                  {t("sidebar.settings")}
+                </button>
+
+                <hr class="overflow-menu-divider" />
+                {/* Close — always visible; non-admin gets sudo dialog */}
+                <button
+                  class="overflow-menu-item overflow-menu-item-danger"
+                  onClick={() => { props.onQuit(); setShowMenu(false); }}
+                >
+                  <span class="material-symbols-rounded">power_settings_new</span>
+                  {t("app.close_agent")}
+                </button>
+              </div>
+            </Show>
+          </div>
+        </nav>
   );
 };
 
+const RegisteredShell: Component<RegisteredShellProps> = (props) => {
+  return (
+    <Router
+      root={(routerProps) => (
+        <div class="app-layout app-layout-tray">
+          <NavigationListener />
+          <ConsentDialog />
+          <main class="app-main app-main-full">{routerProps.children}</main>
+          <BottomNav isAdmin={props.isAdmin} onQuit={props.onQuit} />
+        </div>
+      )}
+    >
+      <Route path="/" component={StatusPanel} />
+      <Route path="/chat" component={ChatPanel} />
+      <Route path="/help" component={HelpRequest} />
+      <Route
+        path="/settings"
+        component={() => <SettingsPanel isAdmin={props.isAdmin} />}
+      />
+    </Router>
+  );
+};
+
+// ── Root App component ────────────────────────────────────────────────────────
 const App: Component = () => {
   const [ready, setReady] = createSignal(false);
   const [registered, setRegistered] = createSignal(false);
   const [isAdmin, setIsAdmin] = createSignal(false);
+  const [bootStage, setBootStage] = createSignal("Starting BetterDesk Agent...");
+  // Quit confirmation / sudo auth dialog state.
+  const [showQuitDialog, setShowQuitDialog] = createSignal(false);
+
+  const markBootStage = (message: string, data?: unknown) => {
+    setBootStage(message);
+    frontendLog("debug", "app.boot", message, data);
+  };
+
+  const withTimeout = <T,>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    fallbackValue: T,
+    label: string,
+  ): Promise<T> => {
+    return new Promise<T>((resolve) => {
+      const timeoutId = window.setTimeout(() => {
+        frontendLog("warn", "app.boot", `${label} timed out after ${timeoutMs}ms`);
+        resolve(fallbackValue);
+      }, timeoutMs);
+
+      promise
+        .then((value) => {
+          window.clearTimeout(timeoutId);
+          resolve(value);
+        })
+        .catch((error) => {
+          window.clearTimeout(timeoutId);
+          frontendLog("error", "app.boot", `${label} failed`, error);
+          resolve(fallbackValue);
+        });
+    });
+  };
 
   const checkRegistration = async (): Promise<boolean> => {
+    frontendLog("debug", "app.boot", "Requesting cached agent registration state");
     try {
-      // Hard 3-second timeout — the Tauri IPC round-trip should complete
-      // in ~50 ms. If it hangs (webview/state-init issue, frozen config
-      // lock, …) we still unblock the UI so the user can retry or
-      // fall back to the setup wizard.
       const result = await Promise.race([
         invoke<{ registered: boolean }>("get_agent_status"),
-        new Promise<{ registered: boolean } | null>((resolve) =>
-          setTimeout(() => resolve(null), 3000)
-        ),
+        new Promise<null>((r) => setTimeout(() => r(null), 1000)),
       ]);
-      return !!(result && result.registered);
-    } catch {
+      if (result === null) {
+        frontendLog("warn", "app.boot", "get_agent_status timed out after 1000ms");
+        return false;
+      }
+
+      const registeredState = !!result.registered;
+      frontendLog("info", "app.boot", "Cached registration probe finished", {
+        registered: registeredState,
+      });
+      return registeredState;
+    } catch (error) {
+      frontendLog("error", "app.boot", "get_agent_status failed", error);
       return false;
     }
   };
 
+  const doQuit = async () => {
+    frontendLog("info", "app.quit", "Quit confirmed by user");
+    try {
+      await invoke("quit_app");
+    } catch (error) {
+      frontendLog("error", "app.quit", "quit_app IPC failed", error);
+    }
+  };
+
   onMount(async () => {
-    await initI18n();
+    frontendLog("info", "app.boot", "App mounted");
 
-    // Run both probes in parallel with a hard timeout so the spinner is
-    // never stuck indefinitely.
-    const [reg, admin] = await Promise.all([
-      checkRegistration(),
-      Promise.race([
-        invoke<boolean>("is_os_admin").catch(() => false),
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2000)),
-      ]),
-    ]);
+    const quitUnlistenPromise = listen<void>("request-quit", () => {
+      frontendLog("info", "app.quit", "Quit requested from tray/window");
+      setShowQuitDialog(true);
+    });
 
-    setRegistered(reg);
-    setIsAdmin(admin);
+    void quitUnlistenPromise
+      .then((unlisten) => {
+        onCleanup(unlisten);
+      })
+      .catch((error) => {
+        frontendLog("error", "app.boot", "Failed to register request-quit listener", error);
+      });
+
+    try {
+      markBootStage("Initialising bundled translations");
+      await withTimeout(
+        initI18n(),
+        750,
+        undefined,
+        "initI18n",
+      );
+
+      markBootStage("Checking agent state");
+      const [reg, admin] = await Promise.all([
+        checkRegistration(),
+        withTimeout(
+          invoke<boolean>("is_os_admin"),
+          2000,
+          false,
+          "is_os_admin",
+        ),
+      ]);
+
+      setRegistered(reg);
+      setIsAdmin(admin);
+      frontendLog("info", "app.boot", "Boot state resolved", {
+        registered: reg,
+        isAdmin: admin,
+      });
+    } catch (error) {
+      frontendLog("error", "app.boot", "Unexpected boot failure - continuing with safe defaults", error);
+    }
+
     setReady(true);
+    frontendLog("info", "app.boot", "UI ready", {
+      registered: registered(),
+      isAdmin: isAdmin(),
+    });
   });
 
   return (
     <div class="app-root">
+      {/* Quit confirmation / sudo auth dialog — rendered at root so it overlays everything */}
+      <Show when={showQuitDialog()}>
+        {isAdmin() ? (
+          // Admin: simple confirmation without sudo.
+          <div class="sudo-auth-overlay">
+            <div class="sudo-auth-dialog">
+              <div class="sudo-auth-icon">
+                <span class="material-symbols-rounded">power_settings_new</span>
+              </div>
+              <h2 class="sudo-auth-title">{t("app.quit_title")}</h2>
+              <p class="sudo-auth-subtitle">{t("app.close_confirm")}</p>
+              <div class="sudo-auth-actions">
+                <button class="sudo-auth-btn sudo-auth-btn-cancel" onClick={() => setShowQuitDialog(false)}>
+                  {t("auth.cancel")}
+                </button>
+                <button class="sudo-auth-btn sudo-auth-btn-submit" onClick={doQuit}>
+                  {t("app.close_agent")}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Non-admin: require sudo password before quitting.
+          <SudoAuthDialog
+            title={t("app.quit_title")}
+            subtitle={t("app.quit_sudo_hint")}
+            onSuccess={doQuit}
+            onCancel={() => setShowQuitDialog(false)}
+          />
+        )}
+      </Show>
       <Show
         when={ready()}
         fallback={
           <div class="app-loading">
             <span class="material-symbols-rounded spin">sync</span>
+            <span>{bootStage()}</span>
           </div>
         }
       >
         <Show
           when={registered()}
-          fallback={<SetupWizard onComplete={async () => {
-            // Re-read persisted registration state from backend to ensure
-            // the wizard does not reappear on next app launch.
-            const ok = await checkRegistration();
-            setRegistered(ok || true); // optimistic: show main even if backend hiccups
-          }} />}
+          fallback={
+            <SetupWizard
+              onComplete={async () => {
+                const ok = await checkRegistration();
+                if (ok) {
+                  navigateHashRoute("/");
+                }
+                setRegistered(ok);
+              }}
+            />
+          }
         >
-          <div class="app-layout app-layout-tray">
-            <Router>
-              <NavigationListener />
-              <main class="app-main app-main-full">
-                <Route path="/" component={StatusPanel} />
-                <Route path="/chat" component={ChatPanel} />
-                <Route path="/help" component={HelpRequest} />
-                <Route
-                  path="/settings"
-                  component={() =>
-                    isAdmin() ? <SettingsPanel /> : <AdminRequired />
-                  }
-                />
-              </main>
-              <BottomNav />
-            </Router>
-          </div>
+          <RegisteredShell isAdmin={isAdmin()} onQuit={() => setShowQuitDialog(true)} />
         </Show>
       </Show>
     </div>
@@ -156,3 +350,4 @@ const App: Component = () => {
 };
 
 export default App;
+

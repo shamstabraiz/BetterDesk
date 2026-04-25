@@ -47,7 +47,7 @@ const ChatPanel: Component = () => {
     if (!text) return;
 
     try {
-      await invoke("send_chat_message", { text });
+      await invoke("send_chat_message", { message: text });
       const msg: ChatMessage = {
         id: crypto.randomUUID(),
         from: "user",

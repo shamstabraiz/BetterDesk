@@ -1,6 +1,6 @@
+use crate::cdap_client::{CdapClient, CdapStatus};
 use crate::config::AgentConfig;
 use crate::registration;
-use crate::sidecar::{SidecarManager, SidecarStatus};
 use crate::sysinfo_collect::SystemSnapshot;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -12,8 +12,8 @@ use tauri::Manager;
 pub struct AgentState {
     pub config: Mutex<AgentConfig>,
     pub chat_history: Mutex<Vec<ChatMessage>>,
-    /// Go agent sidecar process manager.
-    pub sidecar: SidecarManager,
+    /// Native CDAP WebSocket client (replaces Go sidecar).
+    pub cdap: CdapClient,
 }
 
 /// Chat message structure.
@@ -88,7 +88,7 @@ pub fn is_os_admin() -> bool {
 pub fn quit_app(app: tauri::AppHandle) {
     // Stop the sidecar gracefully before exit.
     let state = app.state::<AgentState>();
-    state.sidecar.stop();
+    state.cdap.stop();
     app.exit(0);
 }
 
@@ -605,24 +605,33 @@ pub fn get_agent_settings(state: State<'_, AgentState>) -> Result<AgentSettings,
 pub fn save_agent_settings(
     settings: AgentSettings,
     state: State<'_, AgentState>,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    let autostart_desired = {
+        let mut config = state.config.lock().map_err(|e| e.to_string())?;
 
-    config.server_address = settings.server_address;
-    config.api_key = settings.api_key;
-    config.cdap_port = settings.cdap_port;
-    config.allow_screen_capture = settings.allow_screen_capture;
-    config.require_consent = settings.require_consent;
-    config.allow_terminal = settings.allow_terminal;
-    config.allow_file_browser = settings.allow_file_browser;
-    config.allow_clipboard = settings.allow_clipboard;
-    config.auto_start_sidecar = settings.auto_start_sidecar;
-    config.language = settings.language;
-    config.autostart = settings.autostart;
-    config.start_minimized = settings.start_minimized;
+        config.server_address = settings.server_address;
+        config.api_key = settings.api_key;
+        config.cdap_port = settings.cdap_port;
+        config.allow_screen_capture = settings.allow_screen_capture;
+        config.require_consent = settings.require_consent;
+        config.allow_terminal = settings.allow_terminal;
+        config.allow_file_browser = settings.allow_file_browser;
+        config.allow_clipboard = settings.allow_clipboard;
+        config.auto_start_sidecar = settings.auto_start_sidecar;
+        config.language = settings.language;
+        config.autostart = settings.autostart;
+        config.start_minimized = settings.start_minimized;
 
-    config.save().map_err(|e| e.to_string())?;
-    info!("Settings saved");
+        config.save().map_err(|e| e.to_string())?;
+        config.autostart
+    };
+
+    // Sync OS-level autostart registration (Linux .desktop, Windows HKCU Run,
+    // macOS LaunchAgent) with the persisted preference.
+    crate::autostart::sync_os_autostart(&app, autostart_desired);
+
+    info!("Settings saved (autostart={})", autostart_desired);
     Ok(())
 }
 
@@ -654,9 +663,9 @@ pub async fn discover_lan_servers() -> Result<Vec<DiscoveredLanServer>, String> 
         .collect())
 }
 
-// ─────────────────────────── Sidecar control ───────────────────────────
+// ─────────────────────────── CDAP client control ───────────────────────────
 
-async fn build_sidecar_config(state: &AgentState) -> Result<crate::sidecar::SidecarConfig, String> {
+async fn build_cdap_config(state: &AgentState) -> Result<crate::cdap_client::CdapConfig, String> {
     let mut config = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
         if !config.is_registered() {
@@ -673,61 +682,52 @@ async fn build_sidecar_config(state: &AgentState) -> Result<crate::sidecar::Side
         shared.server_address = config.server_address.clone();
     }
 
-    Ok(config.to_sidecar_config())
+    Ok(config.to_cdap_config())
 }
 
-/// Returns the current status of the Go agent sidecar process.
+/// Returns the current status of the native CDAP client.
 #[tauri::command]
-pub fn get_sidecar_status(state: State<'_, AgentState>) -> SidecarStatus {
-    state.sidecar.status()
+pub fn get_sidecar_status(state: State<'_, AgentState>) -> CdapStatus {
+    state.cdap.status()
 }
 
-/// Start or restart the Go agent sidecar.
-/// Writes a fresh Go agent config from current AgentConfig, then spawns the binary.
+/// Start or restart the native CDAP client.
 #[tauri::command]
-pub async fn start_sidecar(app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<SidecarStatus, String> {
-    let sidecar_cfg = build_sidecar_config(&state).await?;
-
-    // Stop previous instance if any.
-    state.sidecar.stop();
-
-    state.sidecar.start(&sidecar_cfg).map_err(|e| e.to_string())?;
-    // Start stdout reader for consent-request events from the Go agent.
-    state.sidecar.start_stdout_reader(app);
-    info!("Sidecar started via IPC command");
-    Ok(state.sidecar.status())
+pub async fn start_sidecar(_app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<CdapStatus, String> {
+    let cdap_cfg = build_cdap_config(&state).await?;
+    state.cdap.stop();
+    state.cdap.start(&cdap_cfg).map_err(|e| e.to_string())?;
+    info!("CDAP client started via IPC command");
+    Ok(state.cdap.status())
 }
 
-/// Stop the Go agent sidecar. Device becomes invisible to operators until restarted.
+/// Stop the CDAP client.
 #[tauri::command]
-pub fn stop_sidecar(state: State<'_, AgentState>) -> SidecarStatus {
-    state.sidecar.stop();
-    info!("Sidecar stopped via IPC command");
-    state.sidecar.status()
+pub fn stop_sidecar(state: State<'_, AgentState>) -> CdapStatus {
+    state.cdap.stop();
+    info!("CDAP client stopped via IPC command");
+    state.cdap.status()
 }
 
-/// Restart the sidecar (re-reads current config).
-/// Use this after changing capability settings.
+/// Restart the CDAP client (re-reads current config).
 #[tauri::command]
-pub async fn restart_sidecar(app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<SidecarStatus, String> {
+pub async fn restart_sidecar(app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<CdapStatus, String> {
     start_sidecar(app, state).await
 }
 
-/// Legacy command — redirects to sidecar restart.
+/// Legacy command — redirects to CDAP restart.
 #[tauri::command]
 pub async fn restart_agent_service(app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<(), String> {
     start_sidecar(app, state).await.map(|_| ())
 }
 
-/// Answer a consent request from the Go sidecar.
-/// `granted` = true (allow desktop session) or false (deny).
+/// No-op — consent is now handled natively inside cdap_client.rs.
 #[tauri::command]
 pub fn answer_consent(
-    state: State<'_, AgentState>,
-    session_id: String,
-    granted: bool,
+    _state: State<'_, AgentState>,
+    _session_id: String,
+    _granted: bool,
 ) -> Result<(), String> {
-    state.sidecar.send_consent(&session_id, granted);
     Ok(())
 }
 

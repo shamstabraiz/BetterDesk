@@ -1688,8 +1688,9 @@
                         logUpdate(`Go toolchain install failed: ${result.toolchainInstall.error || 'unknown'}`);
                     }
                 }
+                const deployFailed = !!(result.serverDeploy && result.serverDeploy.success === false);
                 if (result.serverBuild) {
-                    if (result.serverBuild.success) {
+                    if (result.serverBuild.success && !deployFailed) {
                         const ms = result.serverBuild.duration || 0;
                         const secs = ms ? Math.round(ms / 1000) : 0;
                         const sizeMB = result.serverBuild.size ? ` (${(result.serverBuild.size / (1024 * 1024)).toFixed(1)} MB)` : '';
@@ -1698,6 +1699,11 @@
                             : `${_('updates.server_built')}${secs ? ` · ${secs}s` : ''}`;
                         setUpdatePhase('server', 'done', detail);
                         logUpdate(detail);
+                    } else if (result.serverBuild.success && deployFailed) {
+                        // Build OK but deploy to service path failed — surface as error
+                        const detail = _('updates.server_deploy_failed');
+                        setUpdatePhase('server', 'error', detail);
+                        logUpdate(`${detail}: ${result.serverDeploy.error || ''}`);
                     } else {
                         const detail = result.serverBuild.method === 'download'
                             ? _('updates.server_download_failed')
@@ -1708,7 +1714,7 @@
                 } else {
                     setUpdatePhase('server', 'skipped', _('updates.server_skipped'));
                 }
-                if (result.serverDeploy && !result.serverDeploy.success) {
+                if (deployFailed && result.serverBuild?.success) {
                     logUpdate(`Deploy failed: ${result.serverDeploy.error || ''}`);
                 }
             } else {
@@ -1751,14 +1757,21 @@
 
     function showUpdateCompletionModal(result) {
         const lines = [];
-        lines.push(`<p>${Utils.escapeHtml(_('updates.complete_summary'))}</p>`);
+        const deployFailed = !!(result.serverDeploy && result.serverDeploy.success === false);
+        const hasFailures = (result.failed?.length || 0) > 0 || deployFailed;
+        const summaryKey = hasFailures ? 'updates.complete_with_errors' : 'updates.complete_summary';
+        lines.push(`<p>${Utils.escapeHtml(_(summaryKey))}</p>`);
         const stats = [
             { label: _('updates.applied'), value: result.applied?.length || 0 },
             { label: _('updates.failed'),  value: result.failed?.length  || 0 },
             { label: _('updates.removed'), value: result.removed?.length || 0 }
         ];
         lines.push(`<ul style="margin:8px 0;padding-left:20px;font-size:13px;">${stats.map(s => `<li>${Utils.escapeHtml(s.label)}: <strong>${s.value}</strong></li>`).join('')}</ul>`);
-        if (result.serverBuild?.success) {
+        if (deployFailed) {
+            const errMsg = result.serverDeploy.error || '';
+            lines.push(`<p style="font-size:13px;color:var(--danger,#e34935);"><strong>${Utils.escapeHtml(_('updates.server_deploy_failed'))}</strong></p>`);
+            if (errMsg) lines.push(`<pre style="font-size:12px;background:var(--bg-secondary,#1a1a1a);padding:8px;border-radius:4px;overflow:auto;max-height:120px;white-space:pre-wrap;">${Utils.escapeHtml(errMsg)}</pre>`);
+        } else if (result.serverBuild?.success) {
             const note = result.serverBuild.method === 'download' ? _('updates.server_downloaded') : _('updates.server_built');
             lines.push(`<p style="font-size:13px;color:var(--text-secondary);">${Utils.escapeHtml(note)}</p>`);
         }
@@ -1770,7 +1783,7 @@
 
         window.Modal.close();
         window.Modal.show({
-            title: _('updates.modal_done_title'),
+            title: _(hasFailures ? 'updates.modal_done_with_errors_title' : 'updates.modal_done_title'),
             content: lines.join(''),
             buttons: [
                 { label: _('updates.modal_close'),     class: 'btn-secondary', onClick: () => { window.Modal.close(); } },

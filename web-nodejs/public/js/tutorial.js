@@ -623,7 +623,13 @@
 
     function skip() {
         if (!_isActive) return;
-        
+
+        // Permanently mark this tutorial as dismissed so autoStart won't
+        // show it again until the user explicitly resets via the Help menu.
+        var seen = JSON.parse(localStorage.getItem(STORAGE_SEEN) || '{}');
+        seen[_tutorialType] = true;
+        localStorage.setItem(STORAGE_SEEN, JSON.stringify(seen));
+
         // Run afterHide for current step
         var step = _steps[_currentStep];
         if (step && step.afterHide) step.afterHide();

@@ -28,17 +28,20 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; connect-src 'self' http: https: ws: wss: ipc: https://ipc.localhost; img-src 'self' data: asset: https://asset.localhost; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-ancestors 'none'"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' http: https: ws: wss: ipc: https://ipc.localhost; img-src 'self' data: asset: https://asset.localhost; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-ancestors 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["deb", "rpm", "appimage", "nsis", "msi"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/betterdesk-agent"
     ],
     "windows": {
       "nsis": {
@@ -51,6 +54,10 @@
           "Polish": "nsis/languages/pl.nsh"
         }
       }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "infoPlist": "./Info.plist"
     }
   }
 }

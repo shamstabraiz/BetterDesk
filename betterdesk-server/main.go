@@ -76,6 +76,22 @@ func main() {
 	}
 	if cfg.HasTLSCert() {
 		log.Printf("  TLS Cert:   %s", cfg.TLSCertFile)
+		// Validate cert files actually exist — a missing file silently disables TLS
+		// without any error, which is a common misconfiguration (e.g. typo in path).
+		if _, err := os.Stat(cfg.TLSCertFile); os.IsNotExist(err) {
+			log.Printf("  ⚠ WARNING:  TLS certificate file NOT FOUND: %s", cfg.TLSCertFile)
+			log.Printf("              TLS_SIGNAL and TLS_RELAY will be silently disabled.")
+			log.Printf("              Check TLS_CERT env var or --tls-cert flag for typos.")
+		}
+		if _, err := os.Stat(cfg.TLSKeyFile); os.IsNotExist(err) {
+			log.Printf("  ⚠ WARNING:  TLS key file NOT FOUND: %s", cfg.TLSKeyFile)
+			log.Printf("              TLS_SIGNAL and TLS_RELAY will be silently disabled.")
+			log.Printf("              Check TLS_KEY env var or --tls-key flag for typos.")
+		}
+	} else if cfg.TLSSignal || cfg.TLSRelay {
+		// User set TLS_SIGNAL=Y or TLS_RELAY=Y but forgot to set cert/key paths
+		log.Printf("  ⚠ WARNING:  TLS_SIGNAL=%v TLS_RELAY=%v but TLS_CERT/TLS_KEY are not set.", cfg.TLSSignal, cfg.TLSRelay)
+		log.Printf("              Signal and relay will run without TLS. Set TLS_CERT and TLS_KEY env vars.")
 	}
 	log.Printf("========================================")
 

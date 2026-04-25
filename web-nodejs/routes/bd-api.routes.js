@@ -195,7 +195,7 @@ async function identifyDevice(req, res, next) {
     }
     // Fallback: X-Device-Id header (for registration before login)
     const deviceId = req.headers['x-device-id'];
-    if (deviceId && /^[A-Za-z0-9_-]{3,32}$/.test(deviceId)) {
+    if (deviceId && /^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
         req.deviceId = deviceId;
         return next();
     }

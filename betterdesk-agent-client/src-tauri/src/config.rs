@@ -182,18 +182,22 @@ impl AgentConfig {
         self.registered && !self.device_id.is_empty() && !self.server_address.is_empty()
     }
 
-    /// Build a `SidecarConfig` from this config (needed by `SidecarManager::start`).
-    pub fn to_sidecar_config(&self) -> crate::sidecar::SidecarConfig {
+    /// Build a `CdapConfig` for the native CDAP client.
+    pub fn to_cdap_config(&self) -> crate::cdap_client::CdapConfig {
         let data_dir = directories::ProjectDirs::from("com", "betterdesk", "agent")
             .map(|d| d.data_dir().to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
 
-        crate::sidecar::SidecarConfig {
+        crate::cdap_client::CdapConfig {
             server_address: self.server_address.clone(),
             device_id: self.device_id.clone(),
             device_name: self.device_name.clone(),
             api_key: self.api_key.clone(),
-            auth_token: self.auth_token.clone(),
+            auth_token: if self.auth_token.is_empty() {
+                None
+            } else {
+                Some(self.auth_token.clone())
+            },
             allow_terminal: self.allow_terminal,
             allow_file_browser: self.allow_file_browser,
             allow_clipboard: self.allow_clipboard,
@@ -201,6 +205,12 @@ impl AgentConfig {
             data_dir,
             cdap_port: self.cdap_port,
         }
+    }
+
+    /// Build a `SidecarConfig` — kept for backward compatibility, delegates to CdapConfig.
+    #[deprecated(note = "Use to_cdap_config() — sidecar is replaced by native CDAP client")]
+    pub fn to_sidecar_config(&self) -> crate::cdap_client::CdapConfig {
+        self.to_cdap_config()
     }
 
     /// Store credentials securely via OS keyring.

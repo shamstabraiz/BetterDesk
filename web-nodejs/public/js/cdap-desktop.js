@@ -24,6 +24,10 @@
 
     // Quality reporting interval (ms)
     const QUALITY_REPORT_INTERVAL = 5000;
+    // Presence ping interval (ms) — paired with the 30s server-side dead-man
+    // switch in api/cdap_handlers.go. Half the timeout gives one missed ping
+    // of slack before the server tears the session down.
+    const PRESENCE_PING_INTERVAL = 15000;
     // Cursor cache limit
     const CURSOR_CACHE_MAX = 50;
 
@@ -53,6 +57,9 @@
         let ws;
         try {
             ws = new WebSocket(wsUrl, ['cdap-desktop']);
+            // Binary frames carry raw JPEG bytes (no base64, no JSON envelope)
+            // for the desktop fast path. Anything else is JSON text.
+            ws.binaryType = 'arraybuffer';
         } catch (err) {
             console.error('[CDAPDesktop] WS creation failed:', err);
             return;
@@ -68,8 +75,10 @@
             deviceId,
             sessionId: null,
             connected: false,
-            width: 1280,
-            height: 720,
+            // Match the actual physical screen if available; the agent may
+            // override these in 'ready' / frame messages with the real size.
+            width: (window.screen && window.screen.width) || 1920,
+            height: (window.screen && window.screen.height) || 1080,
             _frameImg: new Image(),
             // Quality reporting
             _frameCount: 0,
@@ -92,16 +101,40 @@
         activeSessions[key] = session;
 
         ws.onopen = () => {
-            // Send init message with desired resolution
+            // Send init message with desired resolution.
+            // quality 75 + 30 fps targets a smooth helpdesk experience on
+            // LAN; the agent will throttle if CPU/bandwidth cannot keep up.
+            // Frames are delivered over the binary WS fast path (no base64).
+            //
+            // Hi-DPI awareness (Phase 3.6): report the browser's pixel
+            // ratio and the canvas's CSS pixel size so the agent can
+            // capture at the operator's effective resolution and avoid
+            // double-scaling on Retina/4K displays. Unknown fields are
+            // ignored by older agents.
+            const dpr = window.devicePixelRatio || 1;
+            const rect = session.canvas.getBoundingClientRect();
             ws.send(JSON.stringify({
                 width: session.width,
                 height: session.height,
-                quality: 70,
-                fps: 15
+                quality: 75,
+                fps: 30,
+                device_pixel_ratio: dpr,
+                client_css_width: Math.round(rect.width || 0),
+                client_css_height: Math.round(rect.height || 0)
             }));
+            // Start sending presence pings every 15s. The Go server's
+            // desktop read loop has a 30s deadline; missing pings cause
+            // an automatic teardown so a crashed operator browser does
+            // not leave the agent capturing forever.
+            startPresencePing(session);
         };
 
         ws.onmessage = (event) => {
+            // Binary fast path: raw JPEG bytes from the agent.
+            if (event.data instanceof ArrayBuffer) {
+                renderBinaryFrame(session, event.data);
+                return;
+            }
             try {
                 const msg = JSON.parse(event.data);
                 handleMessage(session, msg);
@@ -144,6 +177,20 @@
                 renderFrame(session, msg);
                 break;
 
+            case 'desktop_meta':
+                // First binary frame is about to start — size the canvas
+                // to the agent's true capture dimensions so we don't
+                // stretch and the input coordinates map 1:1.
+                if (msg.width && msg.height) {
+                    if (session.canvas.width !== msg.width || session.canvas.height !== msg.height) {
+                        session.canvas.width = msg.width;
+                        session.canvas.height = msg.height;
+                    }
+                    session.width = msg.width;
+                    session.height = msg.height;
+                }
+                break;
+
             case 'cursor_update':
                 applyCursor(session, msg);
                 break;
@@ -177,6 +224,44 @@
     }
 
     // ── Frame Rendering ──────────────────────────────────────────────────
+
+    // renderBinaryFrame decodes a raw JPEG buffer received over the binary
+    // WS fast path and paints it onto the session canvas. createImageBitmap
+    // is async-decoded off the main thread and is significantly faster than
+    // the legacy data-URL+Image() path — critical for hitting 30+ fps.
+    function renderBinaryFrame(session, buffer) {
+        session._frameCount++;
+        session._frameBytes += buffer.byteLength;
+        session._lastFrameTime = Date.now();
+
+        // Drop frames if the previous decode is still pending. Painting old
+        // frames over fresher ones would only add latency.
+        if (session._decodeInFlight) {
+            session._droppedFrames++;
+            return;
+        }
+        session._decodeInFlight = true;
+
+        const blob = new Blob([buffer], { type: 'image/jpeg' });
+        createImageBitmap(blob)
+            .then((bitmap) => {
+                const { canvas, ctx } = session;
+                if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+                    canvas.width = bitmap.width;
+                    canvas.height = bitmap.height;
+                    session.width = bitmap.width;
+                    session.height = bitmap.height;
+                }
+                ctx.drawImage(bitmap, 0, 0);
+                if (typeof bitmap.close === 'function') bitmap.close();
+            })
+            .catch(() => {
+                session._droppedFrames++;
+            })
+            .finally(() => {
+                session._decodeInFlight = false;
+            });
+    }
 
     function renderFrame(session, msg) {
         if (!msg.data) return;
@@ -310,6 +395,28 @@
         indicator.classList.add(direction === 'in' ? 'clip-in' : 'clip-out');
         indicator.textContent = direction === 'in' ? '\u2193 Clipboard' : '\u2191 Clipboard';
         setTimeout(() => indicator.classList.add('hidden'), 1500);
+    }
+
+    // ── Presence ping (dead-man switch) ──────────────────────────────────
+
+    function startPresencePing(session) {
+        if (session._presenceTimer) clearInterval(session._presenceTimer);
+        session._presenceTimer = setInterval(() => {
+            if (!session.ws || session.ws.readyState !== WebSocket.OPEN) return;
+            try {
+                session.ws.send(JSON.stringify({
+                    type: 'presence_ping',
+                    ts: Date.now()
+                }));
+            } catch { /* ignore — onclose will reset state */ }
+        }, PRESENCE_PING_INTERVAL);
+    }
+
+    function stopPresencePing(session) {
+        if (session._presenceTimer) {
+            clearInterval(session._presenceTimer);
+            session._presenceTimer = null;
+        }
     }
 
     // ── Quality Reporting ────────────────────────────────────────────────
@@ -475,6 +582,10 @@
 
         canvas.addEventListener('keydown', (e) => {
             if (!session.connected) return;
+            // Phase 3.1: drop OS-level auto-repeat. The agent already
+            // synthesises repeats on the remote side, and most apps treat
+            // 30+ key presses per second as buggy paste-style input.
+            if (e.repeat) { e.preventDefault(); return; }
             sendKeyEvent(session, e, 'keydown');
             e.preventDefault();
         });
@@ -523,6 +634,34 @@
     }
 
     function sendKeyEvent(session, e, eventType) {
+        // Phase 3.1: when the browser produces a single non-ASCII character
+        // (e.g. "ą", "@", "€"), the agent's per-letter VK fallback rejects
+        // it. Route those through the `text` input path so the OS handles
+        // the layout-aware translation. Only fire on keydown to avoid
+        // double insertion. Modifiers are intentionally ignored here —
+        // the browser already produced the resolved character.
+        if (eventType === 'keydown'
+            && typeof e.key === 'string'
+            && e.key.length === 1
+            && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            const cc = e.key.charCodeAt(0);
+            const printable = cc >= 0x20 && cc !== 0x7F;
+            const ascii = cc < 0x80;
+            const isAlphaNum = ascii && (
+                (cc >= 0x30 && cc <= 0x39) ||
+                (cc >= 0x41 && cc <= 0x5A) ||
+                (cc >= 0x61 && cc <= 0x7A)
+            );
+            if (printable && (!isAlphaNum || !ascii)) {
+                sendInput(session, {
+                    type: 'input',
+                    input_type: 'text',
+                    text: e.key
+                });
+                return;
+            }
+        }
+
         sendInput(session, {
             type: 'input',
             input_type: 'keyboard',
@@ -536,6 +675,42 @@
             },
             down: eventType === 'keydown'
         });
+    }
+
+    // Phase 3.2: virtual paste — send arbitrary text as a single `text`
+    // input event. Falls back to typing the clipboard contents when the
+    // clipboard sync path is blocked (browser permission denied, remote
+    // refuses incoming clipboard, or operator just wants to inject
+    // canned text). Long strings are sent in a single payload; the agent
+    // is responsible for splitting if needed.
+    function sendText(session, text) {
+        if (!session || !session.connected || !text) return false;
+        sendInput(session, {
+            type: 'input',
+            input_type: 'text',
+            text: String(text)
+        });
+        return true;
+    }
+
+    async function pasteFromClipboard(deviceId, widgetId) {
+        const key = `${deviceId}:${widgetId}`;
+        const session = activeSessions[key];
+        if (!session || !session.connected) return false;
+
+        let text = '';
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            try {
+                text = await navigator.clipboard.readText();
+            } catch (err) {
+                console.warn('[CDAPDesktop] Clipboard read failed:', err && err.message);
+                return false;
+            }
+        } else {
+            return false;
+        }
+        if (!text) return false;
+        return sendText(session, text);
     }
 
     function sendInput(session, payload) {
@@ -558,6 +733,19 @@
             clearInterval(session._qualityTimer);
             session._qualityTimer = null;
         }
+        stopPresencePing(session);
+        // Stop recorder if still rolling — we don't want to leave dangling
+        // MediaRecorder + canvas captureStream when the session ends.
+        if (session._recorder && session._recorder.state === 'recording') {
+            try { session._recorder.stop(); } catch { /* ignore */ }
+        }
+        // Release fullscreen + keyboard lock if we held them.
+        if (document.fullscreenElement && session.widgetEl && session.widgetEl.contains(document.fullscreenElement)) {
+            try { document.exitFullscreen(); } catch {}
+        }
+        if (navigator.keyboard && navigator.keyboard.unlock) {
+            try { navigator.keyboard.unlock(); } catch {}
+        }
         if (session.overlay) {
             session.overlay.classList.remove('hidden');
             session.overlay.querySelector('span:last-child').textContent =
@@ -576,12 +764,203 @@
         if (!session) return;
 
         if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-            session.ws.send(JSON.stringify({ type: 'close' }));
-            session.ws.close();
+            try { session.ws.send(JSON.stringify({ type: 'close' })); } catch {}
+            try { session.ws.close(1000, 'client_close'); } catch {}
         }
         setDisconnected(session);
         delete activeSessions[key];
     }
+
+    // Close every active desktop session — used by the tab-close / page-hide
+    // handlers below so the agent tears down capture immediately instead of
+    // waiting for a socket read timeout.
+    function closeAllDesktops(reason) {
+        const keys = Object.keys(activeSessions);
+        for (const key of keys) {
+            const session = activeSessions[key];
+            if (!session) continue;
+            if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+                try {
+                    session.ws.send(JSON.stringify({ type: 'close', reason: reason || 'tab_closed' }));
+                } catch {}
+                try { session.ws.close(1001, reason || 'tab_closed'); } catch {}
+            }
+            setDisconnected(session);
+            delete activeSessions[key];
+        }
+    }
+
+    // ── Fullscreen + Keyboard Lock (Phase 3.3) ───────────────────────────
+    //
+    // Fullscreen toggles the widget container into the OS-level fullscreen
+    // mode and, when supported, asks the browser to capture system
+    // keyboard shortcuts (Alt+Tab, Win, PrintScreen) via the Keyboard
+    // Lock API. Pointer Lock is intentionally not used here because the
+    // CDAP fast path encodes mouse coordinates as absolute canvas
+    // positions; relative motion deltas would need a separate input
+    // pipeline. Keyboard Lock is only valid in fullscreen.
+
+    async function toggleFullscreen(deviceId, widgetId) {
+        const key = `${deviceId}:${widgetId}`;
+        const session = activeSessions[key];
+        if (!session) return false;
+        const target = session.widgetEl || session.canvas;
+
+        if (!document.fullscreenElement) {
+            try {
+                await target.requestFullscreen();
+            } catch (err) {
+                console.warn('[CDAPDesktop] Fullscreen request failed:', err && err.message);
+                return false;
+            }
+            if (navigator.keyboard && navigator.keyboard.lock) {
+                try {
+                    await navigator.keyboard.lock([
+                        'Escape', 'Tab',
+                        'MetaLeft', 'MetaRight',
+                        'AltLeft', 'AltRight',
+                        'ControlLeft', 'ControlRight',
+                        'PrintScreen'
+                    ]);
+                } catch (err) {
+                    console.warn('[CDAPDesktop] Keyboard lock failed:', err && err.message);
+                }
+            }
+            // Refocus canvas so keystrokes route to the remote.
+            try { session.canvas.focus(); } catch {}
+            return true;
+        }
+
+        try { await document.exitFullscreen(); } catch {}
+        if (navigator.keyboard && navigator.keyboard.unlock) {
+            try { navigator.keyboard.unlock(); } catch {}
+        }
+        return false;
+    }
+
+    function isFullscreen(deviceId, widgetId) {
+        const key = `${deviceId}:${widgetId}`;
+        const session = activeSessions[key];
+        if (!session || !session.widgetEl) return false;
+        return !!(document.fullscreenElement && session.widgetEl.contains(document.fullscreenElement));
+    }
+
+    // ── Session Recording (Phase 3.4) ────────────────────────────────────
+    //
+    // Records the canvas frames to a WebM blob via MediaRecorder. The
+    // frames are already painted on the canvas, so we capture from there
+    // rather than re-decoding the JPEG stream. 15 fps + 2.5 Mbps gives a
+    // legible audit recording without inflating disk usage. The blob is
+    // built up in memory during the session and flushed on stop, so
+    // operators should keep an eye on long sessions; future improvement:
+    // periodic chunk download or server-side persistence.
+
+    function startRecording(deviceId, widgetId) {
+        const key = `${deviceId}:${widgetId}`;
+        const session = activeSessions[key];
+        if (!session || !session.connected) return false;
+        if (session._recorder) return false;
+        if (typeof session.canvas.captureStream !== 'function' || typeof MediaRecorder === 'undefined') {
+            console.warn('[CDAPDesktop] MediaRecorder / captureStream not supported');
+            return false;
+        }
+
+        try {
+            const stream = session.canvas.captureStream(15);
+            let mimeType = 'video/webm;codecs=vp9,opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
+            session._recordedChunks = [];
+            session._recorder = new MediaRecorder(stream, {
+                mimeType,
+                videoBitsPerSecond: 2500000
+            });
+            session._recorder.ondataavailable = (ev) => {
+                if (ev.data && ev.data.size > 0) session._recordedChunks.push(ev.data);
+            };
+            session._recorder.start(1000);
+            session._recordingStartTime = Date.now();
+            return true;
+        } catch (err) {
+            console.warn('[CDAPDesktop] Recording start failed:', err && err.message);
+            session._recorder = null;
+            return false;
+        }
+    }
+
+    function stopRecording(deviceId, widgetId) {
+        return new Promise((resolve) => {
+            const key = `${deviceId}:${widgetId}`;
+            const session = activeSessions[key];
+            if (!session || !session._recorder || session._recorder.state === 'inactive') {
+                resolve(null);
+                return;
+            }
+            const recorder = session._recorder;
+            recorder.onstop = () => {
+                const blob = new Blob(session._recordedChunks || [], { type: recorder.mimeType });
+                session._recordedChunks = [];
+                session._recorder = null;
+                resolve(blob);
+            };
+            try { recorder.stop(); } catch { resolve(null); }
+        });
+    }
+
+    async function downloadRecording(deviceId, widgetId) {
+        const blob = await stopRecording(deviceId, widgetId);
+        if (!blob) return false;
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `cdap_session_${deviceId}_${ts}.webm`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        return true;
+    }
+
+    function isRecording(deviceId, widgetId) {
+        const key = `${deviceId}:${widgetId}`;
+        const session = activeSessions[key];
+        return !!(session && session._recorder && session._recorder.state === 'recording');
+    }
+
+    // ── Tab / window lifecycle: auto-end sessions on close ───────────────
+    //
+    // Without these hooks the browser may take several seconds to drop the
+    // WebSocket when the tab is closed, especially on mobile or when the
+    // OS suspends the page. That leaves the agent still streaming and
+    // consuming CPU until the server-side read loop times out. We send an
+    // explicit close frame via both `pagehide` (covers tab close,
+    // navigation, bfcache) and `beforeunload` (legacy fallback).
+    function installLifecycleHandlers() {
+        if (window.__cdapDesktopLifecycleInstalled) return;
+        window.__cdapDesktopLifecycleInstalled = true;
+
+        const onGone = () => closeAllDesktops('tab_closed');
+        // pagehide is the most reliable modern hook — fires for tab close,
+        // navigation, and bfcache eviction.
+        window.addEventListener('pagehide', onGone, { capture: true });
+        // beforeunload is noisy but still useful as a secondary signal.
+        window.addEventListener('beforeunload', onGone, { capture: true });
+        // If the tab just becomes hidden, keep the session alive but
+        // reduce load — future: request lower fps. For now this is a hook
+        // point only.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                // Intentionally do not close here — users switching tabs
+                // briefly should resume instantly. Browsers will fire
+                // `pagehide` if the tab is truly being unloaded.
+            }
+        });
+    }
+
+    installLifecycleHandlers();
 
     // ── Public API ───────────────────────────────────────────────────────
 
@@ -601,7 +980,21 @@
         setClipboardEnabled: (deviceId, widgetId, enabled) => {
             const s = activeSessions[`${deviceId}:${widgetId}`];
             if (s) s._clipboardEnabled = !!enabled;
-        }
+        },
+        // Phase 3.3: fullscreen + keyboard lock
+        toggleFullscreen,
+        isFullscreen,
+        // Phase 3.4: session recording
+        startRecording,
+        stopRecording,
+        downloadRecording,
+        isRecording,
+        // Phase 3.2: virtual paste / arbitrary text injection
+        sendText: (deviceId, widgetId, text) => {
+            const s = activeSessions[`${deviceId}:${widgetId}`];
+            return s ? sendText(s, text) : false;
+        },
+        pasteFromClipboard
     };
 
 })();

@@ -26,7 +26,18 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
         `^\\/api\\/cdap\\/devices\\/([A-Za-z0-9_-]{1,64})\\/${channel}$`
     );
 
-    const roleLevel = { admin: 3, operator: 2, viewer: 1 };
+    // Role levels — keep in sync with middleware/auth.js DEFAULT_ROLE_PERMISSIONS
+    // super_admin and admin (legacy alias) are the highest. global_admin and
+    // server_admin sit just below (parallel branches). operator/viewer/pro below.
+    const roleLevel = {
+        super_admin: 5,
+        admin: 5,
+        global_admin: 4,
+        server_admin: 4,
+        operator: 2,
+        viewer: 1,
+        pro: 1
+    };
 
     const wss = new WebSocket.Server({ noServer: true });
 
@@ -39,18 +50,32 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
 
         sessionMiddleware(req, {}, () => {
             if (!req.session || !req.session.userId) {
+                console.warn(`[CDAP ${label}] 401 upgrade rejected for ${url.pathname} (no session; ip=${req.socket?.remoteAddress})`);
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                 socket.destroy();
                 return;
             }
 
-            const userLevel = roleLevel[req.session.role] || 0;
+            // Session stores the user under req.session.user; older code paths
+            // also write flat fields. Accept either shape.
+            const sessUser = req.session.user || {};
+            const userRole = sessUser.role || req.session.role || '';
+            const userName = sessUser.username || req.session.username || `user#${req.session.userId}`;
+
+            const userLevel = roleLevel[userRole] || 0;
             const requiredLevel = roleLevel[minRole] || 3;
             if (userLevel < requiredLevel) {
+                console.warn(`[CDAP ${label}] 403 upgrade rejected for ${url.pathname} (user=${userName} role=${userRole} level=${userLevel} < required=${requiredLevel})`);
                 socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
                 socket.destroy();
                 return;
             }
+
+            console.log(`[CDAP ${label}] Upgrade accepted for device=${deviceId} user=${userName} role=${userRole}`);
+
+            // Attach normalized fields so the connection handler can use them.
+            req._cdapUserName = userName;
+            req._cdapUserRole = userRole;
 
             wss.handleUpgrade(req, socket, head, (ws) => {
                 wss.emit('connection', ws, req, deviceId);
@@ -59,8 +84,9 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
     });
 
     wss.on('connection', (browserWs, req, deviceId) => {
-        const username = req.session?.username || 'admin';
-        console.log(`[CDAP ${label}] Proxy started for device ${deviceId} by ${username}`);
+        const username = req._cdapUserName || req.session?.user?.username || req.session?.username || 'admin';
+        const role = req._cdapUserRole || req.session?.user?.role || req.session?.role || 'admin';
+        console.log(`[CDAP ${label}] Proxy started for device ${deviceId} by ${username} (role=${role})`);
 
         const goApiBase = config.betterdeskApiUrl || 'http://localhost:21114/api';
         const goWsUrl = goApiBase
@@ -72,24 +98,44 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
             headers: {
                 'X-API-Key': config.betterdeskApiKey || '',
                 'X-Username': username,
-                'X-Role': req.session?.role || 'admin'
+                'X-Role': role
             },
             rejectUnauthorized: !config.allowSelfSignedCerts
         });
 
         let goConnected = false;
+        // Buffer messages from browser that arrive before the upstream
+        // Go WS connection is open. The browser sends an "init" frame
+        // immediately on ws.onopen — without buffering, that message is
+        // silently dropped and the Go server never replies with "ready",
+        // so the UI hangs at "Connecting...".
+        const pendingBrowserMsgs = [];
 
-        goWs.on('open', () => { goConnected = true; });
-
-        browserWs.on('message', (data) => {
-            if (goConnected && goWs.readyState === WebSocket.OPEN) {
-                goWs.send(data);
+        goWs.on('open', () => {
+            goConnected = true;
+            while (pendingBrowserMsgs.length > 0) {
+                const { data, binary } = pendingBrowserMsgs.shift();
+                try { goWs.send(data, { binary }); } catch (_) { /* ignore */ }
             }
         });
 
-        goWs.on('message', (data) => {
+        browserWs.on('message', (data, isBinary) => {
+            if (goConnected && goWs.readyState === WebSocket.OPEN) {
+                goWs.send(data, { binary: isBinary });
+            } else if (goWs.readyState === WebSocket.CONNECTING) {
+                pendingBrowserMsgs.push({ data, binary: isBinary });
+            }
+        });
+
+        // CRITICAL: forward isBinary flag. Without it, `ws` defaults to
+        // sending Buffer payloads as BINARY frames, but the Go server emits
+        // JSON text frames (e.g. {"type":"ready"}, {"type":"frame"}).
+        // The browser would receive Blobs that JSON.parse cannot handle,
+        // so the "ready" handshake never fires and the overlay stays at
+        // "Connecting..." while frames silently arrive as garbled binary.
+        goWs.on('message', (data, isBinary) => {
             if (browserWs.readyState === WebSocket.OPEN) {
-                browserWs.send(data);
+                browserWs.send(data, { binary: isBinary });
             }
         });
 

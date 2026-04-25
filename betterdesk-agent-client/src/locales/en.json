@@ -144,7 +144,7 @@
     "api_key_hint": "Create an API key in the web console under Server → API Keys.",
     "cdap_port": "CDAP port",
     "auto_start_sidecar": "Auto-start CDAP agent",
-    "auto_start_sidecar_hint": "Start the Go CDAP agent automatically with the app",
+    "auto_start_sidecar_hint": "Start the CDAP connection automatically when the app launches",
     "section_privacy": "Privacy & Capabilities",
     "allow_screen_capture": "Allow screen capture",
     "allow_screen_capture_hint": "Operators can view and control this device’s screen",

@@ -555,11 +555,145 @@ router.post('/api/devices/:id/files/read', requireAuth, requirePermission('devic
 });
 
 /**
+ * POST /api/devices/:id/files/write   (Phase 63)
+ * Body: { path, data: <base64>, mode?: 'overwrite|append|create' }
+ * Max payload ~16 MB (enforced agent-side). Audited.
+ */
+router.post('/api/devices/:id/files/write', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    const path = String(req.body?.path || '').slice(0, 4096);
+    const data = String(req.body?.data || '');
+    const mode = ['overwrite', 'append', 'create'].includes(req.body?.mode) ? req.body.mode : 'overwrite';
+    if (!path) return res.status(400).json({ success: false, error: 'path_required' });
+    if (data.length > 22 * 1024 * 1024) {
+        return res.status(413).json({ success: false, error: 'payload_too_large' });
+    }
+    try {
+        await db.logAction(req.session.userId, 'files.write',
+            `Write ${mode} on ${req.params.id}: ${path}`, req.ip || null);
+    } catch (_) { /* non-fatal */ }
+    proxyAgentRequest(req, res, 'files.write', { path, data, mode }, 30000);
+});
+
+/**
+ * POST /api/devices/:id/files/delete   (Phase 63)
+ * Body: { path, recursive?: bool }
+ */
+router.post('/api/devices/:id/files/delete', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    const path = String(req.body?.path || '').slice(0, 4096);
+    const recursive = req.body?.recursive === true;
+    if (!path) return res.status(400).json({ success: false, error: 'path_required' });
+    try {
+        await db.logAction(req.session.userId, 'files.delete',
+            `Delete${recursive ? ' (recursive)' : ''} on ${req.params.id}: ${path}`, req.ip || null);
+    } catch (_) { /* non-fatal */ }
+    proxyAgentRequest(req, res, 'files.delete', { path, recursive }, 15000);
+});
+
+/**
+ * POST /api/devices/:id/files/rename   (Phase 63)
+ * Body: { from, to }
+ */
+router.post('/api/devices/:id/files/rename', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    const from = String(req.body?.from || '').slice(0, 4096);
+    const to = String(req.body?.to || '').slice(0, 4096);
+    if (!from || !to) return res.status(400).json({ success: false, error: 'paths_required' });
+    try {
+        await db.logAction(req.session.userId, 'files.rename',
+            `Rename on ${req.params.id}: ${from} -> ${to}`, req.ip || null);
+    } catch (_) { /* non-fatal */ }
+    proxyAgentRequest(req, res, 'files.rename', { from, to }, 10000);
+});
+
+/**
+ * POST /api/devices/:id/files/mkdir   (Phase 63)
+ * Body: { path, recursive?: bool (default true) }
+ */
+router.post('/api/devices/:id/files/mkdir', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    const path = String(req.body?.path || '').slice(0, 4096);
+    const recursive = req.body?.recursive !== false;
+    if (!path) return res.status(400).json({ success: false, error: 'path_required' });
+    try {
+        await db.logAction(req.session.userId, 'files.mkdir',
+            `Mkdir on ${req.params.id}: ${path}`, req.ip || null);
+    } catch (_) { /* non-fatal */ }
+    proxyAgentRequest(req, res, 'files.mkdir', { path, recursive }, 10000);
+});
+
+/**
+ * GET /api/devices/:id/clipboard   (Phase 64)
+ * Reads the device's text clipboard.
+ */
+router.get('/api/devices/:id/clipboard', requireAuth, requirePermission('device.view'), (req, res) => {
+    proxyAgentRequest(req, res, 'clipboard.get', null, 5000);
+});
+
+/**
+ * POST /api/devices/:id/clipboard   (Phase 64)
+ * Body: { text }   (max 1 MiB enforced agent-side)
+ */
+router.post('/api/devices/:id/clipboard', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    if (text.length > 1024 * 1024) {
+        return res.status(413).json({ success: false, error: 'text_too_large' });
+    }
+    try {
+        await db.logAction(req.session.userId, 'clipboard.set',
+            `Clipboard set on ${req.params.id} (${text.length} chars)`, req.ip || null);
+    } catch (_) { /* non-fatal */ }
+    proxyAgentRequest(req, res, 'clipboard.set', { text }, 5000);
+});
+
+/**
  * POST /api/devices/:id/screenshot
  * Captures a JPEG snapshot from the agent. Returns base64 image.
  */
 router.post('/api/devices/:id/screenshot', requireAuth, requirePermission('device.view'), (req, res) => {
     proxyAgentRequest(req, res, 'screenshot.capture', null, 20000);
+});
+
+/**
+ * POST /api/devices/:id/input/mouse
+ * Body: { action: 'move|down|up|click|wheel', x?, y?, x_rel?, y_rel?,
+ *         screen_w?, screen_h?, button?: 'left|right|middle',
+ *         wheel_dx?, wheel_dy? }
+ * Forwards a single mouse event to the agent (Phase 58).
+ */
+router.post('/api/devices/:id/input/mouse', requireAuth, requirePermission('device.edit'), (req, res) => {
+    const b = req.body || {};
+    const payload = {
+        action: String(b.action || 'move'),
+        button: typeof b.button === 'string' ? b.button : undefined,
+    };
+    if (typeof b.x === 'number') payload.x = Math.trunc(b.x);
+    if (typeof b.y === 'number') payload.y = Math.trunc(b.y);
+    if (typeof b.x_rel === 'number') payload.x_rel = b.x_rel;
+    if (typeof b.y_rel === 'number') payload.y_rel = b.y_rel;
+    if (typeof b.screen_w === 'number') payload.screen_w = Math.trunc(b.screen_w);
+    if (typeof b.screen_h === 'number') payload.screen_h = Math.trunc(b.screen_h);
+    if (typeof b.wheel_dx === 'number') payload.wheel_dx = Math.trunc(b.wheel_dx);
+    if (typeof b.wheel_dy === 'number') payload.wheel_dy = Math.trunc(b.wheel_dy);
+    proxyAgentRequest(req, res, 'input.mouse', payload, 5000);
+});
+
+/**
+ * POST /api/devices/:id/input/key
+ * Body: { key: 'Enter|Escape|a|F5|...', action?: 'press|down|up' }
+ */
+router.post('/api/devices/:id/input/key', requireAuth, requirePermission('device.edit'), (req, res) => {
+    const key = String(req.body?.key || '').slice(0, 32);
+    if (!key) return res.status(400).json({ success: false, error: 'key_required' });
+    const action = String(req.body?.action || 'press');
+    proxyAgentRequest(req, res, 'input.key', { key, action }, 5000);
+});
+
+/**
+ * POST /api/devices/:id/input/text
+ * Body: { text: 'hello world' }
+ */
+router.post('/api/devices/:id/input/text', requireAuth, requirePermission('device.edit'), (req, res) => {
+    const text = String(req.body?.text || '').slice(0, 4096);
+    if (!text) return res.status(400).json({ success: false, error: 'text_required' });
+    proxyAgentRequest(req, res, 'input.text', { text }, 8000);
 });
 
 /**

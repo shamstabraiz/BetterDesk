@@ -128,6 +128,7 @@ type EnrollmentRequest struct {
 type EnrollmentResponse struct {
 	Status       string          `json:"status"` // approved, pending, rejected
 	DeviceID     string          `json:"device_id"`
+	DeviceToken  string          `json:"device_token,omitempty"`
 	ServerTime   int64           `json:"server_time"`
 	SyncMode     string          `json:"sync_mode,omitempty"`    // silent, standard, turbo
 	DisplayName  string          `json:"display_name,omitempty"` // Operator-assigned name
@@ -214,6 +215,11 @@ func (s *Server) handleDeviceRegister(w http.ResponseWriter, r *http.Request) {
 		// Auto-approve: create peer immediately
 		s.createPeerFromEnrollment(&req, clientIP)
 		resp := s.buildEnrollmentResponse("approved", req.DeviceID, "standard", "")
+		if token, err := s.issueEnrollmentDeviceToken(req.DeviceID); err == nil {
+			resp.DeviceToken = token
+		} else {
+			log.Printf("[API] Failed to auto-issue enrollment device token for %s: %v", req.DeviceID, err)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 
@@ -234,6 +240,7 @@ func (s *Server) handleDeviceRegister(w http.ResponseWriter, r *http.Request) {
 				_ = s.db.IncrementTokenUse(tok.TokenHash)
 				s.createPeerFromEnrollment(&req, clientIP)
 				resp := s.buildEnrollmentResponse("approved", req.DeviceID, "standard", "")
+				resp.DeviceToken = req.Token
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(resp)
 
@@ -289,6 +296,7 @@ func (s *Server) handleDeviceRegister(w http.ResponseWriter, r *http.Request) {
 				_ = s.db.IncrementTokenUse(tok.TokenHash)
 				s.createPeerFromEnrollment(&req, clientIP)
 				resp := s.buildEnrollmentResponse("approved", req.DeviceID, "standard", "")
+				resp.DeviceToken = req.Token
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(resp)
 
@@ -577,6 +585,31 @@ func (s *Server) buildEnrollmentResponse(status, deviceID, syncMode, displayName
 	}
 
 	return resp
+}
+
+func (s *Server) issueEnrollmentDeviceToken(deviceID string) (string, error) {
+	plainToken, err := generateSecureToken(32)
+	if err != nil {
+		return "", err
+	}
+
+	token := &db.DeviceToken{
+		Token:     plainToken,
+		TokenHash: hashToken(plainToken),
+		Name:      "Auto-" + deviceID,
+		PeerID:    deviceID,
+		Status:    db.TokenStatusActive,
+		MaxUses:   0,
+		UseCount:  0,
+		CreatedBy: "system",
+		Note:      "Auto-issued during device enrollment",
+	}
+
+	if err := s.db.CreateDeviceToken(token); err != nil {
+		return "", err
+	}
+
+	return plainToken, nil
 }
 
 func (s *Server) createPeerFromEnrollment(req *EnrollmentRequest, clientIP string) {

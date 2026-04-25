@@ -36,12 +36,22 @@ function initCdapTerminalProxy(server, sessionMiddleware) {
                 return;
             }
 
-            // RBAC: only admin users can access terminal
-            if (req.session.role !== 'admin') {
+            // Session may store user under req.session.user (object) or as
+            // flat fields. Accept either; treat super_admin/admin as admin.
+            const sessUser = req.session.user || {};
+            const userRole = sessUser.role || req.session.role || '';
+            const userName = sessUser.username || req.session.username || `user#${req.session.userId}`;
+
+            // RBAC: only admin / super_admin users can access terminal
+            if (userRole !== 'admin' && userRole !== 'super_admin') {
+                console.warn(`[CDAP Terminal] 403 upgrade rejected (user=${userName} role=${userRole})`);
                 socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
                 socket.destroy();
                 return;
             }
+
+            req._cdapUserName = userName;
+            req._cdapUserRole = userRole;
 
             wss.handleUpgrade(req, socket, head, (ws) => {
                 wss.emit('connection', ws, req, deviceId);
@@ -50,7 +60,8 @@ function initCdapTerminalProxy(server, sessionMiddleware) {
     });
 
     wss.on('connection', (browserWs, req, deviceId) => {
-        const username = req.session?.username || 'admin';
+        const username = req._cdapUserName || req.session?.user?.username || 'admin';
+        const role = req._cdapUserRole || req.session?.user?.role || 'admin';
         console.log(`[CDAP Terminal] Proxy session started for device ${deviceId} by ${username}`);
 
         // Build Go server WebSocket URL
@@ -65,22 +76,30 @@ function initCdapTerminalProxy(server, sessionMiddleware) {
             headers: {
                 'X-API-Key': config.betterdeskApiKey || '',
                 'X-Username': username,
-                'X-Role': req.session?.role || 'admin'
+                'X-Role': role
             },
             // Allow self-signed certs for local Go server
             rejectUnauthorized: !config.allowSelfSignedCerts
         });
 
         let goConnected = false;
+        // Buffer messages that arrive before upstream is open (race fix).
+        const pendingBrowserMsgs = [];
 
         goWs.on('open', () => {
             goConnected = true;
+            while (pendingBrowserMsgs.length > 0) {
+                const buffered = pendingBrowserMsgs.shift();
+                try { goWs.send(buffered); } catch (_) { /* ignore */ }
+            }
         });
 
         // Relay: Browser → Go
         browserWs.on('message', (data) => {
             if (goConnected && goWs.readyState === WebSocket.OPEN) {
                 goWs.send(data);
+            } else if (goWs.readyState === WebSocket.CONNECTING) {
+                pendingBrowserMsgs.push(data);
             }
         });
 

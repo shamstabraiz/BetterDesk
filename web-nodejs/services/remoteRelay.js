@@ -256,7 +256,7 @@ function initRemoteRelay(server, sessionMiddleware) {
         if (agentMatch) {
             const deviceId = decodeURIComponent(agentMatch[1]);
             // Validate device ID format (reject path traversal etc.)
-            if (!/^[A-Za-z0-9_-]{3,32}$/.test(deviceId)) {
+            if (!/^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
                 socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
                 socket.destroy();
                 return;

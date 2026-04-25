@@ -9,16 +9,28 @@ import (
 func BuildManifest(cfg *Config, sys *SystemCollector, version string) map[string]any {
 	info := sys.GetInfo()
 
-	// Capabilities based on config
-	caps := []string{"telemetry", "commands"}
-	if cfg.Terminal {
-		caps = append(caps, "remote_desktop") // terminal is part of remote_desktop capability
+	// Capabilities based on config. Server-side allowedCapabilities (see
+	// betterdesk-server/cdap/manifest.go) accepts: telemetry, commands,
+	// alerts, logs, remote_desktop, video_stream, audio, clipboard,
+	// file_transfer, input_control. Anything else is rejected with
+	// "unknown capability". Both terminal and screenshot map to
+	// remote_desktop — deduplicate via a set.
+	capsSet := map[string]bool{"telemetry": true, "commands": true}
+	if cfg.Terminal || cfg.Screenshot {
+		capsSet["remote_desktop"] = true
+	}
+	if cfg.Screenshot {
+		capsSet["input_control"] = true
 	}
 	if cfg.FileBrowser {
-		caps = append(caps, "file_transfer")
+		capsSet["file_transfer"] = true
 	}
 	if cfg.Clipboard {
-		caps = append(caps, "clipboard")
+		capsSet["clipboard"] = true
+	}
+	caps := make([]string, 0, len(capsSet))
+	for c := range capsSet {
+		caps = append(caps, c)
 	}
 
 	// Build widgets

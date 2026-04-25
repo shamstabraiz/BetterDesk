@@ -51,7 +51,7 @@ async function identifyDevice(req, res, next) {
         } catch (_) { /* ignored */ }
     }
     const deviceId = req.headers['x-device-id'];
-    if (deviceId && /^[A-Za-z0-9_-]{3,32}$/.test(deviceId)) {
+    if (deviceId && /^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
         req.deviceId = deviceId;
         return next();
     }

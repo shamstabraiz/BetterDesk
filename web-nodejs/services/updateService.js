@@ -674,17 +674,48 @@ function deployServerBinary(builtBinaryPath, targetPath) {
         }
     }
 
-    // Copy new binary to service path
+    // Atomic replace: write to staging file in same dir, then rename over the
+    // target. On Linux, rename(2) replaces a running executable's directory
+    // entry without touching the existing inode, so a live server keeps
+    // running on the old image while the new one becomes available for the
+    // next start (this avoids ETXTBSY which copyFileSync hits when the
+    // target is busy). On Windows the running .exe is locked, so we first
+    // rename the target out of the way, then move the new one in.
+    const stagingPath = targetPath + '.new.' + process.pid + '.' + Date.now();
     try {
         fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-        fs.copyFileSync(builtBinaryPath, targetPath);
+        fs.copyFileSync(builtBinaryPath, stagingPath);
         if (!IS_WINDOWS) {
-            try { fs.chmodSync(targetPath, 0o755); } catch (_e) { /* ok */ }
+            try { fs.chmodSync(stagingPath, 0o755); } catch (_e) { /* ok */ }
+        }
+
+        if (IS_WINDOWS && fs.existsSync(targetPath)) {
+            const lockedAside = targetPath + '.old.' + Date.now();
+            try { fs.renameSync(targetPath, lockedAside); } catch (_e) { /* may fail if not locked */ }
+        }
+
+        try {
+            fs.renameSync(stagingPath, targetPath);
+        } catch (renameErr) {
+            // Cross-device rename or other rename failure — fall back to copy
+            // (still wraps the ETXTBSY case for non-Linux platforms or when
+            // staging dir is on a different filesystem).
+            try {
+                fs.copyFileSync(stagingPath, targetPath);
+                try { fs.unlinkSync(stagingPath); } catch (_e) { /* ok */ }
+                if (!IS_WINDOWS) {
+                    try { fs.chmodSync(targetPath, 0o755); } catch (_e) { /* ok */ }
+                }
+            } catch (copyErr) {
+                throw renameErr.code === 'ETXTBSY' ? renameErr : copyErr;
+            }
         }
         return { success: true, backupPath };
     } catch (err) {
+        // Cleanup staging if it survived
+        try { if (fs.existsSync(stagingPath)) fs.unlinkSync(stagingPath); } catch (_e) { /* ok */ }
         // Attempt to restore backup on failure
-        if (backupPath && fs.existsSync(backupPath)) {
+        if (backupPath && fs.existsSync(backupPath) && !fs.existsSync(targetPath)) {
             try { fs.copyFileSync(backupPath, targetPath); } catch (_e) { /* critical */ }
         }
         return { success: false, error: `Deploy failed: ${err.message}` };

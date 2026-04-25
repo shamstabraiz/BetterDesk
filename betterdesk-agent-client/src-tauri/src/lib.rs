@@ -6,11 +6,14 @@
 //! - `sysinfo_collect` — System information collection (hostname, OS, CPU, RAM, disk)
 //! - `commands`        — Tauri IPC commands exposed to the frontend
 
+pub mod autostart;
+pub mod bd_signal;
+pub mod cdap_client;
+pub mod chat_crypto;
 pub mod commands;
 pub mod config;
 pub mod privileges;
 pub mod registration;
-pub mod sidecar;
 pub mod sysinfo_collect;
 
 use log::info;
@@ -25,9 +28,9 @@ use tauri::Manager;
 #[allow(dead_code)]
 struct TrayState(tauri::tray::TrayIcon<tauri::Wry>);
 
-async fn resolve_sidecar_config_from_state(
+async fn resolve_cdap_config_from_state(
     app: &tauri::AppHandle,
-) -> Option<sidecar::SidecarConfig> {
+) -> Option<cdap_client::CdapConfig> {
     let mut config = {
         let state = app.try_state::<commands::AgentState>()?;
         let guard = state.config.lock().ok()?;
@@ -45,7 +48,7 @@ async fn resolve_sidecar_config_from_state(
         }
     }
 
-    Some(config.to_sidecar_config())
+    Some(config.to_cdap_config())
 }
 
 /// Spawn a background task that sends `POST /api/heartbeat` every 12 seconds.
@@ -104,6 +107,68 @@ fn start_heartbeat_task(app: &tauri::AppHandle) {
     });
 }
 
+/// Push a full `/api/sysinfo` payload once on app startup.
+///
+/// RustDesk-compatible sysinfo updates hostname, OS name, and version on the
+/// Go server peer record. Running this at every launch catches OS upgrades,
+/// kernel bumps, and hostname changes that occur between sessions — without
+/// requiring the user to re-run the setup wizard.
+fn push_sysinfo_refresh(app: &tauri::AppHandle) {
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // Give the app a moment to finish initializing before hitting network.
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+        let (address, device_id) = {
+            let Some(state) = app_handle.try_state::<commands::AgentState>() else { return };
+            let Ok(guard) = state.config.lock() else { return };
+            if !guard.is_registered() {
+                return;
+            }
+            (guard.server_address.clone(), guard.device_id.clone())
+        };
+
+        let snap = sysinfo_collect::SystemSnapshot::collect();
+        let payload = serde_json::json!({
+            "id": device_id,
+            "hostname": snap.hostname,
+            "username": snap.username,
+            "os": format!("{} {}", snap.os, snap.arch),
+            "version": snap.os_version,
+            "cpu": snap.cpu_name,
+            "memory": format!("{} MB", snap.total_memory_mb.max(1)),
+        });
+
+        let url = {
+            let addr = address.trim();
+            let with_scheme = if addr.starts_with("http://") || addr.starts_with("https://") {
+                addr.to_string()
+            } else {
+                format!("http://{}", addr)
+            };
+            if let Ok(parsed) = url::Url::parse(&with_scheme) {
+                let host = parsed.host_str().unwrap_or("localhost");
+                let port = parsed.port().unwrap_or(21114);
+                let scheme = parsed.scheme();
+                format!("{}://{}:{}/api/sysinfo", scheme, host, port)
+            } else {
+                format!("http://{}:21114/api/sysinfo", addr)
+            }
+        };
+
+        match registration::build_http_client(10) {
+            Ok(client) => match client.post(&url).json(&payload).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    log::info!("[sysinfo] Refreshed on {}", url);
+                }
+                Ok(resp) => log::warn!("[sysinfo] Server returned {} for {}", resp.status(), url),
+                Err(e) => log::warn!("[sysinfo] Request failed: {}", e),
+            },
+            Err(e) => log::warn!("[sysinfo] Could not build HTTP client: {}", e),
+        }
+    });
+}
+
 /// Entry point — called from main.rs.
 pub fn run() {
     // WebKitGTK Wayland workaround: prevent Gdk "Error 71 (Protocol error)
@@ -136,14 +201,15 @@ pub fn run() {
     }
     let is_registered = settings.is_registered();
     let auto_start = settings.auto_start_sidecar && is_registered;
+    let auto_start_pref = settings.autostart;
     info!(
         "Config loaded — registered: {}, server: {:?}",
         is_registered,
         settings.server_address
     );
 
-    let sidecar_manager = sidecar::SidecarManager::new();
-    let sidecar_manager_clone = sidecar_manager.clone();
+    let cdap_client = cdap_client::CdapClient::new();
+    let cdap_client_clone = cdap_client.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -162,7 +228,7 @@ pub fn run() {
         .manage(commands::AgentState {
             config: Mutex::new(settings),
             chat_history: Mutex::new(Vec::new()),
-            sidecar: sidecar_manager,
+            cdap: cdap_client,
         })
         .invoke_handler(tauri::generate_handler![
             // Status & lifecycle
@@ -232,24 +298,19 @@ pub fn run() {
                 }
             }
 
-            // Auto-start Go sidecar if device is registered and setting is on.
+            // Auto-start native CDAP client if device is registered and setting is on.
             if auto_start {
                 let app_handle = app.handle().clone();
-                let sidecar_manager = sidecar_manager_clone.clone();
+                let cdap = cdap_client_clone.clone();
                 tauri::async_runtime::spawn(async move {
-                    info!("[sidecar] Auto-starting Go agent sidecar...");
-                    let Some(sidecar_cfg) = resolve_sidecar_config_from_state(&app_handle).await else {
-                        info!("[sidecar] Auto-start skipped: device not registered");
+                    info!("[cdap] Auto-starting native CDAP client...");
+                    let Some(cdap_cfg) = resolve_cdap_config_from_state(&app_handle).await else {
+                        info!("[cdap] Auto-start skipped: device not registered");
                         return;
                     };
 
-                    if let Err(e) = sidecar_manager.start(&sidecar_cfg) {
-                        // Non-fatal: sidecar binary may not be installed yet.
-                        // User can start it manually from tray or settings.
-                        log::warn!("[sidecar] Auto-start failed: {}", e);
-                    } else {
-                        // Start stdout reader for consent-request events.
-                        sidecar_manager.start_stdout_reader(app_handle.clone());
+                    if let Err(e) = cdap.start(&cdap_cfg) {
+                        log::warn!("[cdap] Auto-start failed: {}", e);
                     }
                 });
             }
@@ -257,6 +318,24 @@ pub fn run() {
             // Always start the standalone HTTP heartbeat — keeps the device
             // visible as ONLINE even when the CDAP sidecar is not running.
             start_heartbeat_task(app.handle());
+
+            // Refresh sysinfo (hostname, OS, version, platform) on the server
+            // every boot — catches OS upgrades, hostname changes, kernel bumps
+            // that happen between launches.
+            if is_registered {
+                push_sysinfo_refresh(app.handle());
+            }
+
+            // Start the bd-signal WS client — answers operator-initiated
+            // introspection requests (services, processes, files, screenshot,
+            // terminal). Idempotent: silently no-ops until registered.
+            bd_signal::spawn(app.handle().clone());
+
+            // Mirror the persisted autostart preference to the OS (creates or
+            // removes the .desktop / Run registry entry). Without this the
+            // user's "Start on system boot" toggle has no effect — the plugin
+            // only exposes the API; enabling it is our responsibility.
+            autostart::sync_os_autostart(app.handle(), auto_start_pref);
 
             Ok(())
         })
@@ -344,23 +423,20 @@ fn setup_tray(
                 "chat" => show_window(app, "/chat"),
                 "check_conn" => show_window(app, "/?action=reconnect"),
                 "sidecar_toggle" => {
-                    // Restart the Go sidecar on demand (no admin required —
-                    // sidecar is a user-space process, operator-side gating is
-                    // already enforced by the server's RBAC).
+                    // Restart the native CDAP client on demand.
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        let Some(sc_cfg) = resolve_sidecar_config_from_state(&app_handle).await else {
-                            info!("[tray] Sidecar toggle: device not registered");
+                        let Some(cdap_cfg) = resolve_cdap_config_from_state(&app_handle).await else {
+                            info!("[tray] CDAP restart: device not registered");
                             return;
                         };
 
                         if let Some(state) = app_handle.try_state::<commands::AgentState>() {
-                            state.sidecar.stop();
-                            if let Err(e) = state.sidecar.start(&sc_cfg) {
-                                log::warn!("[tray] Sidecar restart failed: {}", e);
+                            state.cdap.stop();
+                            if let Err(e) = state.cdap.start(&cdap_cfg) {
+                                log::warn!("[tray] CDAP restart failed: {}", e);
                             } else {
-                                state.sidecar.start_stdout_reader(app_handle.clone());
-                                info!("[tray] Sidecar restarted");
+                                info!("[tray] CDAP client restarted");
                             }
                         }
                     });

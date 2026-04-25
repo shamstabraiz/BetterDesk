@@ -4,10 +4,28 @@
  * Supports multiple concurrent RDClient sessions
  */
 
-/* global RDClient, RDVideo */
+/* global RDClient, RDVideo, CDAPSession */
 
 (function () {
     'use strict';
+
+    // ---- Transport selection (PR 2.3) ----
+    // The unified web client picks the right transport per-device based
+    // on `window.__capabilities.transport` (set server-side from the Go
+    // peer record). RustDesk peers go through `RDClient`; OS-agent /
+    // CDAP-connected peers use `CDAPSession`, which exposes the same
+    // public surface so the rest of the session manager is transport-
+    // agnostic.
+    function getTransportName() {
+        const caps = window.__capabilities || {};
+        return String(caps.transport || 'rd').toLowerCase() === 'cdap' ? 'cdap' : 'rd';
+    }
+    function createTransportClient(canvas, opts) {
+        if (getTransportName() === 'cdap' && typeof CDAPSession === 'function') {
+            return new CDAPSession(canvas, opts);
+        }
+        return new RDClient(canvas, opts);
+    }
 
     // ---- Simple toast notification ----
     function showToast(message, type) {
@@ -53,6 +71,7 @@
             this.tfaOverlay = panel.querySelector('.session-2fa-overlay');
             this.tfaInput = panel.querySelector('.session-2fa-input');
             this.tfaError = panel.querySelector('.session-2fa-error');
+            this.cdapFallbackBtn = panel.querySelector('.session-btn-cdap-fallback');
             this.client = null;
             this.state = 'idle';
             this.latency = 0;
@@ -206,7 +225,7 @@
         // Create RDClient — start conservative; AdaptiveQuality promotes when the
         // pipeline proves it can keep up (prevents 3–7 FPS stalls on weaker CPUs/JMuxer).
         const userName = (window.BetterDesk.user && (window.BetterDesk.user.display_name || window.BetterDesk.user.username)) || 'BetterDesk Web';
-        session.client = new RDClient(session.canvas, {
+        session.client = createTransportClient(session.canvas, {
             deviceId: deviceId,
             serverPubKey: window.BetterDesk.serverPubKey || '',
             myName: userName,
@@ -291,12 +310,13 @@
         session.connectionOverlay.style.display = 'flex';
         session.passwordOverlay.style.display = 'none';
         session.overlayActions.style.display = 'none';
+        if (session.cdapFallbackBtn) session.cdapFallbackBtn.style.display = 'none';
         const spinner = session.connectionOverlay.querySelector('.spinner');
         if (spinner) spinner.style.display = 'block';
         session.statusText.textContent = _('remote.connecting');
 
         const userName = (window.BetterDesk.user && (window.BetterDesk.user.display_name || window.BetterDesk.user.username)) || 'BetterDesk Web';
-        session.client = new RDClient(session.canvas, {
+        session.client = createTransportClient(session.canvas, {
             deviceId: session.deviceId,
             serverPubKey: window.BetterDesk.serverPubKey || '',
             myName: userName,
@@ -337,10 +357,15 @@
             }
         });
 
-        c.on('error', (msg) => {
+        c.on('error', (msg, meta) => {
             setSessionStatus(session, 'error', msg);
             showSessionActions(session);
+            if (meta && meta.cdapFallback) showCdapFallback(session);
             if (isActive(session)) setToolbarAutoHide(false);
+        });
+
+        c.on('cdap_fallback_available', () => {
+            showCdapFallback(session);
         });
 
         c.on('disconnected', (reason) => {
@@ -403,6 +428,16 @@
 
         c.on('chat', (text) => addChatMessage(session, text, 'received'));
 
+        // CDAP transport: agent emits `monitors` after `monitor_list`. Show
+        // the toolbar dropdown on multi-display agents and refresh contents.
+        c.on('monitors', (list) => {
+            const btn = document.getElementById('btn-monitors');
+            if (btn) btn.style.display = (Array.isArray(list) && list.length > 1) ? '' : 'none';
+            if (isActive(session)) {
+                try { updateMonitorMenu(); } catch { /* menu not yet built */ }
+            }
+        });
+
         // Security events: show warnings for E2E encryption issues
         c.on('signature_warning', (msg) => {
             console.warn('[Remote] Signature warning:', msg);
@@ -435,6 +470,11 @@
     function wireSessionDomEvents(session) {
         session.panel.querySelector('.session-btn-reconnect')
             ?.addEventListener('click', () => reconnectSession(session));
+
+        session.panel.querySelector('.session-btn-cdap-fallback')
+            ?.addEventListener('click', () => {
+                window.location.href = '/remote-cdap/' + encodeURIComponent(session.deviceId);
+            });
 
         session.panel.querySelector('.session-btn-authenticate')
             ?.addEventListener('click', () => {
@@ -785,6 +825,10 @@
         session.overlayActions.style.display = 'flex';
         const spinner = session.connectionOverlay.querySelector('.spinner');
         if (spinner) spinner.style.display = 'none';
+    }
+
+    function showCdapFallback(session) {
+        if (session.cdapFallbackBtn) session.cdapFallbackBtn.style.display = 'inline-flex';
     }
 
     function syncToolbarToSession(session) {
@@ -1185,7 +1229,7 @@
 
     document.getElementById('btn-connect-new')?.addEventListener('click', () => {
         const id = newSessionInput.value.trim();
-        if (!id || !/^[A-Za-z0-9_-]{3,32}$/.test(id)) {
+        if (!id || !/^[A-Za-z0-9_-]{3,64}$/.test(id)) {
             newSessionInput.classList.add('error');
             setTimeout(() => newSessionInput.classList.remove('error'), 1500);
             return;
@@ -1269,5 +1313,31 @@
         }
     }
 
+    // ── Tab / window lifecycle: auto-disconnect on tab close ─────────────
+    //
+    // Without this hook the remote peer keeps streaming video/audio until
+    // the relay notices the WebSocket is gone (seconds, sometimes longer
+    // when the OS pauses the page). An explicit `pagehide` / `beforeunload`
+    // triggers a clean `disconnect()` on every active session so the peer
+    // tears down immediately — saves bandwidth and CPU on the remote end.
+    function installLifecycleHandlers() {
+        const teardown = () => {
+            for (const session of sessions.values()) {
+                try {
+                    if (session.client) session.client.disconnect();
+                } catch { /* ignore */ }
+                if (session.mediaRecorder && session.mediaRecorder.state === 'recording') {
+                    try { session.mediaRecorder.stop(); } catch { /* ignore */ }
+                }
+            }
+        };
+        // pagehide fires on tab close, navigation, and bfcache eviction —
+        // the most reliable modern hook.
+        window.addEventListener('pagehide', teardown, { capture: true });
+        // beforeunload is a secondary fallback for older browsers.
+        window.addEventListener('beforeunload', teardown, { capture: true });
+    }
+
     init();
+    installLifecycleHandlers();
 })();

@@ -264,6 +264,46 @@ app.use((err, req, res, next) => {
 // ============ Startup ============
 
 /**
+ * Warn if the user set Go-server-only TLS env vars in the Node.js environment.
+ * These variables (TLS_CERT, TLS_KEY) are read exclusively by the Go server.
+ * The Node.js console uses SSL_CERT_PATH / SSL_KEY_PATH instead.
+ * Silently ignoring them causes issue #104 — port 21121 stays HTTP while the
+ * RustDesk client expects HTTPS, producing InvalidContentType errors.
+ */
+function warnGoTlsEnvVars() {
+    const hasTlsCert = !!process.env.TLS_CERT;
+    const hasTlsKey  = !!process.env.TLS_KEY;
+    if (!hasTlsCert && !hasTlsKey) return;
+
+    const hasSslCertPath = !!process.env.SSL_CERT_PATH;
+    const hasSslKeyPath  = !!process.env.SSL_KEY_PATH;
+
+    if (hasTlsCert || hasTlsKey) {
+        console.warn('');
+        console.warn('  ┌─────────────────────────────────────────────────────┐');
+        console.warn('  │  ⚠  MISCONFIGURATION WARNING — TLS / SSL           │');
+        console.warn('  ├─────────────────────────────────────────────────────┤');
+        console.warn('  │  TLS_CERT / TLS_KEY are Go server environment       │');
+        console.warn('  │  variables and are IGNORED by this Node.js console. │');
+        console.warn('  │                                                     │');
+        console.warn('  │  To enable HTTPS on this console set:               │');
+        console.warn('  │    SSL_CERT_PATH=/path/to/fullchain.pem             │');
+        console.warn('  │    SSL_KEY_PATH=/path/to/privkey.pem                │');
+        console.warn('  │                                                     │');
+        if (!hasSslCertPath && !hasSslKeyPath) {
+            console.warn('  │  ❌ SSL_CERT_PATH and SSL_KEY_PATH are NOT set.    │');
+            console.warn('  │     Port 21121 (RustDesk Client API) is HTTP.     │');
+            console.warn('  │     Clients connecting via HTTPS will fail with   │');
+            console.warn('  │     InvalidContentType errors.                    │');
+        } else {
+            console.warn('  │  ✅ SSL_CERT_PATH / SSL_KEY_PATH are set — OK.    │');
+        }
+        console.warn('  └─────────────────────────────────────────────────────┘');
+        console.warn('');
+    }
+}
+
+/**
  * Load SSL certificates for HTTPS
  */
 function loadSslCertificates() {
@@ -312,6 +352,9 @@ function createHttpRedirectServer() {
 }
 
 async function startServer() {
+    // Warn early about common TLS misconfiguration (Go env vars used instead of Node.js vars)
+    warnGoTlsEnvVars();
+
     try {
         // Initialize database adapter (creates tables, runs migrations)
         await db.init();

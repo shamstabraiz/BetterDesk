@@ -33,17 +33,29 @@ router.get('/remote', requireAuth, (req, res) => {
 });
 
 /**
- * GET /remote/:deviceId - RustDesk-compatible remote desktop viewer
+ * GET /remote/:deviceId - Unified remote desktop viewer (single entry point).
+ *
+ * Phase 2.1 of the unification plan: this route is now the only canonical
+ * URL for browser-based remote desktop. The transport (RustDesk relay vs.
+ * CDAP WebSocket) is auto-detected on the server by probing the Go server
+ * for `device_type` and `cdap_connected`. The decision is then passed to
+ * the appropriate template.
+ *
+ * Query overrides:
+ *   ?transport=cdap   → force CDAP transport (skip auto-probe)
+ *   ?transport=rd     → force RustDesk transport
+ *
+ * Until the unified `remote.ejs` shell lands (PR 2.2 / 2.3) we still render
+ * the existing two templates underneath. Operators get a single URL and
+ * shareable links work regardless of which transport is active.
  */
 router.get('/remote/:deviceId', requireAuth, async (req, res) => {
     const deviceId = req.params.deviceId;
 
-    // Validate device ID format
-    if (!deviceId || !/^[A-Za-z0-9_-]{3,32}$/.test(deviceId)) {
+    if (!deviceId || !/^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
         return res.redirect('/devices');
     }
 
-    // Look up device in database for display info (optional, not blocking)
     let device = null;
     try {
         device = await db.getDevice(deviceId);
@@ -51,15 +63,69 @@ router.get('/remote/:deviceId', requireAuth, async (req, res) => {
         // Database lookup failure is non-blocking - viewer can still work
     }
 
+    // Probe Go server for authoritative transport hint. Local panel DB
+    // does not carry `device_type` or `cdap_connected`.
+    let isOsAgent = false;
+    let isCdapConnected = false;
+    let goPeer = null;
+    try {
+        const api = require('../services/betterdeskApi');
+        goPeer = await api.getPeer(deviceId);
+        if (goPeer) {
+            isOsAgent = String(goPeer.device_type || '').toLowerCase() === 'os_agent';
+            isCdapConnected = !!goPeer.cdap_connected;
+        }
+    } catch { /* non-fatal: degrade to standard viewer */ }
+
+    // Resolve transport: explicit query param wins, then auto-detect.
+    const forced = String(req.query.transport || '').toLowerCase();
+    let transport;
+    if (forced === 'cdap' || forced === 'rd') {
+        transport = forced;
+    } else if (isOsAgent || isCdapConnected) {
+        transport = 'cdap';
+    } else {
+        transport = 'rd';
+    }
+
+    // Capability hints exposed to the browser so the unified UI can light
+    // up the right toolbar buttons.
+    const capabilities = {
+        transport,
+        os_agent: isOsAgent,
+        cdap_connected: isCdapConnected,
+        device_type: goPeer && goPeer.device_type ? String(goPeer.device_type) : '',
+    };
+
+    // PR 2.2/2.3 unification: a single canonical web client (`remote.ejs`)
+    // serves both transports. The browser branches on
+    // `window.__capabilities.transport`. The legacy `remote-cdap` template
+    // is no longer rendered; its inline widget remains usable from
+    // device-detail panels via `cdap-desktop.js` directly.
     res.render('remote', {
         title: `${req.t('remote.title')} - ${deviceId}`,
         activePage: 'remote',
         deviceId: deviceId,
         device: device || { id: deviceId, hostname: '', platform: '', note: '' },
         serverPubKey: serverPubKey,
-        // Use viewer layout instead of main layout
+        capabilities,
         layout: 'viewer'
     });
+});
+
+/**
+ * GET /remote-cdap/:deviceId - Legacy alias, redirects to unified entry.
+ *
+ * Kept for backwards compatibility with existing bookmarks, deep links, and
+ * the `devices.js` "Connect" button. New code should link to
+ * `/remote/:deviceId` directly.
+ */
+router.get('/remote-cdap/:deviceId', requireAuth, (req, res) => {
+    const deviceId = req.params.deviceId;
+    if (deviceId && /^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
+        return res.redirect(`/remote/${encodeURIComponent(deviceId)}?transport=cdap`);
+    }
+    return res.redirect('/devices');
 });
 
 /**
@@ -71,7 +137,7 @@ router.get('/remote/:deviceId', requireAuth, async (req, res) => {
  */
 router.get('/remote-desktop/:deviceId', requireAuth, (req, res) => {
     const deviceId = req.params.deviceId;
-    if (deviceId && /^[A-Za-z0-9_-]{3,32}$/.test(deviceId)) {
+    if (deviceId && /^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
         return res.redirect(`/remote/${encodeURIComponent(deviceId)}`);
     }
     return res.redirect('/devices');

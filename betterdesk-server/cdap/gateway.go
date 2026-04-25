@@ -245,6 +245,11 @@ func (g *Gateway) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[cdap] WebSocket upgrade failed from %s: %v", clientIP, err)
 		return
 	}
+	// Default coder/websocket limit is 32 KiB which is far too small for
+	// continuous desktop frames (a 1280x720 q70 JPEG base64-encoded is
+	// ~150 KB). Allow up to 8 MB per CDAP message to support screen capture
+	// and bulk file payloads.
+	conn.SetReadLimit(8 * 1024 * 1024)
 
 	g.totalConns.Add(1)
 	g.activeConns.Add(1)
@@ -301,12 +306,25 @@ func (g *Gateway) runConnection(baseCtx context.Context, conn *websocket.Conn, c
 // messageLoop reads messages until the connection closes or context is cancelled.
 func (g *Gateway) messageLoop(ctx context.Context, dc *DeviceConn) {
 	for {
-		msg, err := dc.ReadMessage(ctx)
+		typ, raw, msg, err := dc.ReadAny(ctx)
 		if err != nil {
 			if ctx.Err() == nil {
 				log.Printf("[cdap] %s: read error: %v", dc.ID, err)
 			}
 			return
+		}
+
+		// Binary fast-path: raw bytes (currently used for desktop JPEG frames).
+		// The agent prefixes the payload with FRAME_HEADER_SIZE bytes encoding
+		// the desktop session ID, so we can route the frame to the correct
+		// browser without parsing JSON.
+		if typ == websocket.MessageBinary {
+			g.handleDesktopFrameBinary(ctx, dc, raw)
+			continue
+		}
+
+		if msg == nil {
+			continue
 		}
 
 		switch msg.Type {

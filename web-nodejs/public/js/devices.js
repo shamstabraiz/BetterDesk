@@ -392,6 +392,10 @@
                                 <span class="material-icons">screen_share</span>
                                 <span>${_('actions.web_remote') || 'Web Remote'}</span>
                             </button>
+                            <button class="kebab-menu-item" data-action="cdap-viewer" data-id="${eid}">
+                                <span class="material-icons">photo_camera</span>
+                                <span>${_('actions.cdap_viewer') || 'CDAP Snapshot Viewer'}</span>
+                            </button>
                             <button class="kebab-menu-item" data-action="connect-desktop" data-id="${eid}">
                                 <span class="material-icons">computer</span>
                                 <span>${_('actions.connect_desktop') || 'Desktop Client'}</span>
@@ -534,6 +538,10 @@
         switch (action) {
             case 'web-remote':
                 _tryAddRemoteTab(deviceId, data);
+                break;
+
+            case 'cdap-viewer':
+                window.open(`/remote-cdap/${encodeURIComponent(deviceId)}`, '_blank');
                 break;
 
             case 'connect-desktop':

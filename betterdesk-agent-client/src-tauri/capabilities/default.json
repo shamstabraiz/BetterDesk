@@ -1,0 +1,8 @@
+{
+  "identifier": "default",
+  "description": "Default BetterDesk Agent capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

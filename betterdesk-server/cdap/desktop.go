@@ -4,6 +4,7 @@
 package cdap
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -51,17 +52,21 @@ type DesktopFramePayload struct {
 }
 
 // DesktopInputPayload is sent from the browser to the device.
+// It matches the Go agent's InputEvent schema so the server can translate
+// browser-side mouse/keyboard events into an executable device payload.
 type DesktopInputPayload struct {
-	SessionID string `json:"session_id"`
-	InputType string `json:"input_type"` // mouse_move, mouse_down, mouse_up, key_down, key_up, scroll
-	X         int    `json:"x,omitempty"`
-	Y         int    `json:"y,omitempty"`
-	Button    int    `json:"button,omitempty"` // 0=left, 1=middle, 2=right
-	Key       string `json:"key,omitempty"`    // key name (e.g. "Enter", "a")
-	Code      string `json:"code,omitempty"`   // key code (e.g. "KeyA")
-	Modifiers int    `json:"modifiers,omitempty"`
-	DeltaX    int    `json:"delta_x,omitempty"` // scroll delta
-	DeltaY    int    `json:"delta_y,omitempty"`
+	SessionID string   `json:"session_id"`
+	Type      string   `json:"type"`
+	X         int      `json:"x,omitempty"`
+	Y         int      `json:"y,omitempty"`
+	Button    int      `json:"button,omitempty"`
+	Key       string   `json:"key,omitempty"`
+	Code      string   `json:"code,omitempty"`
+	Text      string   `json:"text,omitempty"`
+	Modifiers []string `json:"modifiers,omitempty"`
+	DeltaX    int      `json:"delta_x,omitempty"`
+	DeltaY    int      `json:"delta_y,omitempty"`
+	Pressed   bool     `json:"pressed,omitempty"`
 }
 
 // DesktopResizePayload is sent when the browser viewport resizes.
@@ -229,6 +234,53 @@ func (g *Gateway) HandleDesktopFrame(ctx context.Context, sessionID string, fram
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 	return ds.browser.Write(ctx, websocket.MessageText, outData)
+}
+
+// frameHeaderSize is the fixed-size session-ID prefix on every binary
+// desktop frame from the agent. The agent zero-pads sessionID to this
+// length; the server uses it to route the frame to the correct browser
+// without parsing JSON.
+const frameHeaderSize = 64
+
+// HandleDesktopFrameBinary is the binary fast-path for desktop frames.
+// The payload format is: [frameHeaderSize bytes session ID, NUL-padded][raw JPEG bytes].
+// The raw JPEG is forwarded to the browser as a single binary WS frame —
+// no base64, no JSON. This is the difference between 1–3 fps and 30+ fps.
+func (g *Gateway) handleDesktopFrameBinary(ctx context.Context, _ *DeviceConn, data []byte) {
+	if len(data) < frameHeaderSize {
+		return
+	}
+	// Extract zero-padded session ID.
+	hdr := data[:frameHeaderSize]
+	end := bytes.IndexByte(hdr, 0)
+	if end < 0 {
+		end = frameHeaderSize
+	}
+	sessionID := string(hdr[:end])
+	if sessionID == "" {
+		return
+	}
+
+	val, ok := g.desktopSessions.Load(sessionID)
+	if !ok {
+		return
+	}
+	ds := val.(*DesktopSession)
+	if ds.closed.Load() {
+		return
+	}
+
+	frame := data[frameHeaderSize:]
+	if len(frame) == 0 {
+		return
+	}
+
+	ds.mu.Lock()
+	err := ds.browser.Write(ctx, websocket.MessageBinary, frame)
+	ds.mu.Unlock()
+	if err != nil && ctx.Err() == nil {
+		log.Printf("[cdap] desktop binary frame write failed for session %s: %v", sessionID, err)
+	}
 }
 
 // EndDesktopSession terminates a desktop session.
