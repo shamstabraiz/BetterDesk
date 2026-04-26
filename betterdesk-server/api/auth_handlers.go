@@ -333,7 +333,8 @@ func (s *Server) handleAuthMe(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := s.db.ListUsers()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: list users failed: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -495,7 +496,8 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.UpdateUser(user); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: update user %d failed: %v", user.ID, err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -547,7 +549,8 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.DeleteUser(id); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: delete user %d failed: %v", id, err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -587,7 +590,8 @@ func (s *Server) handleSetupTOTP(w http.ResponseWriter, r *http.Request) {
 	user.TOTPEnabled = false
 
 	if err := s.db.UpdateUser(user); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: totp setup persist failed for user %d: %v", user.ID, err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -631,7 +635,8 @@ func (s *Server) handleConfirmTOTP(w http.ResponseWriter, r *http.Request) {
 
 	user.TOTPEnabled = true
 	if err := s.db.UpdateUser(user); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: totp confirm persist failed for user %d: %v", user.ID, err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -656,7 +661,8 @@ func (s *Server) handleDisableTOTP(w http.ResponseWriter, r *http.Request) {
 	user.TOTPSecret = ""
 	user.TOTPEnabled = false
 	if err := s.db.UpdateUser(user); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: totp disable persist failed for user %d: %v", user.ID, err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -670,7 +676,8 @@ func (s *Server) handleDisableTOTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	keys, err := s.db.ListAPIKeys()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: list api keys failed: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -740,7 +747,8 @@ func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.CreateAPIKey(key); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: create api key %q failed: %v", body.Name, err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
@@ -768,7 +776,8 @@ func (s *Server) handleDeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.DeleteAPIKey(id); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		log.Printf("api: delete api key %d failed: %v", id, err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 

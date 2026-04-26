@@ -58,6 +58,14 @@ This directory contains comprehensive documentation for BetterDesk Console, orga
 
 - **[Enterprise Roadmap](enterprise/ENTERPRISE_ROADMAP.md)** — Future enterprise features
 
+## Security
+
+- **[Threat Model](security/THREAT_MODEL.md)** — Security assumptions and trust boundaries
+- **[Encryption Specification](security/ENCRYPTION_SPEC.md)** — Cryptographic design details
+- **[Audit Log](security/AUDIT_LOG.md)** — Audit event model and operational notes
+- **[Login and API Security Audit](security/LOGIN_API_SECURITY_AUDIT_2026-04-26.md)** — Focused review of authentication, sessions, tokens, and API authorization
+- **[Audyt bezpieczeństwa logowania i API](security/LOGIN_API_SECURITY_AUDIT_2026-04-26_PL.md)** — Polska wersja dokumentu audytu logowania, sesji, tokenów i autoryzacji API
+
 ---
 
 > **Note:** The original Rust-based HBBS patch has been replaced by the [Go server](../betterdesk-server/) and moved to `archive/`. See the main [README](../README.md) for current architecture.

@@ -263,31 +263,42 @@ router.post('/api/auth/totp/verify', loginLimiter, async (req, res) => {
                 error: req.t('auth.totp_invalid_code')
             });
         }
-        
-        // Clear pending state
-        delete req.session.pendingTotpUserId;
-        delete req.session.pendingTotpUser;
-        
-        // Set full session
-        req.session.userId = pendingUser.id;
-        req.session.user = {
-            id: pendingUser.id,
-            username: pendingUser.username,
-            role: pendingUser.role
-        };
-        
-        // Update last login
-        await db.updateLastLogin(pendingUser.id);
-        
-        // Log login
-        await db.logAction(pendingUser.id, 'login', `User logged in (2FA: ${method})`, req.ip);
-        
-        res.json({
-            success: true,
-            user: {
+
+        // Regenerate session to prevent session fixation across the 2FA boundary.
+        // Mirrors the standard login flow: every successful authentication step
+        // results in a fresh session ID before any privileged data is written.
+        req.session.regenerate(async (regenErr) => {
+            if (regenErr) {
+                console.error('TOTP session regeneration error:', regenErr);
+                return res.status(500).json({
+                    success: false,
+                    error: req.t('errors.server_error')
+                });
+            }
+
+            // Pending fields belonged to the old session; the regenerated session
+            // starts empty, so we only need to populate the authenticated user.
+            req.session.userId = pendingUser.id;
+            req.session.user = {
+                id: pendingUser.id,
                 username: pendingUser.username,
                 role: pendingUser.role
+            };
+
+            try {
+                await db.updateLastLogin(pendingUser.id);
+                await db.logAction(pendingUser.id, 'login', `User logged in (2FA: ${method})`, req.ip);
+            } catch (logErr) {
+                console.error('TOTP post-auth bookkeeping error:', logErr);
             }
+
+            res.json({
+                success: true,
+                user: {
+                    username: pendingUser.username,
+                    role: pendingUser.role
+                }
+            });
         });
     } catch (err) {
         console.error('TOTP verify error:', err);

@@ -197,11 +197,12 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /api/org/{id}/policy/effective/{deviceId}", s.requireOrgMembership("id", s.handleGetEffectivePolicy))
 	mux.HandleFunc("GET /api/org/{id}/policy/audit", s.requireOrgMembership("id", s.handleGetPolicyAudit))
 
-	// Audit
-	mux.HandleFunc("GET /api/audit/events", s.handleAuditEvents)
+	// Audit (audit.view permission required)
+	mux.HandleFunc("GET /api/audit/events", s.requirePermission(auth.PermAuditView, s.handleAuditEvents))
 
-	// WebSocket real-time events
-	mux.HandleFunc("GET /api/ws/events", s.handleWSEvents)
+	// WebSocket real-time events (audit.view permission required — events stream
+	// includes peer/auth/system telemetry intended for audit-capable roles only)
+	mux.HandleFunc("GET /api/ws/events", s.requirePermission(auth.PermAuditView, s.handleWSEvents))
 
 	// Config (server.config permission)
 	mux.HandleFunc("GET /api/config/{key}", s.requirePermission(auth.PermServerConfig, s.handleGetConfig))

@@ -824,8 +824,8 @@ router.post('/api/login', async (req, res) => {
             return res.status(400).json({ error: 'Missing credentials' });
         }
 
-        // Check brute-force protection
-        const bruteCheck = authService.checkBruteForce(username, ip);
+        // Check brute-force protection (await — checkBruteForce is async)
+        const bruteCheck = await authService.checkBruteForce(username, ip);
         if (bruteCheck.blocked) {
             await db.logAction(null, 'api_login_blocked', `User: ${username}, IP: ${ip}, Reason: ${bruteCheck.reason}`, ip);
             return res.status(429).json({
