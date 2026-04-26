@@ -225,6 +225,16 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /api/ab/personal", s.handleClientAddressBookPersonal)
 	mux.HandleFunc("POST /api/ab/personal", s.handleClientAddressBookPersonal)
 	mux.HandleFunc("GET /api/ab/tags", s.handleClientAddressBookTags)
+
+	// RustDesk PRO group endpoint stubs — Flutter clients query these and expect
+	// the {total,data,msg} envelope; without them the device list never finishes
+	// loading.  We expose empty-but-valid responses so the UI gracefully falls
+	// back to address-book mode.  Idea credit: progloto (PR #81).
+	mux.HandleFunc("GET /api/group", s.handleClientGroupList)
+	mux.HandleFunc("GET /api/group/get", s.handleClientGroupList)
+	mux.HandleFunc("POST /api/group/get", s.handleClientGroupList)
+	mux.HandleFunc("GET /api/peers/list", s.handleClientGroupPeers)
+
 	mux.HandleFunc("POST /api/heartbeat", s.handleClientHeartbeat)
 	mux.HandleFunc("POST /api/sysinfo", s.handleClientSysinfo)
 	mux.HandleFunc("POST /api/sysinfo_ver", s.handleClientSysinfoVer)
@@ -321,7 +331,18 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Catch-all: return JSON 404 for unmatched routes.
 	// Go's default ServeMux returns HTML which breaks RustDesk (Dart) client parsing.
+	// Logs every miss so missing client compatibility endpoints are easy to spot.
+	// Diagnostics suggestion credit: progloto (PR #81).
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
+		ua := r.Header.Get("User-Agent")
+		if len(ua) > 80 {
+			ua = ua[:80] + "…"
+		}
+		log.Printf("[api] 404 %s %s from %s ua=%q", r.Method, r.URL.Path, ip, ua)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"error":"not found"}`))

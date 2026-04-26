@@ -219,7 +219,16 @@ app.use((err, req, res, next) => {
 // 404 Not Found
 app.use((req, res, next) => {
     res.status(404);
-    
+
+    // Log unmatched /api/* and /ws/* paths only (avoid noise from missing
+    // static assets like favicons).  Diagnostics suggestion credit:
+    // progloto (PR #81).
+    if (req.originalUrl.startsWith('/api/') || req.originalUrl.startsWith('/ws/')) {
+        const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+        const ua = String(req.headers['user-agent'] || '').slice(0, 80);
+        console.warn(`[panel] 404 ${req.method} ${req.originalUrl} from ${ip} ua="${ua}"`);
+    }
+
     if (req.accepts('html')) {
         res.render('errors/404', {
             title: req.t ? req.t('errors.not_found') : 'Not Found',
@@ -565,8 +574,14 @@ function startRustDeskApiServer() {
     const registrationRoutes = require('./routes/registration.routes');
     apiApp.use('/api/bd', registrationRoutes);
 
-    // Catch-all for any unmatched routes (should not reach here due to pathWhitelist)
+    // Catch-all for any unmatched routes (should not reach here due to pathWhitelist).
+    // We log every miss so missing RustDesk client compatibility endpoints are
+    // easy to spot in operations.  Diagnostics suggestion credit:
+    // progloto (PR #81).
     apiApp.use((req, res) => {
+        const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+        const ua = String(req.headers['user-agent'] || '').slice(0, 80);
+        console.warn(`[rustdesk-api] 404 ${req.method} ${req.originalUrl} from ${ip} ua="${ua}"`);
         res.status(404).end();
     });
 

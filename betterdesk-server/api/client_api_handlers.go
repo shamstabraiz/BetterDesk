@@ -551,6 +551,69 @@ func (s *Server) handleClientAddressBookTags(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, map[string]any{"data": ab.Tags})
 }
 
+// handleClientGroupList returns an empty group list in the {total,data,msg}
+// envelope expected by RustDesk PRO Flutter clients.  Returning a 404 here
+// causes the client to abort the device-list flow; an empty success response
+// makes it gracefully fall back to address-book mode.
+//
+// GET  /api/group, /api/group/get
+// POST /api/group/get
+//
+// Compatibility shim suggested by progloto in PR #81.
+func (s *Server) handleClientGroupList(w http.ResponseWriter, r *http.Request) {
+	username := getUsernameFromCtx(r)
+	if username == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Not authenticated"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"total": 0,
+		"data":  []any{},
+		"msg":   "success",
+	})
+}
+
+// handleClientGroupPeers returns the current user's peers in the
+// {total,data,msg} envelope expected by RustDesk PRO Flutter clients.  The
+// payload mirrors the address-book peer shape so existing clients render
+// devices without extra mapping.
+//
+// GET /api/peers/list
+//
+// Compatibility shim suggested by progloto in PR #81.
+func (s *Server) handleClientGroupPeers(w http.ResponseWriter, r *http.Request) {
+	username := getUsernameFromCtx(r)
+	if username == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Not authenticated"})
+		return
+	}
+	data, err := s.db.GetAddressBook(username, "legacy")
+	if err != nil || data == "" || data == "{}" {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"total": 0,
+			"data":  []any{},
+			"msg":   "success",
+		})
+		return
+	}
+	var ab struct {
+		Peers []map[string]any `json:"peers"`
+	}
+	if err := json.Unmarshal([]byte(data), &ab); err != nil || ab.Peers == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"total": 0,
+			"data":  []any{},
+			"msg":   "success",
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"total": len(ab.Peers),
+		"data":  ab.Peers,
+		"msg":   "success",
+	})
+}
+
 // handleClientHeartbeat accepts heartbeat pings from RustDesk clients.
 // POST /api/heartbeat
 // Request:  { "id": "DEVICE_ID", "uuid": "...", "cpu": 42, "memory": 55, "disk": 30 }
