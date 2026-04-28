@@ -61,8 +61,7 @@ func (s *tfaSessionStore) put(secret string, sess *tfaSession) {
 	}
 	// Limit total sessions to prevent memory exhaustion
 	if len(s.sessions) >= 1000 {
-		s.mu.Unlock()
-		return
+		return // defer s.mu.Unlock() handles the unlock
 	}
 	s.sessions[secret] = sess
 }
