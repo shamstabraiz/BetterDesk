@@ -1,0 +1,14 @@
+# Gitleaks configuration for BetterDesk
+# Suppresses false positives from auto-generated lock files
+
+title = "BetterDesk Gitleaks Config"
+
+[allowlist]
+  description = "Allowlisted files and patterns"
+
+  # Cargo.lock files contain crate checksums and dependency names like
+  # "crypto_secretbox" that trigger generic-api-key false positives.
+  paths = [
+    '''.*Cargo\.lock$''',
+    '''.*package-lock\.json$''',
+  ]
