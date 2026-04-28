@@ -33,7 +33,7 @@ instance/
 
 # --- Rust ---
 target/
-Cargo.lock
+# Note: Cargo.lock is committed for application crates (reproducible builds + Dependabot)
 **/*.rs.bk
 *.pdb
 
@@ -147,13 +147,13 @@ web-nodejs/_fix_*.sh
 betterdesk-mgmt/node_modules/
 betterdesk-mgmt/dist/
 betterdesk-mgmt/src-tauri/target/
-betterdesk-mgmt/src-tauri/Cargo.lock
+# betterdesk-mgmt/src-tauri/Cargo.lock  # committed for reproducible builds
 
 # --- BetterDesk Agent Client (Tauri + SolidJS, build artifacts) ---
 betterdesk-agent-client/node_modules/
 betterdesk-agent-client/dist/
 betterdesk-agent-client/src-tauri/target/
-betterdesk-agent-client/src-tauri/Cargo.lock
+# betterdesk-agent-client/src-tauri/Cargo.lock  # committed for reproducible builds
 
 # --- BetterDesk Agent binaries & config (compiled locally) ---
 betterdesk-agent/betterdesk-agent
