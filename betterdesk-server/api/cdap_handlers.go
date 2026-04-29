@@ -775,6 +775,10 @@ func (s *Server) handleCDAPDesktop(w http.ResponseWriter, r *http.Request) {
 			s.cdapGw.RelayKeyframeRequest(ctx, session.ID)
 		case "monitor_select":
 			s.cdapGw.RelayMonitorSelect(ctx, session.ID, msg.Index)
+		case "toggle_flash_custom":
+			if err := s.cdapGw.RelayDesktopToggleFlashCustom(ctx, session.ID); err != nil {
+				log.Printf("[cdap] toggle_flash_custom relay: %v", err)
+			}
 		case "close":
 			s.cdapGw.EndDesktopSession(ctx, session.ID, "user closed desktop")
 			return

@@ -711,6 +711,9 @@ message ScreenshotResponse {
   bytes data = 3;
 }
 
+// BetterDesk: controlling peer requests flashlight/torch toggle on controlled device (RustDesk Misc).
+message ToggleFlashCustom {}
+
 message Misc {
   oneof union {
     ChatMessage chat_message = 4;
@@ -744,6 +747,7 @@ message Misc {
     DisplayResolution change_display_resolution = 36;
     MessageQuery message_query = 37;
     int32 follow_current_display = 38;
+    ToggleFlashCustom toggle_flash_custom = 39;
   }
 }
 

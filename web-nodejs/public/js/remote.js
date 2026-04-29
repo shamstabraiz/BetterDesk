@@ -988,6 +988,13 @@
         closeAllDropdowns();
     });
 
+    document.getElementById('btn-toggle-flash')?.addEventListener('click', () => {
+        withClient(c => {
+            if (typeof c.sendToggleFlashCustom === 'function') c.sendToggleFlashCustom();
+        });
+        closeAllDropdowns();
+    });
+
     // Clipboard Paste
     document.getElementById('btn-clipboard-paste')?.addEventListener('click', async () => {
         const session = getActiveSession();

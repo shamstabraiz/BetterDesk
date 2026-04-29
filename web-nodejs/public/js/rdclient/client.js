@@ -1438,6 +1438,14 @@ class RDClient {
     }
 
     /**
+     * Toggle flashlight on controlled device (BetterDesk custom Misc).
+     */
+    sendToggleFlashCustom() {
+        if (this._state !== 'streaming') return;
+        this._sendPeerMessage(this.proto.buildToggleFlashCustom());
+    }
+
+    /**
      * Send chat message to remote peer
      * @param {string} text
      */

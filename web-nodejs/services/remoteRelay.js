@@ -220,6 +220,12 @@ function handleViewerConnection(ws, deviceId, operatorName) {
                 }
                 break;
 
+            case 'toggle_flash_custom':
+                if (session.agentWs && session.agentWs.readyState === WebSocket.OPEN) {
+                    sendJson(session.agentWs, { type: 'toggle_flash_custom' });
+                }
+                break;
+
             default:
                 break;
         }

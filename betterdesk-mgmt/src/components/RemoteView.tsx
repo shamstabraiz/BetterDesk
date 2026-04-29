@@ -479,6 +479,13 @@ export default function RemoteView(props: RemoteViewProps) {
                         <button class="btn-icon" title={t('remote.refresh')} onClick={requestRefresh}>
                             <span class="material-symbols-rounded">refresh</span>
                         </button>
+                        <button
+                            class="btn-icon"
+                            title={t('remote.toggle_flashlight')}
+                            onClick={() => sendInput({ type: 'toggle_flash_custom' })}
+                        >
+                            <span class="material-symbols-rounded">flashlight_on</span>
+                        </button>
                         <button class="btn-icon" title={t('remote.ctrl_alt_del')} onClick={sendCtrlAltDel}>
                             <span class="material-symbols-rounded">keyboard</span>
                         </button>

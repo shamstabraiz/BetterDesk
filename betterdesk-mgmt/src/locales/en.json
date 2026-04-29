@@ -104,6 +104,7 @@
     "connect_failed": "Connection failed",
     "retry": "Retry",
     "refresh": "Refresh",
+    "toggle_flashlight": "Toggle flashlight",
     "ctrl_alt_del": "Ctrl+Alt+Del",
     "enter_password": "Enter device password",
     "password_placeholder": "Password",

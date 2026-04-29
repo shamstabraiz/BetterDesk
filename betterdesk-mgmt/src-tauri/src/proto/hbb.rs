@@ -1697,10 +1697,12 @@ pub struct ScreenshotResponse {
     pub data: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ToggleFlashCustom {}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Misc {
     #[prost(
         oneof = "misc::Union",
-        tags = "4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38"
+        tags = "4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39"
     )]
     pub union: ::core::option::Option<misc::Union>,
 }
@@ -1770,6 +1772,8 @@ pub mod misc {
         MessageQuery(super::MessageQuery),
         #[prost(int32, tag = "38")]
         FollowCurrentDisplay(i32),
+        #[prost(message, tag = "39")]
+        ToggleFlashCustom(super::ToggleFlashCustom),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]

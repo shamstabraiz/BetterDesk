@@ -232,12 +232,11 @@ async fn agent_loop<R: Runtime>(
                                                                                 active.store(false, Ordering::Relaxed);
                                                                                 break;
                                                                             }
-                                                                            Some("input") => {
+                                                                            _ => {
                                                                                 if let Ok(input) = serde_json::from_value::<InputEvent>(val) {
                                                                                     inject_input(input);
                                                                                 }
                                                                             }
-                                                                            _ => {}
                                                                         }
                                                                     }
                                                                 }
@@ -460,6 +459,9 @@ fn inject_input(event: InputEvent) {
                     let _ = enigo.key(key, Direction::Click);
                 }
             }
+        }
+        "toggle_flash_custom" => {
+            info!("RemoteAgent: toggle_flash_custom — implement platform torch if needed");
         }
         other => {
             debug!("inject_input: unknown event type: {}", other);

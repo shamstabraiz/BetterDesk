@@ -185,6 +185,26 @@ func (g *Gateway) RelayDesktopInput(ctx context.Context, sessionID string, input
 	return ds.deviceConn.WriteMessage(ctx, msg)
 }
 
+// RelayDesktopToggleFlashCustom sends a BetterDesk custom control to the device (e.g. torch toggle).
+func (g *Gateway) RelayDesktopToggleFlashCustom(ctx context.Context, sessionID string) error {
+	val, ok := g.desktopSessions.Load(sessionID)
+	if !ok {
+		return fmt.Errorf("desktop session %s not found", sessionID)
+	}
+	ds := val.(*DesktopSession)
+	if ds.closed.Load() {
+		return fmt.Errorf("desktop session %s is closed", sessionID)
+	}
+	payload := map[string]string{"session_id": sessionID}
+	payloadData, _ := json.Marshal(payload)
+	msg := &Message{
+		Type:      "toggle_flash_custom",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Payload:   payloadData,
+	}
+	return ds.deviceConn.WriteMessage(ctx, msg)
+}
+
 // RelayDesktopResize forwards a viewport resize from browser to device.
 func (g *Gateway) RelayDesktopResize(ctx context.Context, sessionID string, width, height int) error {
 	val, ok := g.desktopSessions.Load(sessionID)

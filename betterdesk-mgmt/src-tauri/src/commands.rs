@@ -1565,6 +1565,7 @@ pub async fn send_remote_input(
             modifiers: mods,
         },
         "refresh_video" => SessionCommand::RefreshVideo,
+        "toggle_flash_custom" => SessionCommand::ToggleFlashCustom,
         other => {
             log::debug!("Unknown remote input type: {}", other);
             return Ok(());

@@ -343,6 +343,8 @@ func (a *Agent) dispatch(msg *Message) {
 		a.handleDesktopStop(msg)
 	case "desktop_input":
 		a.handleDesktopInput(msg)
+	case "toggle_flash_custom":
+		a.handleToggleFlashCustom(msg)
 
 	// ── Video / Audio (not supported in os_agent) ──
 	case "video_start", "audio_start", "audio_input":

@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 
 use crate::proto::{
     message::Union as MsgUnion, misc, Message as PeerMessage, Misc, OptionMessage,
-    SwitchDisplay, TestDelay,
+    SwitchDisplay, TestDelay, ToggleFlashCustom,
 };
 
 use super::clipboard_sync::ClipboardSync;
@@ -52,6 +52,8 @@ pub enum SessionCommand {
     DownloadFile { remote_path: String, filename: String },
     /// Cancel transfer
     CancelTransfer { id: i32 },
+    /// Request flashlight / torch toggle on controlled peer (custom Misc).
+    ToggleFlashCustom,
     /// Toggle recording
     ToggleRecording { enabled: bool },
     /// Stop session
@@ -355,6 +357,9 @@ fn handle_misc<R: Runtime>(app: &AppHandle<R>, misc_msg: &Misc) {
         Some(misc::Union::Option(_opt)) => {
             debug!("SessionManager: option message from peer");
         }
+        Some(misc::Union::ToggleFlashCustom(_)) => {
+            let _ = app.emit("remote-toggle-flash-custom", ());
+        }
         _ => {
             debug!("SessionManager: unhandled misc type");
         }
@@ -450,6 +455,14 @@ async fn handle_command<R: Runtime>(
         }
         SessionCommand::CancelTransfer { id } => {
             let msg = file_transfer.cancel(*id);
+            let _ = msg_tx.send(msg).await;
+        }
+        SessionCommand::ToggleFlashCustom => {
+            let msg = PeerMessage {
+                union: Some(MsgUnion::Misc(Misc {
+                    union: Some(misc::Union::ToggleFlashCustom(ToggleFlashCustom {})),
+                })),
+            };
             let _ = msg_tx.send(msg).await;
         }
         SessionCommand::ToggleRecording { enabled } => {

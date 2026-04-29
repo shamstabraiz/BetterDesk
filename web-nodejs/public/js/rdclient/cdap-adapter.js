@@ -296,6 +296,7 @@
         }
         sendRestart()             { this.sendRestartRemoteDevice(); }
         sendRestartRemoteDevice() { this._send({ type: 'restart_device' }); }
+        sendToggleFlashCustom()   { this._send({ type: 'toggle_flash_custom' }); }
         sendClipboard(text) {
             if (!text) return false;
             return this.sendText(text);

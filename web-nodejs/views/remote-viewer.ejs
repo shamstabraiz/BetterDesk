@@ -59,6 +59,9 @@
             <select class="bdv-select bdv-hidden" id="bdvMonitor" title="Monitor"></select>
         </div>
         <div class="bdv-toolbar-right">
+            <button class="bdv-btn" id="btnFlashlight" title="Toggle flashlight">
+                <span class="material-icons">flashlight_on</span>
+            </button>
             <button class="bdv-btn" id="btnClipboard" title="Clipboard Sync">
                 <span class="material-icons">content_paste</span>
             </button>
@@ -381,6 +384,10 @@
         sendRemote({ type: 'special_key', combo: item.dataset.keys });
         specialKeysMenu.classList.add('bdv-hidden');
     });
+
+    document.getElementById('btnFlashlight').onclick = () => {
+        sendRemote({ type: 'toggle_flash_custom' });
+    };
 
     // ---- Clipboard Sync ----
     document.getElementById('btnClipboard').onclick = async () => {

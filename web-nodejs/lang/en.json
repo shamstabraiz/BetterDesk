@@ -611,6 +611,7 @@
     "restart_remote": "Restart Remote Device",
     "refresh_screen": "Refresh Screen",
     "clipboard_paste": "Paste from Clipboard",
+    "toggle_flashlight": "Toggle flashlight",
     "clipboard_empty": "Clipboard is empty",
     "clipboard_denied": "Clipboard access denied. HTTPS required or permission not granted.",
     "block_input": "Block Input",

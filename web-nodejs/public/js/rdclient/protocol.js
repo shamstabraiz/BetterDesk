@@ -367,6 +367,18 @@ class RDProtocol {
         };
     }
 
+    /**
+     * BetterDesk: toggle flashlight / torch on controlled peer (custom Misc).
+     * @returns {Object} Message for _sendPeerMessage
+     */
+    buildToggleFlashCustom() {
+        return {
+            misc: {
+                toggleFlashCustom: {}
+            }
+        };
+    }
+
     // ---- File Transfer builders ----
 
     /**
