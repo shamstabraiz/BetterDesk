@@ -367,6 +367,18 @@ class RDProtocol {
         };
     }
 
+    /**
+     * Toggle flashlight / torch on remote mobile device (BetterDesk extension).
+     * @param {boolean} on
+     */
+    buildToggleFlashCustom(on) {
+        return {
+            misc: {
+                toggleFlashCustom: { on: !!on }
+            }
+        };
+    }
+
     // ---- File Transfer builders ----
 
     /**

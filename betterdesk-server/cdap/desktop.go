@@ -208,6 +208,28 @@ func (g *Gateway) RelayDesktopResize(ctx context.Context, sessionID string, widt
 	return ds.deviceConn.WriteMessage(ctx, msg)
 }
 
+// RelayFlashlightControl forwards flashlight/torch toggle from browser to CDAP device (BetterDesk).
+func (g *Gateway) RelayFlashlightControl(ctx context.Context, sessionID string, on bool) error {
+	val, ok := g.desktopSessions.Load(sessionID)
+	if !ok {
+		return fmt.Errorf("desktop session %s not found", sessionID)
+	}
+	ds := val.(*DesktopSession)
+	if ds.closed.Load() {
+		return fmt.Errorf("desktop session %s is closed", sessionID)
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"session_id": sessionID,
+		"on":         on,
+	})
+	msg := &Message{
+		Type:      "flashlight_control",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Payload:   payload,
+	}
+	return ds.deviceConn.WriteMessage(ctx, msg)
+}
+
 // HandleDesktopFrame is called when the device sends a captured frame.
 // It forwards the frame to the browser WebSocket.
 func (g *Gateway) HandleDesktopFrame(ctx context.Context, sessionID string, frame *DesktopFramePayload) error {

@@ -982,6 +982,26 @@
         closeAllDropdowns();
     });
 
+    // Flashlight / torch (mobile controlled peer — ToggleFlashCustom)
+    document.getElementById('btn-flashlight')?.addEventListener('click', () => {
+        withClient((c) => {
+            const btn = document.getElementById('btn-flashlight');
+            if (!btn) return;
+            const wasOn = btn.dataset.active === 'true';
+            const newState = !wasOn;
+            if (typeof c.setFlashlight === 'function') {
+                c.setFlashlight(newState);
+            }
+            btn.dataset.active = String(newState);
+            const icon = btn.querySelector('.material-icons');
+            if (icon) {
+                icon.textContent = newState ? 'flashlight_off' : 'flashlight_on';
+            }
+            btn.classList.toggle('active', newState);
+        });
+        closeAllDropdowns();
+    });
+
     // Refresh Screen
     document.getElementById('btn-refresh-screen')?.addEventListener('click', () => {
         withClient(c => c.sendRefreshScreen());

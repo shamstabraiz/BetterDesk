@@ -296,6 +296,9 @@
         }
         sendRestart()             { this.sendRestartRemoteDevice(); }
         sendRestartRemoteDevice() { this._send({ type: 'restart_device' }); }
+        setFlashlight(on) {
+            this._send({ type: 'flashlight_control', on: !!on });
+        }
         sendClipboard(text) {
             if (!text) return false;
             return this.sendText(text);

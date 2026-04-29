@@ -46,6 +46,7 @@ type desktopWSMessage struct {
 	Data        string          `json:"data,omitempty"`
 	SessionID   string          `json:"session_id,omitempty"`
 	Index       int             `json:"index,omitempty"`
+	On          bool            `json:"on,omitempty"`
 	Raw         json.RawMessage `json:"-"`
 }
 
@@ -775,6 +776,8 @@ func (s *Server) handleCDAPDesktop(w http.ResponseWriter, r *http.Request) {
 			s.cdapGw.RelayKeyframeRequest(ctx, session.ID)
 		case "monitor_select":
 			s.cdapGw.RelayMonitorSelect(ctx, session.ID, msg.Index)
+		case "flashlight_control":
+			s.cdapGw.RelayFlashlightControl(ctx, session.ID, msg.On)
 		case "close":
 			s.cdapGw.EndDesktopSession(ctx, session.ID, "user closed desktop")
 			return

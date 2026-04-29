@@ -356,6 +356,10 @@ func (a *Agent) dispatch(msg *Message) {
 	case "keyframe_request", "key_exchange", "quality_adjust":
 		// Acknowledged — no real-time media to adjust
 
+	// ── BetterDesk remote flashlight (browser → CDAP device) ──
+	case "flashlight_control":
+		log.Printf("[agent] flashlight_control received (session device may not support hardware torch)")
+
 	// ── Errors ──
 	case "error":
 		var ep struct {

@@ -1438,6 +1438,15 @@ class RDClient {
     }
 
     /**
+     * Toggle flashlight on controlled mobile peer (requires matching RustDesk protocol).
+     * @param {boolean} on
+     */
+    setFlashlight(on) {
+        if (this._state !== 'streaming') return;
+        this._sendPeerMessage(this.proto.buildToggleFlashCustom(!!on));
+    }
+
+    /**
      * Send chat message to remote peer
      * @param {string} text
      */
