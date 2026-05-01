@@ -69,6 +69,18 @@ type Config struct {
 	InitAdminUser   string // Initial admin username (created on first start)
 	InitAdminPass   string // Initial admin password (auto-generated if empty)
 
+	// Signal rate limiting (registrations per IP per minute).
+	// Issue #122: large NAT deployments may need to raise or disable this
+	// (set to 0 to disable rate limiting entirely).
+	SignalRateLimitPerIP int
+
+	// SameNATRelay forces relay fallback when both peers connect from the
+	// same public IP (i.e. they sit behind the same NAT gateway).  Many
+	// consumer routers refuse hairpin NAT, so the LAN-address exchange that
+	// normally works in this case can silently fail and the connection
+	// times out (issue #121).  Default: enabled.
+	SameNATRelay bool
+
 	// WebSocket security (M3)
 	AllowedWSOrigins    string // Comma-separated allowed WebSocket origins (empty = allow all)
 	APIAllowedWSOrigins string // Comma-separated allowed WebSocket origins for HTTP API events endpoint
@@ -106,6 +118,8 @@ func DefaultConfig() *Config {
 		CDAPPort:        21122,
 		CDAPEnabled:     true, // Enabled by default; set CDAP_ENABLED=N for minimal installs
 		CDAPRateLimit:   30,
+		SignalRateLimitPerIP: IPRateLimitRegistrations,
+		SameNATRelay:         true, // issue #121: auto-fallback to relay on shared public IP
 	}
 }
 
@@ -199,6 +213,27 @@ func (c *Config) LoadEnv() {
 	if v := os.Getenv("RELAY_MAX_CONNS_PER_IP"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			c.RelayMaxConnsIP = n
+		}
+	}
+	// Issue #122: allow tuning the per-IP signal/registration rate limit
+	// without recompiling. Useful for large NAT deployments where many
+	// devices share the same public IP. Set to 0 to disable entirely.
+	if v := os.Getenv("SIGNAL_RATE_LIMIT_PER_IP"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			c.SignalRateLimitPerIP = n
+		}
+	}
+	// Issue #121: when both peers share the same public IP, the LAN
+	// hole-punch path requires NAT hairpinning, which many consumer
+	// routers (and most cellular gateways) silently drop.  Enabled by
+	// default; set SAME_NAT_RELAY=N to fall back to the legacy LAN-exchange
+	// behavior.
+	if v := os.Getenv("SAME_NAT_RELAY"); v != "" {
+		switch strings.ToUpper(v) {
+		case "Y", "YES", "1", "TRUE", "ON":
+			c.SameNATRelay = true
+		case "N", "NO", "0", "FALSE", "OFF":
+			c.SameNATRelay = false
 		}
 	}
 	if v := os.Getenv("INIT_ADMIN_USER"); v != "" {

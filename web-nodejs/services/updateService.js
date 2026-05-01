@@ -78,6 +78,9 @@ const COMPONENTS = {
 };
 
 // paths that are never downloaded during an update
+// CRITICAL: anything that holds local runtime state MUST be excluded here.
+// Overwriting live SQLite WAL/SHM files corrupts the database
+// ("database disk image is malformed") — see issue #123.
 const EXCLUDE_PATTERNS = [
     /^\.github\//,
     /^archive\//,
@@ -88,9 +91,21 @@ const EXCLUDE_PATTERNS = [
     /^sdks\//,
     /^bridges\//,
     /node_modules\//,
-    /\.sqlite3$/,
     /\.exe$/,
-    /^betterdesk-server\/betterdesk-server/       // compiled binaries
+    /^betterdesk-server\/betterdesk-server/,      // compiled binaries
+    // --- Runtime state (never overwrite, even if accidentally committed) ---
+    /^web-nodejs\/data\//,                        // entire data dir is local state
+    /(^|\/)data\//,                               // any nested data/ dir (server, agent)
+    /\.sqlite3?$/,                                // .sqlite, .sqlite3
+    /\.sqlite3?-(shm|wal|journal)$/,              // SQLite sidecar files
+    /\.db$/,                                      // .db files (auth.db, etc.)
+    /\.db-(shm|wal|journal)$/,                    // SQLite WAL/SHM/journal sidecars
+    /(^|\/)\.session_secret$/,
+    /(^|\/)\.update_sha$/,
+    /(^|\/)\.api_key$/,
+    /(^|\/)\.admin_credentials$/,
+    /(^|\/)\.force_password_update$/,
+    /(^|\/)\.env(\.|$)/                           // .env, .env.local, etc.
 ];
 
 // ======================== HTTP Helpers ===================================
@@ -205,6 +220,30 @@ function classifyFile(filepath) {
 
 function isExcluded(filepath) {
     return EXCLUDE_PATTERNS.some(rx => rx.test(filepath));
+}
+
+/**
+ * Defense-in-depth: refuse to write to any path that maps to runtime state,
+ * even if the file somehow slipped past EXCLUDE_PATTERNS earlier in the
+ * pipeline. Prevents reintroducing issue #123 (corrupted SQLite WAL/SHM
+ * after update overwrote live state files).
+ *
+ * @param {string} fullPath  Absolute destination path on disk.
+ * @returns {boolean}
+ */
+function isProtectedRuntimePath(fullPath) {
+    if (!fullPath) return false;
+    const normalized = fullPath.replace(/\\/g, '/');
+    if (/\/web-nodejs\/data(\/|$)/.test(normalized)) return true;
+    if (/\/data\/(db_v2|address_book|peer)\b/.test(normalized)) return true;
+    const base = path.basename(normalized);
+    if (/\.sqlite3?$/.test(base)) return true;
+    if (/\.sqlite3?-(shm|wal|journal)$/.test(base)) return true;
+    if (/\.db$/.test(base)) return true;
+    if (/\.db-(shm|wal|journal)$/.test(base)) return true;
+    if (['.session_secret', '.update_sha', '.api_key', '.admin_credentials', '.force_password_update'].includes(base)) return true;
+    if (/^\.env(\..+)?$/.test(base)) return true;
+    return false;
 }
 
 // ======================== Server Build Support ===========================
@@ -419,9 +458,13 @@ async function ensureServerSource(remoteSHA) {
     let downloaded = 0;
     for (const file of serverFiles) {
         try {
-            const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
             const localPath = file.path.slice(COMPONENTS.server.prefix.length);
             const dest = path.join(serverDir, localPath);
+            if (isProtectedRuntimePath(dest)) {
+                console.warn(`[UPDATE] Refusing to overwrite runtime state file: ${file.path}`);
+                continue;
+            }
+            const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
             fs.mkdirSync(path.dirname(dest), { recursive: true });
             fs.writeFileSync(dest, content);
             downloaded++;
@@ -1107,6 +1150,7 @@ async function applyUpdate(remoteSHA, changedData, opts = {}) {
             try {
                 if (file.status === 'removed') {
                     const localFile = path.join(ROOT_DIR, file.localPath);
+                    if (isProtectedRuntimePath(localFile)) { results.skipped.push(file.path); continue; }
                     if (fs.existsSync(localFile)) { fs.unlinkSync(localFile); results.removed.push(file.path); }
                     continue;
                 }
@@ -1114,8 +1158,13 @@ async function applyUpdate(remoteSHA, changedData, opts = {}) {
                     results.skipped.push(file.path);
                     continue;
                 }
-                const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
                 const dest = path.join(ROOT_DIR, file.localPath);
+                if (isProtectedRuntimePath(dest)) {
+                    console.warn(`[UPDATE] Refusing to overwrite runtime state file: ${file.path}`);
+                    results.skipped.push(file.path);
+                    continue;
+                }
+                const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
                 fs.mkdirSync(path.dirname(dest), { recursive: true });
                 fs.writeFileSync(dest, content);
                 results.applied.push(file.path);
@@ -1140,8 +1189,13 @@ async function applyUpdate(remoteSHA, changedData, opts = {}) {
         for (const file of changedData.grouped.scripts) {
             try {
                 if (file.status === 'removed') continue;
-                const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
                 const dest = path.join(PROJECT_ROOT, file.localPath);
+                if (isProtectedRuntimePath(dest)) {
+                    console.warn(`[UPDATE] Refusing to overwrite runtime state file: ${file.path}`);
+                    results.skipped.push(file.path);
+                    continue;
+                }
+                const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
                 fs.mkdirSync(path.dirname(dest), { recursive: true });
                 fs.writeFileSync(dest, content);
                 if (!IS_WINDOWS && file.localPath.endsWith('.sh')) {
@@ -1221,12 +1275,18 @@ async function applyUpdate(remoteSHA, changedData, opts = {}) {
                     if (file.status === 'removed') {
                         const localPath = file.path.slice(COMPONENTS.server.prefix.length);
                         const localFile = path.join(serverDir, localPath);
+                        if (isProtectedRuntimePath(localFile)) { results.skipped.push(file.path); continue; }
                         if (fs.existsSync(localFile)) { fs.unlinkSync(localFile); results.removed.push(file.path); }
                         continue;
                     }
-                    const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
                     const localPath = file.path.slice(COMPONENTS.server.prefix.length);
                     const dest = path.join(serverDir, localPath);
+                    if (isProtectedRuntimePath(dest)) {
+                        console.warn(`[UPDATE] Refusing to overwrite runtime state file: ${file.path}`);
+                        results.skipped.push(file.path);
+                        continue;
+                    }
+                    const content = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, file.path);
                     fs.mkdirSync(path.dirname(dest), { recursive: true });
                     fs.writeFileSync(dest, content);
                     results.applied.push(file.path);

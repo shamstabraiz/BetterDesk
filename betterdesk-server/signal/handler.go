@@ -455,6 +455,18 @@ func (s *Server) handlePunchHoleRequest(msg *pb.PunchHoleRequest, raddr *net.UDP
 		return
 	}
 
+	// Issue #121: NAT hairpin fallback.  When both peers connect from the
+	// same public IP, they sit behind the same NAT gateway.  Many consumer
+	// routers (and most cellular gateways) drop hairpin packets, so the
+	// usual LAN-address exchange times out.  Force the relay path instead
+	// — it always works.  Disable with SAME_NAT_RELAY=N.
+	if s.cfg.SameNATRelay && target.UDPAddr != nil && isSamePublicIP(raddr, target.UDPAddr) {
+		log.Printf("[signal] PunchHole: shared public IP %s detected (issue #121 hairpin) → forcing relay for %s",
+			raddr.IP, targetID)
+		s.sendRelayResponse(target, raddr, msg, relayServer)
+		return
+	}
+
 	// LAN detection: if both peers share the same public IP or are on the same
 	// private /24 subnet, they are on the same local network (matching Rust hbbs).
 	sameNetwork := isSameNetwork(raddr, target.UDPAddr)
@@ -603,7 +615,17 @@ func (s *Server) handlePunchHoleRequestTCP(msg *pb.PunchHoleRequest, raddr *net.
 	// PunchHoleResponse), generate their own UUID, and connect to relay with it
 	// — while the target connects with the server's UUID. This broke relay
 	// pairing every time (Issue #66).
-	if msg.ForceRelay || s.cfg.AlwaysUseRelay {
+	// Issue #121: NAT hairpin fallback (see UDP handler for full rationale).
+	// When both peers connect from the same public IP, force relay because
+	// most consumer routers drop hairpin packets and the LAN exchange will
+	// silently time out.  Disable with SAME_NAT_RELAY=N.
+	hairpin := s.cfg.SameNATRelay && target.UDPAddr != nil && isSamePublicIP(raddr, target.UDPAddr)
+	if hairpin {
+		log.Printf("[signal] PunchHole (TCP): shared public IP %s detected (issue #121 hairpin) → forcing relay for %s",
+			raddr.IP, targetID)
+	}
+
+	if msg.ForceRelay || s.cfg.AlwaysUseRelay || hairpin {
 		log.Printf("[signal] PunchHole (TCP): force relay for %s (returning SYMMETRIC to let client drive relay UUID)", targetID)
 
 		var signedPk []byte
@@ -1425,6 +1447,31 @@ func isSameNetwork(a, b *net.UDPAddr) bool {
 
 	log.Printf("[LAN] isSameNetwork: no match → false")
 	return false
+}
+
+// isSamePublicIP returns true when both peers connect from the exact same
+// non-private IP address.  This is the classic "behind the same NAT gateway"
+// scenario: many consumer/cellular routers refuse hairpin NAT, so direct LAN
+// exchange between such peers silently times out.  When this returns true the
+// signal handler should force the relay path (issue #121).
+func isSamePublicIP(a, b *net.UDPAddr) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	aIP := a.IP
+	bIP := b.IP
+	if a4 := aIP.To4(); a4 != nil {
+		aIP = a4
+	}
+	if b4 := bIP.To4(); b4 != nil {
+		bIP = b4
+	}
+	if !aIP.Equal(bIP) {
+		return false
+	}
+	// Only treat genuinely public addresses as a hairpin scenario; same-LAN
+	// peers (private IPs) keep the existing direct path.
+	return !isPrivateIP(aIP) && !aIP.IsLoopback() && !aIP.IsUnspecified()
 }
 
 // isPrivateIP returns true if the IP is in a private/local range.

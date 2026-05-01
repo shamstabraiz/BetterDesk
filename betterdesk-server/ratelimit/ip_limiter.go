@@ -45,7 +45,14 @@ func NewIPLimiter(limit int, window, cleanup time.Duration) *IPLimiter {
 
 // Allow checks if an event from the given IP should be allowed.
 // Returns true if the IP is within the rate limit, false if blocked.
+//
+// A limit of 0 (or negative) disables rate limiting entirely; every call
+// returns true. This is useful for deployments behind a single corporate
+// NAT where many devices legitimately share one public IP.
 func (l *IPLimiter) Allow(ip string) bool {
+	if l == nil || l.limit <= 0 {
+		return true
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 

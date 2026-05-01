@@ -143,7 +143,7 @@ func main() {
 	}
 
 	ipLimiter := ratelimit.NewIPLimiter(
-		config.IPRateLimitRegistrations,
+		cfg.SignalRateLimitPerIP,
 		config.IPRateLimitWindow,
 		config.IPRateLimitCleanup,
 	)
@@ -154,8 +154,12 @@ func main() {
 		config.DefaultSingleBandwidth,
 	)
 
-	log.Printf("Security modules initialized (blocklist=%d entries, rate-limit=%d/min)",
-		blocklist.Count(), config.IPRateLimitRegistrations)
+	rateLimitDesc := fmt.Sprintf("%d/min", cfg.SignalRateLimitPerIP)
+	if cfg.SignalRateLimitPerIP <= 0 {
+		rateLimitDesc = "disabled"
+	}
+	log.Printf("Security modules initialized (blocklist=%d entries, rate-limit=%s)",
+		blocklist.Count(), rateLimitDesc)
 
 	// Initialize JWT manager for API authentication
 	jwtSecret := cfg.JWTSecret
@@ -550,6 +554,8 @@ func parseFlags() *config.Config {
 	flag.BoolVar(&cfg.ForceHTTPS, "force-https", cfg.ForceHTTPS, "Reject non-TLS API requests")
 	flag.BoolVar(&cfg.TrustProxy, "trust-proxy", cfg.TrustProxy, "Trust X-Forwarded-For/X-Real-IP headers from reverse proxy")
 	flag.IntVar(&cfg.RelayMaxConnsIP, "relay-max-conns-ip", cfg.RelayMaxConnsIP, "Max relay connections per IP (0 = unlimited)")
+	flag.IntVar(&cfg.SignalRateLimitPerIP, "signal-rate-limit-per-ip", cfg.SignalRateLimitPerIP, "Max signal registrations per IP per minute (0 = unlimited; raise for large NAT deployments — issue #122)")
+	flag.BoolVar(&cfg.SameNATRelay, "same-nat-relay", cfg.SameNATRelay, "Auto-fallback to relay when both peers share the same public IP (avoids NAT hairpin failures — issue #121)")
 	flag.StringVar(&cfg.InitAdminUser, "init-admin-user", cfg.InitAdminUser, "Initial admin username (default: admin)")
 	flag.StringVar(&cfg.InitAdminPass, "init-admin-pass", cfg.InitAdminPass, "Initial admin password (auto-generated if empty)")
 	flag.BoolVar(&cfg.TLSSignal, "tls-signal", cfg.TLSSignal, "Enable TLS on signal TCP/WS ports (requires --tls-cert and --tls-key)")
