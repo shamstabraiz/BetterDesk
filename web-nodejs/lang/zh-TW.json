@@ -1,4 +1,4 @@
-﻿{
+{
   "meta": {
     "lang": "zh-TW",
     "name": "Chinese (Traditional)",
@@ -355,7 +355,15 @@
     "totp_recovery_warning": "請將這些復原碼儲存在安全的地方。每個復原碼只能使用一次。如果您無法存取驗證器應用，可以使用這些復原碼登入。",
     "totp_done": "完成",
     "totp_disable_warning": "關閉雙因素認證會降低您帳戶的安全性。請輸入密碼確認。",
-    "totp_disabled_success": "雙因素認證已關閉。"
+    "totp_disabled_success": "雙因素認證已關閉。",
+    "tutorials_title": "教程与引导",
+    "tutorials_desc": "管理控制台中显示的引导教程和帮助覆盖层",
+    "tutorials_enabled": "启用教程",
+    "tutorials_enabled_hint": "禁用后，教程将不会自动启动，帮助按钮将被隐藏",
+    "tutorials_reset_hint": "将所有教程标记为未查看，以便再次显示",
+    "tutorials_enabled_toast": "教程已启用",
+    "tutorials_disabled_toast": "教程已禁用",
+    "tutorials_reset_toast": "所有教程已重置"
   },
   "audit": {
     "time": "時間",
@@ -434,7 +442,10 @@
     "back": "返回",
     "create": "建立",
     "dismiss": "忽略",
-    "view_all": "檢視全部"
+    "view_all": "檢視全部",
+    "cdap_viewer": "CDAP Snapshot Viewer",
+    "add": "添加",
+    "remove": "移除"
   },
   "time": {
     "just_now": "剛剛",
@@ -651,7 +662,13 @@
     "2fa_required": "2FA Verification Required",
     "2fa_hint": "Enter the 6-digit code from your authenticator app",
     "2fa_invalid": "Enter a valid 6-digit code",
-    "verify": "Verify"
+    "verify": "Verify",
+    "use_cdap_fallback": "Use CDAP viewer",
+    "cdap_fallback_hint": "Open the lightweight JPEG-polling viewer that uses bd-signal/CDAP instead of the RustDesk relay. Useful when the peer is offline on the relay but reachable via the agent management channel.",
+    "clipboard_empty": "剪贴板为空",
+    "clipboard_denied": "剪贴板访问被拒绝。需要HTTPS或未授予权限。",
+    "file_loading": "加载中...",
+    "file_timeout": "远程设备未响应。文件传输可能不受支持或在远程计算机上已禁用。"
   },
   "branding": {
     "identity_title": "品牌標識",
@@ -767,7 +784,23 @@
     "no_metrics": "尚無指標資料",
     "no_metrics_hint": "裝置傳送心跳報告後將顯示指標資料",
     "chart_oldest": "← 最早",
-    "chart_newest": "最新 →"
+    "chart_newest": "最新 →",
+    "tab_services": "服务",
+    "tab_processes": "进程",
+    "tab_events": "事件",
+    "tab_activity": "活动",
+    "tab_files": "文件",
+    "agent_lazy_hint": "单击此选项卡以从代理加载实时数据",
+    "agent_offline": "代理离线",
+    "agent_timeout": "代理响应超时",
+    "agent_error": "从代理加载数据失败",
+    "service_name": "名称",
+    "service_display": "显示名称",
+    "service_status": "状态",
+    "service_start": "启动模式",
+    "process_name": "名称",
+    "process_user": "用户",
+    "process_memory": "内存"
   },
   "inventory": {
     "title": "資產清單",
@@ -1788,7 +1821,9 @@
     "chat_file_title": "Share Files",
     "chat_file_text": "Click the attachment icon to share files. Files are encrypted and can be up to 50 MB.",
     "chat_complete_title": "Chat Ready!",
-    "chat_complete_text": "Chat with operators and end users in real time. Create groups for team communication. All messages support read receipts."
+    "chat_complete_text": "Chat with operators and end users in real time. Create groups for team communication. All messages support read receipts.",
+    "disable_tutorials": "禁用教程",
+    "enable_tutorials": "启用教程"
   },
   "help_request": {
     "title": "協助請求",
@@ -2099,7 +2134,10 @@
     "update_channel": "更新頻道",
     "audit_title": "策略變更",
     "audit_desc": "最近的策略變更歷史",
-    "no_audit": "沒有記錄的策略變更。"
+    "no_audit": "沒有記錄的策略變更。",
+    "save_success": "策略保存成功",
+    "save_failed": "保存策略失败",
+    "load_failed": "加载策略失败"
   },
   "attestation": {
     "title": "裝置認證",
@@ -2115,7 +2153,11 @@
     "col_status": "狀態",
     "col_last_check": "最後檢查",
     "col_actions": "操作",
-    "no_records": "找不到認證記錄。"
+    "no_records": "找不到認證記錄。",
+    "verify_success": "设备已标记为已验证",
+    "verify_failed": "验证设备失败",
+    "revoke_success": "设备认证已撤销",
+    "revoke_failed": "撤销认证失败"
   },
   "fleet": {
     "title": "車隊管理",
@@ -2403,7 +2445,18 @@
     "edit": "編輯",
     "delete": "刪除",
     "close": "關閉",
-    "no_rules": "沒有分配規則。"
+    "no_rules": "沒有分配規則。",
+    "relays_info_banner": "This list is informational. The relay servers actually used by clients are configured via the RELAY_SERVERS environment variable on the BetterDesk server.",
+    "relay_name_address_required": "Name and address are required.",
+    "relay_save_failed": "Failed to save relay node.",
+    "relay_delete_failed": "Failed to delete relay node.",
+    "relay_saved": "Relay node saved.",
+    "relay_deleted": "Relay node deleted.",
+    "rule_name_value_required": "Rule name and match value are required.",
+    "rule_save_failed": "Failed to save rule.",
+    "rule_delete_failed": "Failed to delete rule.",
+    "rule_saved": "Rule saved.",
+    "rule_deleted": "Rule deleted."
   },
   "cross_platform": {
     "title": "跨平台相容性",
@@ -2755,7 +2808,69 @@
     "server_deployed": "Server binary deployed",
     "server_deploy_failed": "Server deploy failed",
     "server_build_note": "Server compilation may take 1-5 minutes. The page will remain unresponsive during compilation.",
-    "server_source_downloading": "Downloading server source…"
+    "server_source_downloading": "Downloading server source…",
+    "delete": "Delete",
+    "delete_confirm": "Permanently delete backup {name}? This cannot be undone.",
+    "delete_success": "Backup deleted",
+    "delete_failed": "Failed to delete backup",
+    "retention_label": "Keep N most recent backups",
+    "retention_hint": "Older backups are deleted automatically after each update. Use 0 to keep all backups.",
+    "retention_saved": "Retention setting saved",
+    "retention_invalid": "Retention must be an integer between 0 and 1000",
+    "retention_required_for_prune": "Set a retention value greater than 0 first",
+    "prune_now": "Apply now",
+    "prune_confirm": "Keep only the {n} most recent backups and delete the rest?",
+    "prune_done": "Pruned {n} backup(s)",
+    "total_size": "Total size",
+    "backups_count": "backup(s)",
+    "strategy_label": "更新方式",
+    "strategy_download": "下载预编译二进制文件",
+    "strategy_compile": "从源代码编译",
+    "both_available": "下载和编译",
+    "download_available": "可下载",
+    "no_method": "无可用更新方式",
+    "no_release": "无发布版本",
+    "available": "可用",
+    "server_downloading": "正在下载服务器二进制文件…",
+    "server_downloaded": "服务器二进制文件已下载",
+    "server_download_failed": "服务器二进制文件下载失败",
+    "server_download_note": "将从 GitHub Releases 下载预编译的二进制文件。通常不到一分钟。",
+    "install_go_hint": "从 https://go.dev/dl/ 安装 Go 以启用编译，或发布包含预编译二进制文件的版本",
+    "strategy_install_go": "Auto-install Go and compile",
+    "strategy_install_go_hint": "Downloads the official Go toolchain (~120 MB) into the console data directory, then compiles the server. Use this when Go is not installed on the host.",
+    "auto_strategy": "Auto",
+    "auto_strategy_hint": "The console will pick the best available method (download → compile → auto-install Go).",
+    "auto_available": "Auto-rebuild ready",
+    "toolchain_ready": "Toolchain installed",
+    "toolchain_will_install": "Go toolchain will be installed automatically",
+    "toolchain_downloading": "Downloading Go toolchain…",
+    "toolchain_failed": "Go toolchain install failed",
+    "modal_title": "Installing update",
+    "modal_done_title": "Update complete",
+    "modal_close": "Close",
+    "modal_reload_now": "Reload console",
+    "phase_confirm": "Confirmation",
+    "phase_backup": "Backup",
+    "phase_console": "Console files",
+    "phase_server": "Go server",
+    "phase_restart": "Restart",
+    "phase_done": "Done",
+    "preparing": "Preparing…",
+    "backup_skipped": "Backup skipped (per user choice)",
+    "server_skipped": "Go server skipped",
+    "server_not_selected": "Go server not selected",
+    "server_processing": "Processing Go server update…",
+    "no_restart_needed": "No restart required",
+    "complete": "Update applied",
+    "complete_summary": "The update has been applied successfully.",
+    "complete_with_errors": "The update finished, but some steps failed. See details below.",
+    "modal_done_with_errors_title": "Update finished with errors",
+    "console_will_restart": "Console process will restart now…",
+    "restart_complete_msg": "The console finished restarting. Click reload to load the new version. The page will reload automatically in 8 seconds.",
+    "refresh_recommended": "Static assets changed — reload the page to see the new UI.",
+    "confirm_title": "Apply update",
+    "confirm_with_backup": "A pre-update backup will be created automatically.",
+    "confirm_no_backup": "No backup will be created (proceed at your own risk)."
   },
   "permissions": {
     "title": "Permissions",
@@ -2818,5 +2933,13 @@
     "perm_enrollment_approve": "Approve enrollment",
     "perm_chat_access": "Chat access",
     "perm_branding_edit": "Edit branding"
+  },
+  "notifications": {
+    "title": "通知",
+    "empty": "没有新通知",
+    "mark_all_read": "全部标记为已读",
+    "see_all": "查看所有求助请求",
+    "help_request": "求助请求",
+    "just_now": "刚刚"
   }
 }

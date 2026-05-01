@@ -1,4 +1,4 @@
-﻿{
+{
   "meta": {
     "lang": "nl",
     "name": "Dutch",
@@ -357,7 +357,15 @@
     "totp_recovery_warning": "Bewaar deze herstelcodes op een veilige plaats. Elke code kan slechts één keer worden gebruikt. Als u de toegang tot uw authenticatie-app verliest, kunt u deze codes gebruiken om in te loggen.",
     "totp_done": "Klaar",
     "totp_disable_warning": "Het uitschakelen van tweefactorauthenticatie maakt uw account minder veilig. Voer uw wachtwoord in om te bevestigen.",
-    "totp_disabled_success": "Tweefactorauthenticatie is uitgeschakeld."
+    "totp_disabled_success": "Tweefactorauthenticatie is uitgeschakeld.",
+    "tutorials_title": "Tutorials & Guides",
+    "tutorials_desc": "Control guided tours and help overlays shown throughout the console",
+    "tutorials_enabled": "Enable tutorials",
+    "tutorials_enabled_hint": "When disabled, tutorials will not start automatically and the help button will be hidden",
+    "tutorials_reset_hint": "Mark all tutorials as unseen so they can be shown again",
+    "tutorials_enabled_toast": "Tutorials enabled",
+    "tutorials_disabled_toast": "Tutorials disabled",
+    "tutorials_reset_toast": "All tutorials have been reset"
   },
   "audit": {
     "time": "Tijd",
@@ -436,7 +444,10 @@
     "back": "Terug",
     "create": "Aanmaken",
     "dismiss": "Negeren",
-    "view_all": "Alles bekijken"
+    "view_all": "Alles bekijken",
+    "cdap_viewer": "CDAP Snapshot Viewer",
+    "add": "Add",
+    "remove": "Remove"
   },
   "time": {
     "just_now": "Zojuist",
@@ -653,7 +664,13 @@
     "2fa_required": "2FA Verification Required",
     "2fa_hint": "Enter the 6-digit code from your authenticator app",
     "2fa_invalid": "Enter a valid 6-digit code",
-    "verify": "Verify"
+    "verify": "Verify",
+    "use_cdap_fallback": "Use CDAP viewer",
+    "cdap_fallback_hint": "Open the lightweight JPEG-polling viewer that uses bd-signal/CDAP instead of the RustDesk relay. Useful when the peer is offline on the relay but reachable via the agent management channel.",
+    "clipboard_empty": "Clipboard is empty",
+    "clipboard_denied": "Clipboard access denied. HTTPS required or permission not granted.",
+    "file_loading": "Loading...",
+    "file_timeout": "Remote device did not respond. File transfer may not be supported or is disabled on the remote machine."
   },
   "branding": {
     "identity_title": "Merkidentiteit",
@@ -769,7 +786,23 @@
     "no_metrics": "Geen metrische gegevens beschikbaar",
     "no_metrics_hint": "Metrics verschijnen nadat het apparaat heartbeat-rapporten heeft verzonden",
     "chart_oldest": "← Oudste",
-    "chart_newest": "Nieuwste →"
+    "chart_newest": "Nieuwste →",
+    "tab_services": "Services",
+    "tab_processes": "Processes",
+    "tab_events": "Events",
+    "tab_activity": "Activity",
+    "tab_files": "Files",
+    "agent_lazy_hint": "Click this tab to load live data from the agent",
+    "agent_offline": "Agent is offline",
+    "agent_timeout": "Agent did not respond in time",
+    "agent_error": "Failed to load data from agent",
+    "service_name": "Name",
+    "service_display": "Display name",
+    "service_status": "Status",
+    "service_start": "Start mode",
+    "process_name": "Name",
+    "process_user": "User",
+    "process_memory": "Memory"
   },
   "inventory": {
     "title": "Inventaris",
@@ -1924,7 +1957,9 @@
     "chat_file_title": "Share Files",
     "chat_file_text": "Click the attachment icon to share files. Files are encrypted and can be up to 50 MB.",
     "chat_complete_title": "Chat Ready!",
-    "chat_complete_text": "Chat with operators and end users in real time. Create groups for team communication. All messages support read receipts."
+    "chat_complete_text": "Chat with operators and end users in real time. Create groups for team communication. All messages support read receipts.",
+    "disable_tutorials": "Disable Tutorials",
+    "enable_tutorials": "Enable Tutorials"
   },
   "help_request": {
     "title": "Help Requests",
@@ -2235,7 +2270,10 @@
     "update_channel": "Updatekanaal",
     "audit_title": "Beleidswijzigingen",
     "audit_desc": "Recente beleidswijzigingsgeschiedenis",
-    "no_audit": "Geen beleidswijzigingen geregistreerd."
+    "no_audit": "Geen beleidswijzigingen geregistreerd.",
+    "save_success": "Policy saved successfully",
+    "save_failed": "Failed to save policy",
+    "load_failed": "Failed to load policies"
   },
   "attestation": {
     "title": "Apparaatattestatie",
@@ -2251,7 +2289,11 @@
     "col_status": "Status",
     "col_last_check": "Laatste controle",
     "col_actions": "Acties",
-    "no_records": "Geen attestatierecords gevonden."
+    "no_records": "Geen attestatierecords gevonden.",
+    "verify_success": "Device marked as verified",
+    "verify_failed": "Failed to verify device",
+    "revoke_success": "Device attestation revoked",
+    "revoke_failed": "Failed to revoke attestation"
   },
   "fleet": {
     "title": "Vlootbeheer",
@@ -2539,7 +2581,18 @@
     "edit": "Bewerken",
     "delete": "Verwijderen",
     "close": "Sluiten",
-    "no_rules": "Geen toewijzingsregels."
+    "no_rules": "Geen toewijzingsregels.",
+    "relays_info_banner": "This list is informational. The relay servers actually used by clients are configured via the RELAY_SERVERS environment variable on the BetterDesk server.",
+    "relay_name_address_required": "Name and address are required.",
+    "relay_save_failed": "Failed to save relay node.",
+    "relay_delete_failed": "Failed to delete relay node.",
+    "relay_saved": "Relay node saved.",
+    "relay_deleted": "Relay node deleted.",
+    "rule_name_value_required": "Rule name and match value are required.",
+    "rule_save_failed": "Failed to save rule.",
+    "rule_delete_failed": "Failed to delete rule.",
+    "rule_saved": "Rule saved.",
+    "rule_deleted": "Rule deleted."
   },
   "cross_platform": {
     "title": "Platformonafhankelijke compatibiliteit",
@@ -2891,7 +2944,69 @@
     "server_deployed": "Server binary deployed",
     "server_deploy_failed": "Server deploy failed",
     "server_build_note": "Server compilation may take 1-5 minutes. The page will remain unresponsive during compilation.",
-    "server_source_downloading": "Downloading server source…"
+    "server_source_downloading": "Downloading server source…",
+    "delete": "Delete",
+    "delete_confirm": "Permanently delete backup {name}? This cannot be undone.",
+    "delete_success": "Backup deleted",
+    "delete_failed": "Failed to delete backup",
+    "retention_label": "Keep N most recent backups",
+    "retention_hint": "Older backups are deleted automatically after each update. Use 0 to keep all backups.",
+    "retention_saved": "Retention setting saved",
+    "retention_invalid": "Retention must be an integer between 0 and 1000",
+    "retention_required_for_prune": "Set a retention value greater than 0 first",
+    "prune_now": "Apply now",
+    "prune_confirm": "Keep only the {n} most recent backups and delete the rest?",
+    "prune_done": "Pruned {n} backup(s)",
+    "total_size": "Total size",
+    "backups_count": "backup(s)",
+    "strategy_label": "Update method",
+    "strategy_download": "Download pre-built binary",
+    "strategy_compile": "Compile from source",
+    "both_available": "Download & Compile",
+    "download_available": "Download available",
+    "no_method": "No update method",
+    "no_release": "No release",
+    "available": "Available",
+    "server_downloading": "Downloading server binary…",
+    "server_downloaded": "Server binary downloaded",
+    "server_download_failed": "Server binary download failed",
+    "server_download_note": "A pre-built binary will be downloaded from GitHub Releases. This usually takes less than a minute.",
+    "install_go_hint": "Install Go from https://go.dev/dl/ to enable compilation, or publish a release with pre-built binaries",
+    "strategy_install_go": "Auto-install Go and compile",
+    "strategy_install_go_hint": "Downloads the official Go toolchain (~120 MB) into the console data directory, then compiles the server. Use this when Go is not installed on the host.",
+    "auto_strategy": "Auto",
+    "auto_strategy_hint": "The console will pick the best available method (download → compile → auto-install Go).",
+    "auto_available": "Auto-rebuild ready",
+    "toolchain_ready": "Toolchain installed",
+    "toolchain_will_install": "Go toolchain will be installed automatically",
+    "toolchain_downloading": "Downloading Go toolchain…",
+    "toolchain_failed": "Go toolchain install failed",
+    "modal_title": "Installing update",
+    "modal_done_title": "Update complete",
+    "modal_close": "Close",
+    "modal_reload_now": "Reload console",
+    "phase_confirm": "Confirmation",
+    "phase_backup": "Backup",
+    "phase_console": "Console files",
+    "phase_server": "Go server",
+    "phase_restart": "Restart",
+    "phase_done": "Done",
+    "preparing": "Preparing…",
+    "backup_skipped": "Backup skipped (per user choice)",
+    "server_skipped": "Go server skipped",
+    "server_not_selected": "Go server not selected",
+    "server_processing": "Processing Go server update…",
+    "no_restart_needed": "No restart required",
+    "complete": "Update applied",
+    "complete_summary": "The update has been applied successfully.",
+    "complete_with_errors": "The update finished, but some steps failed. See details below.",
+    "modal_done_with_errors_title": "Update finished with errors",
+    "console_will_restart": "Console process will restart now…",
+    "restart_complete_msg": "The console finished restarting. Click reload to load the new version. The page will reload automatically in 8 seconds.",
+    "refresh_recommended": "Static assets changed — reload the page to see the new UI.",
+    "confirm_title": "Apply update",
+    "confirm_with_backup": "A pre-update backup will be created automatically.",
+    "confirm_no_backup": "No backup will be created (proceed at your own risk)."
   },
   "permissions": {
     "title": "Permissions",
@@ -2954,5 +3069,13 @@
     "perm_enrollment_approve": "Approve enrollment",
     "perm_chat_access": "Chat access",
     "perm_branding_edit": "Edit branding"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No new notifications",
+    "mark_all_read": "Mark all read",
+    "see_all": "See all help requests",
+    "help_request": "Help request",
+    "just_now": "just now"
   }
 }
