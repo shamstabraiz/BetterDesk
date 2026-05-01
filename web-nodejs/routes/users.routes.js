@@ -19,6 +19,7 @@ async function goApiProxy(req, res, method, path, body) {
     try {
         const opts = { method, url: path };
         if (body) opts.data = body;
+        console.log(body)
         const resp = await apiClient(opts);
         res.status(resp.status).json(resp.data);
     } catch (err) {

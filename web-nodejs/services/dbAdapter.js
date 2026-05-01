@@ -421,6 +421,11 @@ function createSqliteAdapter(config) {
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS peer_remote_password (
+                peer_id TEXT PRIMARY KEY,
+                ciphertext TEXT NOT NULL,
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
         `);
 
         // Migration: Add missing columns to existing users table (for upgrades from older versions)
@@ -1033,6 +1038,7 @@ function createSqliteAdapter(config) {
             authDb.prepare('DELETE FROM peer_metrics WHERE peer_id = ?').run(id);
             authDb.prepare('DELETE FROM device_folder_assignments WHERE peer_id = ?').run(id);
             authDb.prepare('DELETE FROM device_group_peers WHERE peer_id = ?').run(id);
+            authDb.prepare('DELETE FROM peer_remote_password WHERE peer_id = ?').run(id);
         },
 
         /**
@@ -1074,6 +1080,27 @@ function createSqliteAdapter(config) {
             const db = openMain();
             const placeholders = ids.map(() => '?').join(',');
             db.prepare(`UPDATE peer SET status_online = 1, last_online = datetime('now') WHERE id IN (${placeholders})`).run(...ids);
+        },
+
+        async upsertPeerRemotePassword(peerId, ciphertext) {
+            openAuth().prepare(`
+                INSERT INTO peer_remote_password (peer_id, ciphertext, updated_at)
+                VALUES (?, ?, datetime('now'))
+                ON CONFLICT(peer_id) DO UPDATE SET
+                    ciphertext = excluded.ciphertext,
+                    updated_at = datetime('now')
+            `).run(peerId, ciphertext);
+        },
+
+        async getPeerRemotePassword(peerId) {
+            const row = openAuth().prepare(
+                'SELECT peer_id, ciphertext, updated_at FROM peer_remote_password WHERE peer_id = ?'
+            ).get(peerId);
+            return row || null;
+        },
+
+        async deletePeerRemotePassword(peerId) {
+            openAuth().prepare('DELETE FROM peer_remote_password WHERE peer_id = ?').run(peerId);
         },
 
         // ---- Users ----
@@ -2988,6 +3015,14 @@ function createPostgresAdapter() {
         `);
 
         await q(`
+            CREATE TABLE IF NOT EXISTS peer_remote_password (
+                peer_id TEXT PRIMARY KEY,
+                ciphertext TEXT NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+
+        await q(`
             CREATE TABLE IF NOT EXISTS peer_metrics (
                 id SERIAL PRIMARY KEY,
                 peer_id TEXT NOT NULL,
@@ -3369,6 +3404,7 @@ function createPostgresAdapter() {
             await q('DELETE FROM peer_metrics WHERE peer_id = $1', [id]);
             await q('DELETE FROM device_folder_assignments WHERE peer_id = $1', [id]);
             await q('DELETE FROM device_group_peers WHERE peer_id = $1', [id]);
+            await q('DELETE FROM peer_remote_password WHERE peer_id = $1', [id]);
         },
 
         /**
@@ -3409,6 +3445,24 @@ function createPostgresAdapter() {
             if (!ids.length) return;
             const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
             await q(`UPDATE peer SET status_online = TRUE, last_online = NOW() WHERE id IN (${placeholders})`, ids);
+        },
+
+        async upsertPeerRemotePassword(peerId, ciphertext) {
+            await q(`
+                INSERT INTO peer_remote_password (peer_id, ciphertext, updated_at)
+                VALUES ($1, $2, NOW())
+                ON CONFLICT(peer_id) DO UPDATE SET
+                    ciphertext = EXCLUDED.ciphertext,
+                    updated_at = NOW()
+            `, [peerId, ciphertext]);
+        },
+
+        async getPeerRemotePassword(peerId) {
+            return one('SELECT peer_id, ciphertext, updated_at FROM peer_remote_password WHERE peer_id = $1', [peerId]);
+        },
+
+        async deletePeerRemotePassword(peerId) {
+            await q('DELETE FROM peer_remote_password WHERE peer_id = $1', [peerId]);
         },
 
         // ---- Users ----

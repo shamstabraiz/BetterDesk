@@ -1,0 +1,127 @@
+# Local development: live reload for Go (Air) and Node (node --watch).
+#
+# Usage (from repo root):
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Data directory (keys, sqlite, etc.) defaults to ./.betterdesk-dev-data — override with:
+#   BETTERDESK_DATA=/path docker compose -f docker-compose.dev.yml up
+#
+# Stop any production BetterDesk stack first if it uses the same host ports (21114–21119, 5000, 21121).
+
+name: betterdesk-dev
+
+services:
+  postgres:
+    container_name: betterdesk-dev-postgres
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: betterdesk
+      POSTGRES_PASSWORD: betterdesk123
+      POSTGRES_DB: betterdesk
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U betterdesk -d betterdesk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - betterdesk-dev
+
+  server:
+    container_name: betterdesk-dev-server
+    build:
+      context: .
+      dockerfile: Dockerfile.server.dev
+    pull_policy: never
+    ports:
+      - "21114:21114"
+      - "21115:21115"
+      - "21116:21116"
+      - "21116:21116/udp"
+      - "21117:21117"
+      - "21118:21118"
+      - "21119:21119"
+    volumes:
+      - ./betterdesk-server:/src
+      - ${BETTERDESK_DATA:-./.betterdesk-dev-data}:/opt/rustdesk
+    working_dir: /src
+    environment:
+      - RELAY_SERVERS=${RELAY_SERVERS:-127.0.0.1}
+      - INIT_ADMIN_PASS=${INIT_ADMIN_PASS:-dev-admin-change-me}
+      - DB_URL=postgres://betterdesk:betterdesk123@postgres:5432/betterdesk?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:21114/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+    networks:
+      - betterdesk-dev
+
+  console:
+    container_name: betterdesk-dev-console
+    build:
+      context: .
+      dockerfile: Dockerfile.console.dev
+    pull_policy: never
+    ports:
+      - "5000:5000"
+      - "21121:21121"
+    volumes:
+      - ./web-nodejs:/app
+      - console_dev_node_modules:/app/node_modules
+      - ${BETTERDESK_DATA:-./.betterdesk-dev-data}:/opt/rustdesk:ro
+      - console_dev_data:/app/data
+    environment:
+      - NODE_ENV=development
+      - NODE_WATCH=1
+      - PORT=5000
+      - HOST=0.0.0.0
+      - API_HOST=0.0.0.0
+      - RUSTDESK_PATH=/opt/rustdesk
+      - HBBS_API_URL=http://server:21114/api
+      - BETTERDESK_API_URL=http://server:21114/api
+      - SERVER_BACKEND=betterdesk
+      - DATA_DIR=/app/data
+      - DB_PATH=/opt/rustdesk/db_v2.sqlite3
+      - PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
+      - API_KEY_PATH=/opt/rustdesk/.api_key
+      - KEYS_PATH=/opt/rustdesk
+      - DEFAULT_ADMIN_PASSWORD=${INIT_ADMIN_PASS:-dev-admin-change-me}
+      - FORCE_PASSWORD_UPDATE=${FORCE_PASSWORD_UPDATE:-true}
+      - WS_HBBS_HOST=server
+      - WS_HBBS_PORT=21116
+      - WS_HBBR_HOST=server
+      - WS_HBBR_PORT=21117
+      - DOCKER=true
+      - DB_TYPE=postgresql
+      - DATABASE_URL=postgres://betterdesk:betterdesk123@postgres:5432/betterdesk?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+    networks:
+      - betterdesk-dev
+
+networks:
+  betterdesk-dev:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:
+  console_dev_data:
+  console_dev_node_modules:

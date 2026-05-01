@@ -28,6 +28,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const db = require('../services/database');
+const remotePasswordVault = require('../services/remotePasswordVault');
 const bdRelay = require('../services/bdRelay');
 const brandingService = require('../services/brandingService');
 const authService = require('../services/authService');
@@ -202,6 +203,35 @@ async function identifyDevice(req, res, next) {
     return res.status(401).json({ error: 'Missing device identification' });
 }
 
+/**
+ * Require valid Bearer access token whose client_id matches :deviceId.
+ * Does not accept X-Device-Id-only identification (would allow spoofing secrets).
+ */
+async function requireBearerDeviceMatchesPeer(req, res, next) {
+    const token = extractBearerToken(req);
+    if (!token) {
+        return res.status(401).json({ error: 'Bearer token required' });
+    }
+    try {
+        const tokenRow = await db.getAccessToken(token);
+        if (!tokenRow) {
+            return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+        await db.touchAccessToken(token);
+        const clientId = String(tokenRow.client_id || '').trim();
+        const routeId = String(req.params.deviceId || '').trim();
+        if (!clientId || clientId !== routeId) {
+            return res.status(403).json({ error: 'Token does not authorize this device' });
+        }
+        req.deviceId = clientId;
+        req.deviceToken = tokenRow;
+        return next();
+    } catch (err) {
+        console.error('[BD-API] requireBearerDeviceMatchesPeer:', err.message);
+        return res.status(500).json({ error: 'Authentication failed' });
+    }
+}
+
 // ---------------------------------------------------------------------------
 //  POST /api/bd/register — Register or update a desktop device
 // ---------------------------------------------------------------------------
@@ -251,6 +281,33 @@ router.post('/register', identifyDevice, async (req, res) => {
     } catch (err) {
         console.error('[BD-API] Register error:', err.message);
         res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// ---------------------------------------------------------------------------
+//  PUT /api/bd/peers/:deviceId/remote-password — Store RustDesk session password (mobile client)
+// ---------------------------------------------------------------------------
+
+router.put('/peers/:deviceId/remote-password', async (req, res) => {
+    const deviceId = req.params.deviceId;
+    if (!deviceId || !/^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
+        return res.status(400).json({ error: 'Invalid device id' });
+    }
+    if (!remotePasswordVault.isConfigured()) {
+        return res.status(503).json({ error: 'Remote password vault is not configured' });
+    }
+    try {
+        const password = req.body && req.body.password != null ? String(req.body.password) : '';
+        if (password === '') {
+            await db.deletePeerRemotePassword(deviceId);
+            return res.json({ ok: true, deleted: true });
+        }
+        const ciphertext = remotePasswordVault.encrypt(password);
+        await db.upsertPeerRemotePassword(deviceId, ciphertext);
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('[BD-API] remote-password PUT:', err.message);
+        return res.status(500).json({ error: 'Failed to save remote password' });
     }
 });
 

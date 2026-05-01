@@ -182,6 +182,9 @@ betterdesk-server/_test_*
 /betterdesk_icon.png
 /betterdesk_wallpaper.png
 
+# Local Docker dev stack data (docker-compose.dev.yml)
+.betterdesk-dev-data/
+
 # --- Screenshots ---
 screenshots/*.png
 !screenshots/.gitkeep

@@ -1,0 +1,16 @@
+# Dev image: Go + Air for live reload (used by docker-compose.dev.yml)
+FROM golang:1.25-alpine
+
+RUN apk add --no-cache git ca-certificates curl sqlite tini \
+    && go install github.com/air-verse/air@latest
+
+ENV PATH="/go/bin:${PATH}"
+WORKDIR /src
+
+EXPOSE 21114 21115 21116/tcp 21116/udp 21117 21118 21119
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -sf http://localhost:21114/api/health || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["air", "-c", ".air.toml"]

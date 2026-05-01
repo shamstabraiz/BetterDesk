@@ -7,6 +7,9 @@ betterdesk-server-*
 # Go temporary build directory (ESET workaround)
 .gotmp/
 
+# Air (docker-compose.dev.yml)
+tmp/
+
 # IDE
 .idea/
 .vscode/

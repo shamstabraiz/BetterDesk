@@ -114,5 +114,9 @@ echo "  Web Interface: http://localhost:${PORT:-5000}"
 echo "  Client API:    port ${API_PORT:-21121}"
 echo ""
 
-# Start Node.js application
+# Start Node.js application (NODE_WATCH=1 enables node --watch for local dev)
+if [ -n "${NODE_WATCH}" ]; then
+    echo "  Dev: file watching enabled (NODE_WATCH)"
+    exec node --watch server.js
+fi
 exec node server.js

@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
+const remotePasswordVault = require('../services/remotePasswordVault');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
 /**
@@ -129,6 +130,40 @@ router.get('/api/devices/:id', requireAuth, async (req, res) => {
         });
     } catch (err) {
         console.error('Get device error:', err);
+        res.status(500).json({
+            success: false,
+            error: req.t('errors.server_error')
+        });
+    }
+});
+
+/**
+ * GET /api/devices/:id/remote-password — Decrypted RustDesk session password for web remote auto-login
+ */
+router.get('/api/devices/:id/remote-password', requireAuth, requirePermission('device.connect'), async (req, res) => {
+    try {
+        const id = req.params.id;
+        if (!id || !/^[A-Za-z0-9_-]{3,64}$/.test(id)) {
+            return res.status(400).json({ success: false, error: 'Invalid device id' });
+        }
+        if (!remotePasswordVault.isConfigured()) {
+            return res.status(503).json({ success: false, error: 'Remote password vault not configured' });
+        }
+        const row = await db.getPeerRemotePassword(id);
+        if (!row || !row.ciphertext) {
+            return res.status(404).json({ success: false, error: 'No stored password' });
+        }
+        let password;
+        try {
+            password = remotePasswordVault.decrypt(row.ciphertext);
+        } catch (decErr) {
+            console.error('[devices] remote-password decrypt:', decErr.message);
+            return res.status(500).json({ success: false, error: 'Could not decrypt stored password' });
+        }
+        await db.logAction(req.session.userId, 'remote_password.retrieve', `peer_id=${id}`, req.ip);
+        res.json({ stored: true, password });
+    } catch (err) {
+        console.error('Get remote-password error:', err);
         res.status(500).json({
             success: false,
             error: req.t('errors.server_error')

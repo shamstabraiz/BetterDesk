@@ -1,0 +1,16 @@
+# Air (https://github.com/air-verse/air) — Go live reload for docker-compose.dev.yml
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  bin = "./tmp/main"
+  cmd = "CGO_ENABLED=0 go build -tags \"netgo osusergo\" -o ./tmp/main ."
+  delay = 500
+  exclude_dir = ["tmp", "vendor", "tools"]
+  exclude_regex = ["_test\\.go$"]
+  include_ext = ["go", "mod", "sum"]
+  stop_on_error = true
+  full_bin = "./tmp/main -mode all -key-file /opt/rustdesk/id_ed25519"
+
+[misc]
+  clean_on_exit = true

@@ -1,0 +1,24 @@
+# Dev image: Node with deps; source is bind-mounted from ./web-nodejs (see docker-compose.dev.yml)
+FROM node:20-alpine
+
+RUN apk add --no-cache python3 make g++ sqlite curl tini netcat-openbsd
+
+RUN mkdir -p /etc/betterdesk
+COPY docker-entrypoint.sh /etc/betterdesk/docker-entrypoint.sh
+COPY docker/console-dev-entrypoint.sh /etc/betterdesk/console-dev-entrypoint.sh
+RUN chmod +x /etc/betterdesk/docker-entrypoint.sh /etc/betterdesk/console-dev-entrypoint.sh
+
+WORKDIR /app
+COPY web-nodejs/package.json web-nodejs/package-lock.json* ./
+RUN npm install
+
+WORKDIR /app
+EXPOSE 5000 21121
+
+ENV NODE_ENV=development
+ENV NODE_WATCH=1
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -sf http://localhost:5000/health || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--", "/etc/betterdesk/console-dev-entrypoint.sh"]

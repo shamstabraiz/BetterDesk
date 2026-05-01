@@ -189,6 +189,11 @@ const facade = {
     getDeviceGroupMembers: (groupGuid) => adapter.getDeviceGroupMembers(groupGuid),
     getDeviceGroupsForPeer: (peerId) => adapter.getDeviceGroupsForPeer(peerId),
 
+    // ---- Peer remote password vault (RustDesk session password, encrypted at rest) ----
+    upsertPeerRemotePassword: (peerId, ciphertext) => adapter.upsertPeerRemotePassword(peerId, ciphertext),
+    getPeerRemotePassword: (peerId) => adapter.getPeerRemotePassword(peerId),
+    deletePeerRemotePassword: (peerId) => adapter.deletePeerRemotePassword(peerId),
+
     // ---- Strategies / Policies ----
     getAllStrategies:  () => adapter.getAllStrategies(),
     getStrategyByGuid: (guid) => adapter.getStrategyByGuid(guid),

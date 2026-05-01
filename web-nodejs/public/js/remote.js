@@ -82,6 +82,35 @@
         }
     }
 
+    /**
+     * RustDesk transport only: fetch panel-stored session password and authenticate.
+     */
+    async function tryFetchStoredRemotePassword(session) {
+        if (session._autoRemotePasswordAttempted) return;
+        session._autoRemotePasswordAttempted = true;
+        try {
+            const r = await fetch('/api/devices/' + encodeURIComponent(session.deviceId) + '/remote-password', {
+                credentials: 'same-origin'
+            });
+            if (!r.ok) {
+                session._autoRemotePasswordAttempted = false;
+                if (isActive(session)) session.passwordInput.focus();
+                return;
+            }
+            const data = await r.json().catch(() => ({}));
+            const pw = data && data.password != null ? String(data.password) : '';
+            if (pw.length && session.client) {
+                session.passwordOverlay.style.display = 'none';
+                session.client.authenticate(pw);
+                return;
+            }
+        } catch (e) {
+            console.warn('[Remote] stored remote password:', e.message);
+        }
+        session._autoRemotePasswordAttempted = false;
+        if (isActive(session)) session.passwordInput.focus();
+    }
+
     // ---- DOM References (shared) ----
     const viewerContainer = document.getElementById('viewer-container');
     const toolbar = document.getElementById('viewer-toolbar');
@@ -307,6 +336,7 @@
 
     function reconnectSession(session) {
         if (session.client) session.client.disconnect();
+        session._autoRemotePasswordAttempted = false;
         session.connectionOverlay.style.display = 'flex';
         session.passwordOverlay.style.display = 'none';
         session.overlayActions.style.display = 'none';
@@ -380,9 +410,16 @@
             session.loginError.style.display = 'none';
             session.passwordInput.value = '';
             if (isActive(session)) session.passwordInput.focus();
+
+            if (getTransportName() === 'rd') {
+                tryFetchStoredRemotePassword(session);
+            }
         });
 
         c.on('login_error', (error) => {
+            session._autoRemotePasswordAttempted = false;
+            session.passwordOverlay.style.display = 'flex';
+            session.connectionOverlay.style.display = 'none';
             session.loginError.textContent = error;
             session.loginError.style.display = 'block';
             session.passwordInput.value = '';
