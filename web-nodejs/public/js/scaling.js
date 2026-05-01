@@ -6,6 +6,28 @@
     let _rules = [];
     let _capacity = null;
 
+    function csrfHeaders(extra) {
+        const h = Object.assign({}, extra || {});
+        const token = (window.BetterDesk && window.BetterDesk.csrfToken) || '';
+        if (token) h['x-csrf-token'] = token;
+        return h;
+    }
+
+    function notify(level, message) {
+        if (!message) return;
+        if (window.Notifications && typeof window.Notifications[level] === 'function') {
+            window.Notifications[level](message);
+            return;
+        }
+        if (window.Toast && typeof window.Toast[level] === 'function') {
+            window.Toast[level]('', message);
+            return;
+        }
+        if (level === 'error' || level === 'warning') {
+            try { alert(message); } catch (_e) { /* ignore */ }
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Init
     // -----------------------------------------------------------------------
@@ -206,12 +228,28 @@
             max_sessions: parseInt(document.getElementById('relay-max-sessions').value) || 50,
             max_bandwidth_mbps: parseInt(document.getElementById('relay-max-bw').value) || 100,
         };
-        if (!body.name || !body.address) return;
+        if (!body.name || !body.address) {
+            notify('warning', _('scaling.relay_name_address_required') || 'Name and address are required.');
+            return;
+        }
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/panel/scaling/relays/${encodeURIComponent(id)}` : '/api/panel/scaling/relays';
         try {
-            const method = id ? 'PUT' : 'POST';
-            const url = id ? `/api/panel/scaling/relays/${encodeURIComponent(id)}` : '/api/panel/scaling/relays';
-            await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        } catch { /* handled by reload */ }
+            const resp = await fetch(url, {
+                method,
+                headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(body),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                notify('error', err.error || (_('scaling.relay_save_failed') || 'Failed to save relay node.'));
+                return;
+            }
+            notify('success', _('scaling.relay_saved') || 'Relay node saved.');
+        } catch (err) {
+            notify('error', (err && err.message) || (_('scaling.relay_save_failed') || 'Failed to save relay node.'));
+            return;
+        }
         closeRelayModal();
         loadRelays();
     }
@@ -219,8 +257,19 @@
     async function deleteRelay(id) {
         if (!confirm(_('scaling.confirm_delete_relay'))) return;
         try {
-            await fetch(`/api/panel/scaling/relays/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        } catch { /* */ }
+            const resp = await fetch(`/api/panel/scaling/relays/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: csrfHeaders(),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                notify('error', err.error || (_('scaling.relay_delete_failed') || 'Failed to delete relay node.'));
+                return;
+            }
+            notify('success', _('scaling.relay_deleted') || 'Relay node deleted.');
+        } catch (err) {
+            notify('error', (err && err.message) || (_('scaling.relay_delete_failed') || 'Failed to delete relay node.'));
+        }
         loadRelays();
     }
 
@@ -307,12 +356,28 @@
             fallback: document.getElementById('rule-fallback').value,
             priority: parseInt(document.getElementById('rule-priority').value) || 10,
         };
-        if (!body.name || !body.match_value) return;
+        if (!body.name || !body.match_value) {
+            notify('warning', _('scaling.rule_name_value_required') || 'Rule name and match value are required.');
+            return;
+        }
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/panel/scaling/rules/${encodeURIComponent(id)}` : '/api/panel/scaling/rules';
         try {
-            const method = id ? 'PUT' : 'POST';
-            const url = id ? `/api/panel/scaling/rules/${encodeURIComponent(id)}` : '/api/panel/scaling/rules';
-            await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        } catch { /* */ }
+            const resp = await fetch(url, {
+                method,
+                headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(body),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                notify('error', err.error || (_('scaling.rule_save_failed') || 'Failed to save rule.'));
+                return;
+            }
+            notify('success', _('scaling.rule_saved') || 'Rule saved.');
+        } catch (err) {
+            notify('error', (err && err.message) || (_('scaling.rule_save_failed') || 'Failed to save rule.'));
+            return;
+        }
         closeRuleModal();
         loadRules();
     }
@@ -320,8 +385,19 @@
     async function deleteRule(id) {
         if (!confirm(_('scaling.confirm_delete_rule'))) return;
         try {
-            await fetch(`/api/panel/scaling/rules/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        } catch { /* */ }
+            const resp = await fetch(`/api/panel/scaling/rules/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: csrfHeaders(),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                notify('error', err.error || (_('scaling.rule_delete_failed') || 'Failed to delete rule.'));
+                return;
+            }
+            notify('success', _('scaling.rule_deleted') || 'Rule deleted.');
+        } catch (err) {
+            notify('error', (err && err.message) || (_('scaling.rule_delete_failed') || 'Failed to delete rule.'));
+        }
         loadRules();
     }
 

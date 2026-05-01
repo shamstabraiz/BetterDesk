@@ -80,6 +80,10 @@
 
     <!-- ======= RELAY NODES TAB ======= -->
     <div class="scaling-panel" id="panel-relays" style="display: ${activeTab === 'relays' ? 'block' : 'none'};">
+        <div class="scaling-info-banner">
+            <span class="material-icons">info</span>
+            <span>${ typeof req !== 'undefined' ? req.t('scaling.relays_info_banner') : 'This list is informational. The relay servers actually used by clients are configured via the RELAY_SERVERS environment variable on the BetterDesk server.' }</span>
+        </div>
         <div class="scaling-toolbar">
             <div class="scaling-toolbar-left">
                 <input type="text" id="relay-search" class="scaling-input" placeholder="${ typeof req !== 'undefined' ? req.t('scaling.relay_search') : 'Search relays…' }" oninput="Scaling.filterRelays()">
