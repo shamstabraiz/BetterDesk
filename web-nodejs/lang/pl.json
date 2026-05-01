@@ -1931,7 +1931,7 @@
     "role_owner": "Właściciel",
     "role_admin": "Administrator",
     "role_operator": "Operator",
-    "role_user": "Użytkownik",
+    "role_user": "Obserwator",
     "username": "Nazwa użytkownika",
     "password": "Hasło",
     "display_name": "Nazwa wyświetlana",
@@ -2818,7 +2818,7 @@
     "files": "plików",
     "changes_unavailable": "Nie udało się pobrać listy zmian. Nadal możesz zainstalować aktualizację.",
     "create_backup": "Utwórz kopię zapasową przed aktualizacją",
-    "install": "Zainstaluj aktualizację",
+    "install": "Zainstaluj",
     "install_confirm": "Czy na pewno chcesz zainstalować tę aktualizację? Konsola zostanie zrestartowana po aktualizacji.",
     "installing": "Instalowanie aktualizacji…",
     "creating_backup": "Tworzenie kopii zapasowej…",
@@ -2922,7 +2922,6 @@
     "refresh_recommended": "Zmieniły się statyczne zasoby — odśwież stronę, aby zobaczyć nowy interfejs.",
     "confirm_title": "Zastosuj aktualizację",
     "confirm_with_backup": "Kopia zapasowa zostanie utworzona automatycznie.",
-    "confirm_no_backup": "Kopia zapasowa nie zostanie utworzona (na własne ryzyko).",
-    "install": "Zainstaluj"
+    "confirm_no_backup": "Kopia zapasowa nie zostanie utworzona (na własne ryzyko)."
   }
 }

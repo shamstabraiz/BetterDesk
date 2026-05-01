@@ -1826,7 +1826,7 @@
     "role_owner": "Owner",
     "role_admin": "Administrador",
     "role_operator": "Operador",
-    "role_user": "User",
+    "role_user": "Visualizador",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

@@ -1833,7 +1833,7 @@
     "role_owner": "所有者",
     "role_admin": "管理員",
     "role_operator": "操作員",
-    "role_user": "使用者",
+    "role_user": "檢視者",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

@@ -1935,7 +1935,7 @@
     "role_owner": "所有者",
     "role_admin": "管理员",
     "role_operator": "操作员",
-    "role_user": "用户",
+    "role_user": "查看者",
     "username": "用户名",
     "password": "密码",
     "display_name": "显示名称",

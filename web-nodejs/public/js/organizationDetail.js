@@ -56,8 +56,11 @@
         });
     }
 
+    // Roles ordered lowest → highest, matching the server "Add User" modal style
+    // (Viewer/Operator/Admin/Owner). Backend value `user` is preserved for
+    // compatibility but the label is now standardized to "Viewer" via i18n.
     function roleOptions(selected) {
-        const roles = ['owner', 'admin', 'operator', 'user'];
+        const roles = ['user', 'operator', 'admin', 'owner'];
         return roles.map(r =>
             `<option value="${r}" ${r === selected ? 'selected' : ''}>${t('role_' + r)}</option>`
         ).join('');

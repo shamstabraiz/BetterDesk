@@ -1929,9 +1929,9 @@
     "allow_clipboard": "Allow Clipboard",
     "max_session_duration": "Max Session Duration (min)",
     "role_owner": "Owner",
-    "role_admin": "Admin",
+    "role_admin": "Administrator",
     "role_operator": "Operator",
-    "role_user": "User",
+    "role_user": "Viewer",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",
@@ -2818,7 +2818,7 @@
     "files": "files",
     "changes_unavailable": "Could not load file change list. You can still install the update.",
     "create_backup": "Create backup before updating",
-    "install": "Install Update",
+    "install": "Install",
     "install_confirm": "Are you sure you want to install this update? The console will restart after the update.",
     "installing": "Installing update…",
     "creating_backup": "Creating backup…",
@@ -2922,7 +2922,6 @@
     "refresh_recommended": "Static assets changed — reload the page to see the new UI.",
     "confirm_title": "Apply update",
     "confirm_with_backup": "A pre-update backup will be created automatically.",
-    "confirm_no_backup": "No backup will be created (proceed at your own risk).",
-    "install": "Install"
+    "confirm_no_backup": "No backup will be created (proceed at your own risk)."
   }
 }
