@@ -20,7 +20,7 @@ Complete guide for running BetterDesk Console with RustDesk in Docker containers
 
 ```bash
 # Clone repository
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
 
 # Run quick setup
@@ -157,7 +157,7 @@ EOF
 
 ```bash
 cat > console/requirements.txt << 'EOF'
-flask>=2.0.0
+flask>=2.0.1
 flask-wtf>=1.0.0
 flask-limiter>=3.0.0
 bcrypt>=4.0.0
@@ -171,7 +171,7 @@ EOF
 
 ```bash
 # Clone repository first if you haven't
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git /tmp/betterdesk
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git /tmp/betterdesk
 
 # Copy web files
 cp -r /tmp/betterdesk/web/* console/

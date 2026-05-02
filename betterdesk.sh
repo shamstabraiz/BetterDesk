@@ -1940,7 +1940,7 @@ setup_services() {
     cat > /etc/systemd/system/betterdesk-server.service << EOF
 [Unit]
 Description=BetterDesk Go Server v$VERSION (Signal + Relay + API)
-Documentation=https://github.com/UNITRONIX/Rustdesk-FreeConsole
+Documentation=https://github.com/shamstabraiz/Rustdesk-FreeConsole
 After=network.target postgresql.service
 
 [Service]
@@ -2025,7 +2025,7 @@ Environment=SSL_KEY_PATH=$ssl_dir/betterdesk.key"
         cat > /etc/systemd/system/betterdesk-console.service << EOF
 [Unit]
 Description=BetterDesk Web Console (Node.js)
-Documentation=https://github.com/UNITRONIX/Rustdesk-FreeConsole
+Documentation=https://github.com/shamstabraiz/Rustdesk-FreeConsole
 After=network.target betterdesk-server.service postgresql.service
 
 [Service]

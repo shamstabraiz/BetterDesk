@@ -12,8 +12,8 @@
  *   GET    /api/inventory       — Admin endpoint: list all device inventories
  *   GET    /api/inventory/:id   — Admin endpoint: single device inventory
  *
- * @author UNITRONIX
- * @version 2.0.0
+ * @author shamstabraiz
+ * @version 2.0.1
  */
 
 'use strict';

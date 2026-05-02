@@ -498,7 +498,7 @@ fn find_binary(data_dir: &PathBuf) -> Result<PathBuf> {
     Err(anyhow!(
         "betterdesk-agent binary not found. Searched: \
          $BETTERDESK_AGENT_BIN, exe dir, {}, PATH. \
-         Download from https://github.com/UNITRONIX/BetterDesk/releases \
+         Download from https://github.com/shamstabraiz/BetterDesk/releases \
          or install via the ALL-IN-ONE installer.",
         data_dir.display()
     ))

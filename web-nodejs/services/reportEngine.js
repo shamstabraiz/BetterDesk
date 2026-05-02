@@ -7,7 +7,7 @@
  * Each report type has a dedicated generator that queries the DB adapter
  * and returns structured data suitable for JSON API responses or CSV export.
  *
- * @author  UNITRONIX
+ * @author  shamstabraiz
  * @version 1.0.0
  */
 

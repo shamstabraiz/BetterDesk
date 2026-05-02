@@ -6,7 +6,7 @@
  * categorises them by component (console / server / agent / scripts),
  * applies updates, and restarts affected services.
  *
- * GitHub repo:  UNITRONIX/BetterDesk
+ * GitHub repo:  shamstabraiz/BetterDesk
  * Tracking:     data/.update_sha (deployed commit SHA)
  *
  * Flow:
@@ -26,7 +26,7 @@ const https = require('https');
 const { execSync } = require('child_process');
 const config = require('../config/config');
 
-const GITHUB_OWNER  = process.env.UPDATE_GITHUB_OWNER  || 'UNITRONIX';
+const GITHUB_OWNER  = process.env.UPDATE_GITHUB_OWNER  || 'shamstabraiz';
 const GITHUB_REPO   = process.env.UPDATE_GITHUB_REPO   || 'BetterDesk';
 const GITHUB_BRANCH = process.env.UPDATE_GITHUB_BRANCH || 'main';
 const GITHUB_API    = 'https://api.github.com';

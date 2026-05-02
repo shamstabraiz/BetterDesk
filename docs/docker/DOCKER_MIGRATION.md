@@ -41,7 +41,7 @@ BetterDesk Console is fully compatible with existing RustDesk server installatio
 - Access to existing RustDesk data directory
 - BetterDesk repository cloned:
   ```bash
-  git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+  git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
   cd Rustdesk-FreeConsole
   ```
 

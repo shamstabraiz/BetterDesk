@@ -10,7 +10,7 @@
  * Targets and their check results are stored via dbAdapter.
  * Periodic checks are driven by a configurable polling loop.
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

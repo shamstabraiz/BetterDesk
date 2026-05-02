@@ -96,7 +96,7 @@ sudo ./betterdesk.sh --minimal
 ### Docker
 ```bash
 # Quick start (pre-built images)
-curl -fsSL https://raw.githubusercontent.com/UNITRONIX/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/shamstabraiz/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
 docker compose up -d
 
 # Build locally
@@ -292,7 +292,7 @@ To enable: Click the monitor icon (🖥️) in the top navigation bar.
 | 2.3.0 | 2026-02 | Security audit, TOTP 2FA, CSRF, Client API, address book sync |
 | 2.2.0 | 2026-02 | Node.js + Flask choice, migration, auto Node.js install |
 | 2.1.0 | 2026-02 | Auto mode, SHA256 verification, configurable API ports |
-| 2.0.0 | 2026-02 | Go server replacing Rust hbbs+hbbr, single binary |
+| 2.0.1 | 2026-02 | Go server replacing Rust hbbs+hbbr, single binary |
 | 1.5.0 | 2026-01 | Improved installer, diagnostics, offline status fix |
 | 1.0.0 | 2025-12 | Initial release (Rust patched server + Flask console) |
 

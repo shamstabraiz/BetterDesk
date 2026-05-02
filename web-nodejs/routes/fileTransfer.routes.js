@@ -16,7 +16,7 @@
  *   POST   /api/bd/file-transfer        — Agent initiates or sends chunks
  *   GET    /api/bd/file-transfer/:id     — Agent gets transfer info
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

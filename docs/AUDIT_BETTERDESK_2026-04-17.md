@@ -1,7 +1,7 @@
 # Audyt bezpieczeństwa i stabilności BetterDesk
 
 **Data:** 2026-04-17
-**Zakres:** Pełny audyt projektu UNITRONIX/Rustdesk-FreeConsole (BetterDesk)
+**Zakres:** Pełny audyt projektu shamstabraiz/Rustdesk-FreeConsole (BetterDesk)
 **Autor:** GitHub Copilot (audyt automatyczny z ręczną weryfikacją)
 **Status projektu:** v2.4.0 (instalatory), Phase 53 (RBAC + CSRF fixes)
 

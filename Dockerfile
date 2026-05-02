@@ -51,7 +51,7 @@ RUN npm install --production
 # via supervisord configuration (user=betterdesk).
 FROM node:20-alpine
 
-LABEL maintainer="UNITRONIX"
+LABEL maintainer="shamstabraiz"
 LABEL description="BetterDesk — All-in-One (Go Server + Node.js Console)"
 LABEL version="2.4.0"
 

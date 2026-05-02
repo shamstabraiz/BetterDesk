@@ -14,7 +14,7 @@
  *
  * Condition operators: gt, gte, lt, lte, eq, neq
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

@@ -305,7 +305,7 @@ sudo cp /opt/rustdesk/hbbs /opt/rustdesk/hbbs.backup-original
 3. **Install BetterDesk binary:**
 ```bash
 # Download if you don't have it
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
 
 # Copy enhanced binary

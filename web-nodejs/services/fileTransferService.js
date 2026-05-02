@@ -12,7 +12,7 @@
  *   4. Server relays chunks to the other party
  *   5. Transfer is marked complete when all chunks are received
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

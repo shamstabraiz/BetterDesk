@@ -18,7 +18,7 @@
  *   from the RustDesk Client API (/api/login on port 21121).
  *   Token is validated with the same authService.
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

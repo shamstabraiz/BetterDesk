@@ -35,7 +35,7 @@ version: '3.8'
 services:
   betterdesk:
     build:
-      context: https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+      context: https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
       dockerfile: Dockerfile
     container_name: betterdesk
     restart: unless-stopped
@@ -83,7 +83,7 @@ sudo mkdir -p /volume1/docker/betterdesk
 cd /volume1/docker/betterdesk
 
 # Clone repository
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git .
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git .
 ```
 
 ### Step 3: Build Images
@@ -140,7 +140,7 @@ sudo mkdir -p /volume1/docker/betterdesk/data
 cd /volume1/docker/betterdesk
 
 # Clone repository
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git .
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git .
 ```
 
 ### Step 2: Create docker-compose.yml
@@ -270,6 +270,6 @@ If Container Manager doesn't show build options:
 
 ## Support
 
-- GitHub Issues: https://github.com/UNITRONIX/Rustdesk-FreeConsole/issues
-- Documentation: https://github.com/UNITRONIX/Rustdesk-FreeConsole/tree/main/docs
+- GitHub Issues: https://github.com/shamstabraiz/Rustdesk-FreeConsole/issues
+- Documentation: https://github.com/shamstabraiz/Rustdesk-FreeConsole/tree/main/docs
 

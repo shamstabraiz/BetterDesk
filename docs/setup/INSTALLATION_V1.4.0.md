@@ -34,7 +34,7 @@
 
 ```bash
 # Download and run installer
-curl -O https://raw.githubusercontent.com/UNITRONIX/Rustdesk-FreeConsole/main/install-improved.sh
+curl -O https://raw.githubusercontent.com/shamstabraiz/Rustdesk-FreeConsole/main/install-improved.sh
 chmod +x install-improved.sh
 sudo ./install-improved.sh
 ```
@@ -329,7 +329,7 @@ sudo systemctl start betterdesk
 
 ## 📞 Support
 
-- **GitHub Issues**: https://github.com/UNITRONIX/Rustdesk-FreeConsole/issues
+- **GitHub Issues**: https://github.com/shamstabraiz/Rustdesk-FreeConsole/issues
 - **Documentation**: See `docs/` folder
 - **Security Issues**: Use GitHub Security Advisories (private reporting)
 

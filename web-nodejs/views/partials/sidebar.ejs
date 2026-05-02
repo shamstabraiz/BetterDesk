@@ -23,10 +23,10 @@
                     data-category="main" title="<%= _('nav.main') %>">
                 <span class="material-icons">home</span>
             </button>
-            <button class="sidebar-rail-btn <%= ['inventory','tickets','help-requests','automation','network','activity','cdap','chat'].includes(currentPage) ? 'active' : '' %>"
+            <!-- <button class="sidebar-rail-btn <%= ['inventory','tickets','help-requests','automation','network','activity','cdap','chat'].includes(currentPage) ? 'active' : '' %>"
                     data-category="management" title="<%= _('nav.management') || 'Management' %>">
                 <span class="material-icons">business_center</span>
-            </button>
+            </button> -->
             <button class="sidebar-rail-btn <%= ['reports','keys','generator','remote','cdap-studio'].includes(currentPage) ? 'active' : '' %>"
                     data-category="tools" title="<%= _('nav.tools') %>">
                 <span class="material-icons">build</span>
@@ -46,9 +46,9 @@
 
         <!-- Bottom rail icons -->
         <div class="sidebar-rail-bottom">
-            <button class="sidebar-rail-btn" id="sidebar-help-btn" title="<%= _('nav.help') || 'Help' %>">
+            <!-- <button class="sidebar-rail-btn" id="sidebar-help-btn" title="<%= _('nav.help') || 'Help' %>">
                 <span class="material-icons">help_outline</span>
-            </button>
+            </button> -->
             <button class="sidebar-rail-btn" id="sidebar-expand-btn" title="<%= _('nav.expand_sidebar') || 'Expand' %>">
                 <span class="material-icons">chevron_right</span>
             </button>
@@ -84,7 +84,7 @@
         </div>
 
         <!-- Management category links -->
-        <div class="sidebar-flyout-panel" data-panel="management">
+        <!-- <div class="sidebar-flyout-panel" data-panel="management">
             <% if (hasPermission('device.view')) { %>
             <a href="/inventory" class="sidebar-link <%= currentPage === 'inventory' ? 'active' : '' %>">
                 <span class="material-icons">inventory_2</span>
@@ -145,7 +145,7 @@
                 <span class="material-icons">chat</span>
                 <span class="sidebar-link-text"><%= _('nav.chat') %></span>
             </a>
-        </div>
+        </div> -->
 
         <!-- Tools category links -->
         <div class="sidebar-flyout-panel" data-panel="tools">
@@ -160,36 +160,36 @@
                 <span class="material-icons">vpn_key</span>
                 <span class="sidebar-link-text"><%= _('nav.keys') %></span>
             </a>
-            <a href="/generator" class="sidebar-link <%= currentPage === 'generator' ? 'active' : '' %>">
+            <!-- <a href="/generator" class="sidebar-link <%= currentPage === 'generator' ? 'active' : '' %>">
                 <span class="material-icons">build</span>
                 <span class="sidebar-link-text"><%= _('nav.generator') %></span>
-            </a>
+            </a> -->
             <% } %>
             <% if (hasPermission('device.connect')) { %>
             <a href="/remote" class="sidebar-link <%= currentPage === 'remote' ? 'active' : '' %>">
                 <span class="material-icons">connected_tv</span>
                 <span class="sidebar-link-text"><%= _('nav.remote') || 'Remote Desktop' %></span>
             </a>
-            <a href="/toolkit" class="sidebar-link <%= currentPage === 'toolkit' ? 'active' : '' %>">
+            <!-- <a href="/toolkit" class="sidebar-link <%= currentPage === 'toolkit' ? 'active' : '' %>">
                 <span class="material-icons">handyman</span>
                 <span class="sidebar-link-text"><%= _('nav.toolkit') || 'Toolkit' %></span>
-            </a>
+            </a> -->
             <% } %>
             <% if (hasPermission('cdap.view')) { %>
-            <a href="/cdap-studio" class="sidebar-link <%= currentPage === 'cdap-studio' ? 'active' : '' %>">
+            <!-- <a href="/cdap-studio" class="sidebar-link <%= currentPage === 'cdap-studio' ? 'active' : '' %>">
                 <span class="material-icons">account_tree</span>
                 <span class="sidebar-link-text"><%= _('nav.sdk_studio') || 'SDK Studio' %></span>
-            </a>
+            </a> -->
             <% } %>
         </div>
 
         <!-- System category links -->
         <div class="sidebar-flyout-panel" data-panel="system">
             <% if (hasPermission('enrollment.manage')) { %>
-            <a href="/tokens" class="sidebar-link <%= currentPage === 'tokens' ? 'active' : '' %>">
+            <!-- <a href="/tokens" class="sidebar-link <%= currentPage === 'tokens' ? 'active' : '' %>">
                 <span class="material-icons">token</span>
                 <span class="sidebar-link-text"><%= _('nav.tokens') %></span>
-            </a>
+            </a> -->
             <% } %>
             <% if (hasPermission('org.create') || hasPermission('org.edit') || hasPermission('org.manage_users')) { %>
             <a href="/organizations" class="sidebar-link <%= currentPage === 'organizations' ? 'active' : '' %>">
@@ -202,14 +202,14 @@
                 <span class="material-icons">policy</span>
                 <span class="sidebar-link-text"><%= _('nav.policies') || 'Policies' %></span>
             </a>
-            <a href="/attestation" class="sidebar-link <%= currentPage === 'attestation' ? 'active' : '' %>">
+            <!-- <a href="/attestation" class="sidebar-link <%= currentPage === 'attestation' ? 'active' : '' %>">
                 <span class="material-icons">fingerprint</span>
                 <span class="sidebar-link-text"><%= _('nav.attestation') || 'Attestation' %></span>
-            </a>
-            <a href="/dataguard" class="sidebar-link <%= currentPage === 'dataguard' ? 'active' : '' %>">
+            </a> -->
+            <!-- <a href="/dataguard" class="sidebar-link <%= currentPage === 'dataguard' ? 'active' : '' %>">
                 <span class="material-icons">shield</span>
                 <span class="sidebar-link-text"><%= _('nav.dataguard') %></span>
-            </a>
+            </a> -->
             <% } %>
             <% if (hasPermission('user.view')) { %>
             <a href="/users" class="sidebar-link <%= currentPage === 'users' ? 'active' : '' %>">
@@ -234,10 +234,10 @@
                 <span class="material-icons">translate</span>
                 <span class="sidebar-link-text"><%= _('nav.languages') %></span>
             </a>
-            <a href="/resource-control" class="sidebar-link <%= currentPage === 'resource-control' ? 'active' : '' %>">
+            <!-- <a href="/resource-control" class="sidebar-link <%= currentPage === 'resource-control' ? 'active' : '' %>">
                 <span class="material-icons">tune</span>
                 <span class="sidebar-link-text"><%= _('nav.resource_control') %></span>
-            </a>
+            </a> -->
             <% } %>
             <a href="/settings" class="sidebar-link <%= currentPage === 'settings' ? 'active' : '' %>">
                 <span class="material-icons">settings</span>

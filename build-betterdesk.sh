@@ -432,7 +432,7 @@ generate_checksums() {
 
 Generated: $date_now
 RustDesk Base Version: $RUSTDESK_VERSION
-BetterDesk Version: 2.0.0
+BetterDesk Version: 2.0.1
 
 ## SHA256 Checksums
 

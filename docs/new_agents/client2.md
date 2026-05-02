@@ -1,7 +1,7 @@
 # Prompt: BetterDesk Agent Client
 
 ## Cel
-Na bazie istniejącego projektu `UNITRONIX/BetterDesk` utwórz nowy, wydzielony typ klienta o nazwie **BetterDesk Agent Client** — klient instalowany na komputerze docelowym użytkownika końcowego, którego zadaniem jest umożliwienie administratorom bezpiecznego zdalnego dostępu, zbieranie informacji o urządzeniu, wykonywanie zadań automatyzacyjnych oraz zapewnienie lekkiego i możliwie dyskretnego działania.
+Na bazie istniejącego projektu `shamstabraiz/BetterDesk` utwórz nowy, wydzielony typ klienta o nazwie **BetterDesk Agent Client** — klient instalowany na komputerze docelowym użytkownika końcowego, którego zadaniem jest umożliwienie administratorom bezpiecznego zdalnego dostępu, zbieranie informacji o urządzeniu, wykonywanie zadań automatyzacyjnych oraz zapewnienie lekkiego i możliwie dyskretnego działania.
 
 Klient Agent ma być zoptymalizowany pod kątem:
 - bezpieczeństwa,

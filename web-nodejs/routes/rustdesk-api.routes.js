@@ -28,8 +28,8 @@
  *   GET        /api/device-group/accessible - Accessible device groups
  *   GET        /api/strategies      - Access control strategies
  * 
- * @author UNITRONIX
- * @version 2.0.0
+ * @author shamstabraiz
+ * @version 2.0.1
  */
 
 const express = require('express');

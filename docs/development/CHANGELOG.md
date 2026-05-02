@@ -875,7 +875,7 @@ Users upgrading from v1.1.0:
 - REST API authentication (JWT)
 - Mobile responsive improvements
 
-### Planned for 2.0.0
+### Planned for 2.0.1
 - Multi-server support
 - High availability setup
 - Advanced analytics
@@ -884,4 +884,4 @@ Users upgrading from v1.1.0:
 
 ---
 
-[1.0.0]: https://github.com/UNITRONIX/Rustdesk-FreeConsole/releases/tag/v1.0.0
+[1.0.0]: https://github.com/shamstabraiz/Rustdesk-FreeConsole/releases/tag/v1.0.0

@@ -495,7 +495,7 @@ Allows RustDesk desktop clients to:
 ### Linux
 
 ```bash
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
 chmod +x betterdesk.sh
 
@@ -525,7 +525,7 @@ The script will:
 
 ```powershell
 # Run PowerShell as Administrator
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
 
 # Interactive mode
@@ -546,7 +546,7 @@ The script installs Go, compiles the server, sets up NSSM services (`BetterDeskS
 
 ```bash
 # Download and run - that's it!
-curl -fsSL https://raw.githubusercontent.com/UNITRONIX/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/shamstabraiz/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
 docker compose up -d
 
 # Get admin password
@@ -558,7 +558,7 @@ Open http://localhost:5000 — done in 30 seconds! See [DOCKER_QUICKSTART.md](do
 **Build from source (advanced):**
 
 ```bash
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
 
 # Build and start (all-in-one: Go server + Node.js console in one container)
@@ -1123,7 +1123,7 @@ go build -o migrate.exe .
 .\migrate.exe -mode sqlite2pg -src C:\BetterDesk\db_v2.sqlite3 -dst "postgres://user:pass@localhost:5432/betterdesk"
 ```
 
-> **Note:** Windows users need [Go](https://go.dev/dl/) installed to compile the migration tool. Pre-built binaries are available in [GitHub Releases](https://github.com/UNITRONIX/BetterDesk/releases) (when available).
+> **Note:** Windows users need [Go](https://go.dev/dl/) installed to compile the migration tool. Pre-built binaries are available in [GitHub Releases](https://github.com/shamstabraiz/BetterDesk/releases) (when available).
 
 The migration tool auto-detects the source schema (original RustDesk `peer` table vs BetterDesk `peers` table) and maps columns accordingly. Ed25519 keys, UUIDs, ID history, bans, and tags are fully preserved.
 
@@ -1672,7 +1672,7 @@ Contributions are welcome! See [CONTRIBUTING.md](docs/development/CONTRIBUTING.m
 
 1. Run diagnostics: `sudo ./betterdesk.sh` → option 8
 2. Collect logs: `journalctl -u betterdesk-server -n 100`
-3. Open a [GitHub Issue](https://github.com/UNITRONIX/Rustdesk-FreeConsole/issues) with system info, logs, and reproduction steps
+3. Open a [GitHub Issue](https://github.com/shamstabraiz/Rustdesk-FreeConsole/issues) with system info, logs, and reproduction steps
 
 ### Pull Requests
 
@@ -1707,7 +1707,7 @@ The `archive/` directory (excluded from distribution via `.gitignore`) contains 
 
 ### Commercial License
 
-Commercial licensing is available for organizations requiring extended support, white-label / OEM redistribution rights, or custom integrations — contact UNITRONIX for details.
+Commercial licensing is available for organizations requiring extended support, white-label / OEM redistribution rights, or custom integrations — contact shamstabraiz for details.
 
 ---
 
@@ -1725,14 +1725,14 @@ Commercial licensing is available for organizations requiring extended support, 
 ## 📞 Support
 
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/UNITRONIX/Rustdesk-FreeConsole/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/UNITRONIX/Rustdesk-FreeConsole/discussions)
+- **Issues**: [GitHub Issues](https://github.com/shamstabraiz/Rustdesk-FreeConsole/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/shamstabraiz/Rustdesk-FreeConsole/discussions)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by UNITRONIX & the community**
+**Made with ❤️ by shamstabraiz & the community**
 
 If you find this project useful, please consider giving it a ⭐ on GitHub!
 

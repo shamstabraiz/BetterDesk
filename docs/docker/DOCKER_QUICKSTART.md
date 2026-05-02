@@ -12,7 +12,7 @@ Get BetterDesk running in **30 seconds** with pre-built images from GitHub Conta
 
 ```bash
 # 1. Download docker-compose file
-curl -fsSL https://raw.githubusercontent.com/UNITRONIX/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/shamstabraiz/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
 
 # 2. Start BetterDesk
 docker compose up -d
@@ -122,7 +122,7 @@ This means the pre-built images are not yet published to GitHub Container Regist
 **Solution A — Build locally (recommended):**
 ```bash
 # Use the full docker-compose.yml which builds images from source
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
 docker compose -f docker-compose.yml up -d --build
 ```
@@ -170,7 +170,7 @@ See [DOCKER_TROUBLESHOOTING.md](../docker/DOCKER_TROUBLESHOOTING.md) for advance
 If you need custom modifications:
 
 ```bash
-git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
 docker compose -f docker-compose.yml up -d --build
 ```

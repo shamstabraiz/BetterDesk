@@ -20,7 +20,7 @@
  *   GET    /api/bd/dlp-policies         — Fetch active policies for agent
  *   POST   /api/bd/dlp-events           — Report a DLP event (violation / info)
  *
- * @author  UNITRONIX
+ * @author  shamstabraiz
  * @version 1.0.0
  */
 

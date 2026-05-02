@@ -31,7 +31,7 @@ if (fs.existsSync(_envFile)) {
 }
 
 // Read version from package.json
-let pkgVersion = '2.0.0';
+let pkgVersion = '2.0.1';
 try {
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
     pkgVersion = pkg.version || pkgVersion;

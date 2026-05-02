@@ -1,7 +1,7 @@
 # Prompt: BetterDesk MGMT Client
 
 ## Cel
-Na bazie istniejącego projektu `UNITRONIX/BetterDesk` utwórz nowy, wydzielony typ klienta o nazwie **BetterDesk MGMT Client** (klient administracyjno-operatorski), którego zadaniem jest zapewnienie administratorom i operatorom centrum wsparcia zdalnego pełnego, bezpiecznego i wysokowydajnego dostępu do urządzeń podłączonych do serwera BetterDesk.
+Na bazie istniejącego projektu `shamstabraiz/BetterDesk` utwórz nowy, wydzielony typ klienta o nazwie **BetterDesk MGMT Client** (klient administracyjno-operatorski), którego zadaniem jest zapewnienie administratorom i operatorom centrum wsparcia zdalnego pełnego, bezpiecznego i wysokowydajnego dostępu do urządzeń podłączonych do serwera BetterDesk.
 
 Klient MGMT ma być aplikacją typu **standalone**, zoptymalizowaną pod kątem:
 - maksymalnej jakości obrazu,

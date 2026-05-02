@@ -23,7 +23,7 @@ RUN npm install --production
 # ---- Production stage ----
 FROM node:20-alpine
 
-LABEL maintainer="UNITRONIX"
+LABEL maintainer="shamstabraiz"
 LABEL description="BetterDesk Console - Web Management Panel"
 LABEL version="2.4.0"
 

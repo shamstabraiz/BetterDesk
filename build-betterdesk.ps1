@@ -440,7 +440,7 @@ function Generate-Checksums {
 
 Generated: $dateNow
 RustDesk Base Version: $Script:RustDeskVersion
-BetterDesk Version: 2.0.0
+BetterDesk Version: 2.0.1
 
 ## SHA256 Checksums
 

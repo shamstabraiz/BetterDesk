@@ -15,7 +15,7 @@
  *   GET    /api/activity/:id      — Per-device activity detail
  *   GET    /api/activity/:id/top  — Top apps for a device
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

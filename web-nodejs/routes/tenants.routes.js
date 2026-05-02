@@ -21,7 +21,7 @@
  *   DELETE /api/tenants/:id/users/:userId — Remove user from tenant
  *   GET    /api/tenants/:id/stats     — Tenant statistics
  *
- * @author  UNITRONIX
+ * @author  shamstabraiz
  * @version 1.0.0
  */
 

@@ -292,7 +292,7 @@ See [CONTRIBUTING.md](../development/CONTRIBUTING.md) for full guidelines.
 | Component | Version |
 |-----------|---------|
 | RustDesk Server Base | 1.1.14 |
-| BetterDesk HTTP API | 2.0.0 |
+| BetterDesk HTTP API | 2.0.1 |
 | Install Scripts | 1.5.x |
 
 When updating RustDesk base version:

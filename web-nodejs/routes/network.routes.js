@@ -28,7 +28,7 @@
  *   POST   /api/network/monitor/stop         — Stop polling loop
  *   GET    /api/network/monitor/status        — Get monitor status
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

@@ -4,7 +4,7 @@
  * SMTP-based email delivery for alert notifications.
  * Configuration is stored in the database (admin-configurable).
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

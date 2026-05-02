@@ -22,7 +22,7 @@
  *   POST   /api/bd/tickets        — Create ticket from agent
  *   GET    /api/bd/tickets        — List own tickets
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

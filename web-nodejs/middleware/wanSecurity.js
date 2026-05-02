@@ -13,8 +13,8 @@
  *   6. Rate limiting (aggressive per-IP + audit-specific)
  *   7. Request timeout (10s max)
  * 
- * @author UNITRONIX
- * @version 2.0.0 — expanded for sysinfo/audit/groups/strategies/server-key
+ * @author shamstabraiz
+ * @version 2.0.1 — expanded for sysinfo/audit/groups/strategies/server-key
  */
 
 const rateLimit = require('express-rate-limit');

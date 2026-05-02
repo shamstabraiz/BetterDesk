@@ -4,7 +4,7 @@
 # NO BUILD REQUIRED - uses pre-built images from GitHub Container Registry
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/UNITRONIX/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
+#   curl -fsSL https://raw.githubusercontent.com/shamstabraiz/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
 #   docker compose up -d
 #
 # Web Console: http://localhost:5000
@@ -13,7 +13,7 @@
 #
 # TROUBLESHOOTING: If you get "denied" or "pull access denied" error,
 # images may not be published yet. Build from source instead:
-#   git clone https://github.com/UNITRONIX/Rustdesk-FreeConsole.git
+#   git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 #   cd Rustdesk-FreeConsole && docker compose -f docker-compose.yml up -d --build
 # =============================================================================
 

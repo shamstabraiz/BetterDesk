@@ -31,7 +31,7 @@
  *   PUT    /api/automation/smtp           — Update SMTP config
  *   POST   /api/automation/smtp/test      — Test SMTP connection
  *
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 1.0.0
  */
 

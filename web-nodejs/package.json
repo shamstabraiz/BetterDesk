@@ -17,7 +17,7 @@
     "remote-desktop",
     "management-console"
   ],
-  "author": "UNITRONIX",
+  "author": "shamstabraiz",
   "license": "Apache-2.0",
   "dependencies": {
     "axios": "^1.7.7",

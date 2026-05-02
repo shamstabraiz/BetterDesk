@@ -228,7 +228,7 @@ impl RelayConnection {
                 union: None,
                 video_ack_required: true,
                 session_id: rand::random::<u64>(),
-                version: "2.0.0".into(),
+                version: "2.0.1".into(),
                 os_login: None,
                 my_platform: std::env::consts::OS.into(),
                 hwid: uuid::Uuid::new_v4().as_bytes().to_vec(),

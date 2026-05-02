@@ -2,7 +2,7 @@
  * BetterDesk Console - Server Entry Point
  * Professional Web Management Panel for RustDesk Server
  * 
- * @author UNITRONIX
+ * @author shamstabraiz
  * @version 2.1.0
  * @license Apache-2.0
  */

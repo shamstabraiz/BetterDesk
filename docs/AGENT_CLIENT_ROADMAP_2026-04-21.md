@@ -383,7 +383,7 @@ sudo ./betterdesk.sh
 
 ```bash
 # Pobierz binarny plik (GitHub Releases)
-wget https://github.com/UNITRONIX/BetterDesk/releases/latest/betterdesk-agent-linux-amd64
+wget https://github.com/shamstabraiz/BetterDesk/releases/latest/betterdesk-agent-linux-amd64
 chmod +x betterdesk-agent-linux-amd64
 sudo mv betterdesk-agent-linux-amd64 /usr/local/bin/betterdesk-agent
 

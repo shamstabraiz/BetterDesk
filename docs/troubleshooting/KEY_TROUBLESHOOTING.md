@@ -361,7 +361,7 @@ cat ~/rustdesk_diagnostics.txt
 
 ### Where to Get Help
 
-- 🐛 **GitHub Issues**: https://github.com/UNITRONIX/Rustdesk-FreeConsole/issues
+- 🐛 **GitHub Issues**: https://github.com/shamstabraiz/Rustdesk-FreeConsole/issues
 - 💬 **RustDesk Community**: https://github.com/rustdesk/rustdesk/discussions
 - 📖 **Documentation**: Check `docs/` folder in repository
 

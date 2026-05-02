@@ -2,7 +2,7 @@
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
-Copyright (c) 2025-2026 UNITRONIX (Krzysztof Nienartowicz). All rights reserved.
+Copyright (c) 2025-2026 shamstabraiz (Krzysztof Nienartowicz). All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ For organizations requiring:
 - White-label / OEM redistribution rights
 - Priority bug fixes and security patches
 
-Contact: UNITRONIX (Krzysztof Nienartowicz) (via GitHub Issues or email)
+Contact: shamstabraiz (Krzysztof Nienartowicz) (via GitHub Issues or email)
 
 ---
 
@@ -86,12 +86,12 @@ RustDesk Team.
 
 ### BetterDesk Server (Go)
 License: Apache License 2.0
-Copyright: 2025-2026 UNITRONIX (Krzysztof Nienartowicz)
+Copyright: 2025-2026 shamstabraiz (Krzysztof Nienartowicz)
 Location: betterdesk-server/
 
 ### BetterDesk Console (Node.js)
 License: Apache License 2.0
-Copyright: 2025-2026 UNITRONIX (Krzysztof Nienartowicz)
+Copyright: 2025-2026 shamstabraiz (Krzysztof Nienartowicz)
 Location: web-nodejs/
 
 ### Third-Party Dependencies

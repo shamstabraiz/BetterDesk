@@ -477,4 +477,4 @@ web-nodejs/
 ---
 
 *Document version: 1.0 | Created: 2026-02-17*  
-*Project: BetterDesk Console — github.com/UNITRONIX/Rustdesk-FreeConsole*
+*Project: BetterDesk Console — github.com/shamstabraiz/Rustdesk-FreeConsole*

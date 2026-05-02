@@ -77,7 +77,7 @@ pub async fn punch_hole(
             licence_key: String::new(),
             conn_type: ConnType::DefaultConn.into(),
             token: String::new(),
-            version: "2.0.0".into(),
+            version: "2.0.1".into(),
             udp_port: 0,
             force_relay,
             upnp_port: 0,

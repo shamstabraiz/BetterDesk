@@ -228,7 +228,7 @@ create_systemd_service() {
     cat > /etc/systemd/system/${SERVICE_NAME}.service << 'EOF'
 [Unit]
 Description=BetterDesk Server (Signal + Relay + API)
-Documentation=https://github.com/UNITRONIX/Rustdesk-FreeConsole
+Documentation=https://github.com/shamstabraiz/Rustdesk-FreeConsole
 After=network.target
 Wants=network-online.target
 
