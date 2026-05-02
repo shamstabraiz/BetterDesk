@@ -106,18 +106,18 @@ type Config struct {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		SignalPort:      21116,
-		RelayPort:       21117,
-		APIPort:         21114,
-		Mode:            "all",
-		DBPath:          "./db_v2.sqlite3",
-		KeyFile:         "id_ed25519",
-		JWTExpiry:       24,
-		RelayMaxConnsIP: 20,
-		EnrollmentMode:  EnrollmentModeOpen, // Backward compatible default
-		CDAPPort:        21122,
-		CDAPEnabled:     true, // Enabled by default; set CDAP_ENABLED=N for minimal installs
-		CDAPRateLimit:   30,
+		SignalPort:           21116,
+		RelayPort:            21117,
+		APIPort:              21114,
+		Mode:                 "all",
+		DBPath:               "./db_v2.sqlite3",
+		KeyFile:              "id_ed25519",
+		JWTExpiry:            24,
+		RelayMaxConnsIP:      20,
+		EnrollmentMode:       EnrollmentModeOpen, // Backward compatible default
+		CDAPPort:             21122,
+		CDAPEnabled:          true, // Enabled by default; set CDAP_ENABLED=N for minimal installs
+		CDAPRateLimit:        30,
 		SignalRateLimitPerIP: IPRateLimitRegistrations,
 		SameNATRelay:         true, // issue #121: auto-fallback to relay on shared public IP
 	}

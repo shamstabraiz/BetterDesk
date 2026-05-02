@@ -10,13 +10,13 @@ import (
 
 // IPLimiter tracks registration attempts per IP address using a sliding window.
 type IPLimiter struct {
-	mu       sync.Mutex
-	entries  map[string]*ipEntry
-	limit    int           // Max events per window
-	window   time.Duration // Sliding window duration
-	cleanup  time.Duration // How often to clean stale entries
-	stopCh   chan struct{}
-	stopped  bool
+	mu      sync.Mutex
+	entries map[string]*ipEntry
+	limit   int           // Max events per window
+	window  time.Duration // Sliding window duration
+	cleanup time.Duration // How often to clean stale entries
+	stopCh  chan struct{}
+	stopped bool
 }
 
 type ipEntry struct {
