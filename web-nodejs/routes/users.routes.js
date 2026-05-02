@@ -8,6 +8,7 @@ const router = express.Router();
 const authService = require('../services/authService');
 const db = require('../services/database');
 const { apiClient } = require('../services/betterdeskApi');
+const userSync = require('../services/userSync');
 const { requireAuth, requirePermission, isSuperAdminRole } = require('../middleware/auth');
 const { passwordChangeLimiter } = require('../middleware/rateLimiter');
 
@@ -121,7 +122,11 @@ router.post('/api/users', requireAuth, requirePermission('user.create'), passwor
         
         // Create user
         const result = await db.createUser(username, passwordHash, userRole);
-        
+
+        // Mirror to Go server so the user is linkable to organizations
+        // (Issue #125). Best-effort — does not fail panel-side creation.
+        userSync.mirrorCreate(username, password, userRole).catch(() => {});
+
         // Log action
         await db.logAction(req.session.userId, 'user_created', `Created user: ${username} (${userRole})`, req.ip);
         
@@ -179,6 +184,8 @@ router.patch('/api/users/:id', requireAuth, requirePermission('user.edit'), asyn
                 });
             }
             await db.updateUserRole(userId, role);
+            // Mirror role change to Go (Issue #125)
+            userSync.mirrorUpdate(user.username, { role }).catch(() => {});
         }
         
         // Update password if provided
@@ -194,6 +201,8 @@ router.patch('/api/users/:id', requireAuth, requirePermission('user.edit'), asyn
             
             const passwordHash = await authService.hashPassword(password);
             await db.updateUserPassword(userId, passwordHash);
+            // Mirror password change to Go (Issue #125)
+            userSync.mirrorUpdate(user.username, { password }).catch(() => {});
         }
         
         // Log action
@@ -245,7 +254,10 @@ router.delete('/api/users/:id', requireAuth, requirePermission('user.delete'), a
         }
         
         await db.deleteUser(userId);
-        
+
+        // Mirror delete to Go server so org links are cleaned up (Issue #125)
+        userSync.mirrorDelete(user.username).catch(() => {});
+
         // Log action
         await db.logAction(req.session.userId, 'user_deleted', `Deleted user: ${user.username}`, req.ip);
         
@@ -296,7 +308,10 @@ router.post('/api/users/:id/reset-password', requireAuth, requirePermission('use
         
         const passwordHash = await authService.hashPassword(newPassword);
         await db.updateUserPassword(userId, passwordHash);
-        
+
+        // Mirror password reset to Go (Issue #125)
+        userSync.mirrorUpdate(user.username, { password: newPassword }).catch(() => {});
+
         // Log action
         await db.logAction(req.session.userId, 'password_reset', `Reset password for user: ${user.username}`, req.ip);
         
