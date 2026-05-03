@@ -11,8 +11,11 @@
     let shell = null;
     let contentArea = null;
     let currentPanel = null;
-    let panelCache = {};
-    let activeRequest = null;
+
+    const PANEL_ROUTES = {
+        dashboard: '/',
+        cdap: '/cdap'
+    };
 
     /* ──────────────────────────────────────────────
        Menu definition — mirrors sidebar.ejs entries
@@ -150,7 +153,7 @@
         // Event listeners
         document.getElementById('b31-exit-btn').addEventListener('click', deactivate);
         document.getElementById('b31-refresh-btn').addEventListener('click', () => {
-            if (currentPanel) { panelCache[currentPanel] = null; navigateTo(currentPanel); }
+            if (currentPanel) navigateTo(currentPanel);
         });
         document.getElementById('b31-theme-btn').addEventListener('click', toggleTheme);
     }
@@ -160,17 +163,6 @@
        ────────────────────────────────────────────── */
     function navigateTo(panelId) {
         if (!contentArea) return;
-        const previousPanel = currentPanel;
-
-        if (activeRequest) {
-            activeRequest.abort();
-            activeRequest = null;
-        }
-
-        if (previousPanel) {
-            unmountPanel(previousPanel);
-        }
-
         currentPanel = panelId;
         localStorage.setItem(STORAGE_PANEL, panelId);
 
@@ -180,132 +172,32 @@
         });
 
         // Show loading
+        contentArea.classList.remove('has-frame');
         contentArea.innerHTML = '<div class="b31-loading"><span class="material-icons">sync</span> Loading…</div>';
 
-        // Use cache if available
-        if (panelCache[panelId]) {
-            renderPanel(panelId, panelCache[panelId]);
-            return;
-        }
+        renderEmbeddedPanel(panelId);
+    }
 
-        const request = new AbortController();
-        activeRequest = request;
+    function getPanelUrl(panelId) {
+        const route = PANEL_ROUTES[panelId] || '/' + panelId;
+        const url = new URL(route, window.location.origin);
+        url.searchParams.set('embed', '1');
+        url.searchParams.set('beta31', '1');
+        return url.pathname + url.search;
+    }
 
-        // Fetch panel content — we load the actual page and extract main-content
-        fetch('/' + (panelId === 'dashboard' ? '' : panelId), {
-            headers: { 'X-Beta31': '1', 'X-Requested-With': 'XMLHttpRequest' },
-            credentials: 'same-origin',
-            signal: request.signal
-        })
-        .then(resp => {
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            return resp.text();
-        })
-        .then(html => {
-            // Extract inner content from the page
-            const extracted = extractMainContent(html);
-            panelCache[panelId] = extracted;
-            // Only render if still on same panel
-            if (currentPanel === panelId) renderPanel(panelId, extracted);
-        })
-        .catch(err => {
-            if (err.name === 'AbortError') return;
-            if (currentPanel === panelId) {
-                renderLoadError(err);
-            }
-        })
-        .finally(() => {
-            if (activeRequest === request) activeRequest = null;
+    function renderEmbeddedPanel(panelId) {
+        const frame = document.createElement('iframe');
+        frame.className = 'b31-panel-frame';
+        frame.title = panelId;
+        frame.src = getPanelUrl(panelId);
+        frame.loading = 'eager';
+        frame.addEventListener('load', () => {
+            frame.classList.add('loaded');
         });
-    }
-
-    function extractMainContent(html) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const scripts = Array.from(doc.querySelectorAll('script[src]'))
-            .map(script => script.getAttribute('src'))
-            .filter(Boolean);
-
-        const main = doc.querySelector('.main-content');
-        const root = main || doc.body;
-        if (!root) return { html: html, scripts: scripts };
-
-        root.querySelectorAll('script').forEach(script => script.remove());
-        root.querySelectorAll('*').forEach(el => {
-            Array.from(el.attributes).forEach(attr => {
-                if (attr.name.toLowerCase().startsWith('on')) {
-                    el.removeAttribute(attr.name);
-                }
-            });
-        });
-
-        if (main) return { html: main.innerHTML, scripts: scripts };
-        // Fallback: body content
-        return { html: root.innerHTML, scripts: scripts };
-    }
-
-    function renderPanel(panelId, extracted) {
-        const payload = typeof extracted === 'string' ? { html: extracted, scripts: [] } : extracted;
-        contentArea.innerHTML = payload.html || '';
-
-        loadExternalScripts(payload.scripts || [])
-            .then(() => mountPanel(panelId))
-            .catch(() => mountPanel(panelId));
-    }
-
-    function renderLoadError(err) {
-        contentArea.innerHTML = `<div class="b31-card"><div class="b31-card-body">
-            <p style="color:var(--b31-muted)">Failed to load panel: ${escHtml(err.message)}</p>
-            <button class="b31-btn" id="b31-retry-panel-btn">
-                <span class="material-icons">refresh</span> Retry
-            </button>
-        </div></div>`;
-        contentArea.querySelector('#b31-retry-panel-btn')?.addEventListener('click', () => {
-            document.getElementById('b31-refresh-btn')?.click();
-        });
-    }
-
-    function loadExternalScripts(scripts) {
-        const uniqueScripts = Array.from(new Set(scripts.filter(src => src.startsWith('/js/'))));
-        return uniqueScripts.reduce((chain, src) => {
-            return chain.then(() => loadScriptOnce(src));
-        }, Promise.resolve());
-    }
-
-    function loadScriptOnce(src) {
-        const path = src.split('?')[0];
-        const existing = Array.from(document.scripts).some(script => {
-            const scriptSrc = script.getAttribute('src') || '';
-            return scriptSrc.split('?')[0] === path;
-        });
-        if (existing) return Promise.resolve();
-
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.body.appendChild(script);
-        });
-    }
-
-    function mountPanel(panelId) {
-        const controller = window.BetterDeskPanelMounts && window.BetterDeskPanelMounts[panelId];
-        if (!controller) return;
-        if (typeof controller === 'function') {
-            controller(contentArea);
-            return;
-        }
-        if (typeof controller.mount === 'function') {
-            controller.mount(contentArea);
-        }
-    }
-
-    function unmountPanel(panelId) {
-        const controller = window.BetterDeskPanelMounts && window.BetterDeskPanelMounts[panelId];
-        if (controller && typeof controller.destroy === 'function') {
-            controller.destroy();
-        }
+        contentArea.classList.add('has-frame');
+        contentArea.innerHTML = '';
+        contentArea.appendChild(frame);
     }
 
     /* ──────────────────────────────────────────────
@@ -323,11 +215,6 @@
     }
 
     function deactivate() {
-        if (currentPanel) unmountPanel(currentPanel);
-        if (activeRequest) {
-            activeRequest.abort();
-            activeRequest = null;
-        }
         if (shell) shell.classList.remove('active');
         document.body.style.overflow = '';
         localStorage.setItem(STORAGE_KEY, '0');

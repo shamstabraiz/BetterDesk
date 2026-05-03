@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const { requireAuth } = require('../middleware/auth');
+const config = require('../config/config');
 const path = require('path');
 const fs = require('fs');
 
@@ -17,6 +18,31 @@ const WALLPAPER_KEY_PREFIX = 'desktop_wallpaper_';
 
 function layoutKey(userId) { return LAYOUT_KEY_PREFIX + userId; }
 function wallpaperKey(userId) { return WALLPAPER_KEY_PREFIX + userId; }
+
+function safeUserId(userId) {
+    return String(userId || 'anonymous').replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80);
+}
+
+function fallbackLayoutPath(userId) {
+    return path.join(config.dataDir, 'desktop-layouts', safeUserId(userId) + '.json');
+}
+
+function readFallbackLayout(userId) {
+    const filePath = fallbackLayoutPath(userId);
+    if (!fs.existsSync(filePath)) return null;
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (_) {
+        return null;
+    }
+}
+
+function writeFallbackLayout(userId, widgets, wallpaper) {
+    const filePath = fallbackLayoutPath(userId);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const payload = JSON.stringify({ widgets: widgets || [], wallpaper: wallpaper || '', updated_at: new Date().toISOString() });
+    fs.writeFileSync(filePath, payload, { mode: 0o600 });
+}
 
 /* ── Maximum payload size (512 KB) ──────────────────────────── */
 const MAX_LAYOUT_SIZE = 512 * 1024;
@@ -66,13 +92,19 @@ router.post('/layout', requireAuth, async (req, res) => {
             return res.status(413).json({ success: false, error: 'Layout too large' });
         }
 
-        await db.setSetting(layoutKey(userId), payload);
+        if (wallpaper !== undefined && !isValidWallpaperPath(wallpaper)) {
+            return res.status(400).json({ success: false, error: 'Invalid wallpaper path' });
+        }
 
-        if (wallpaper !== undefined) {
-            if (!isValidWallpaperPath(wallpaper)) {
-                return res.status(400).json({ success: false, error: 'Invalid wallpaper path' });
+        try {
+            await db.setSetting(layoutKey(userId), payload);
+
+            if (wallpaper !== undefined) {
+                await db.setSetting(wallpaperKey(userId), wallpaper);
             }
-            await db.setSetting(wallpaperKey(userId), wallpaper);
+        } catch (dbErr) {
+            console.warn('[Desktop] DB layout save failed, using file fallback:', dbErr.message);
+            writeFallbackLayout(userId, widgets || [], wallpaper);
         }
 
         res.json({ success: true });
@@ -91,12 +123,27 @@ router.post('/layout', requireAuth, async (req, res) => {
 router.get('/layout', requireAuth, async (req, res) => {
     try {
         const userId = req.session.userId;
-        const layoutRaw = await db.getSetting(layoutKey(userId));
-        const wallpaper = await db.getSetting(wallpaperKey(userId));
+        let layoutRaw = null;
+        let wallpaper = '';
+
+        try {
+            layoutRaw = await db.getSetting(layoutKey(userId));
+            wallpaper = await db.getSetting(wallpaperKey(userId));
+        } catch (dbErr) {
+            console.warn('[Desktop] DB layout load failed, using file fallback:', dbErr.message);
+        }
 
         let widgets = [];
         if (layoutRaw) {
             try { widgets = JSON.parse(layoutRaw); } catch (_) { /* corrupt — return empty */ }
+        }
+
+        if (!layoutRaw) {
+            const fallback = readFallbackLayout(userId);
+            if (fallback) {
+                widgets = Array.isArray(fallback.widgets) ? fallback.widgets : [];
+                wallpaper = wallpaper || fallback.wallpaper || '';
+            }
         }
 
         res.json({ success: true, data: { widgets, wallpaper: wallpaper || '' } });
