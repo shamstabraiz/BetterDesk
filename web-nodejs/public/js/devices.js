@@ -1007,34 +1007,30 @@
                     if (closeBtn) closeBtn.disabled = true;
 
                     try {
-                        const resp = await Utils.api(`/api/devices/${encodeURIComponent(device.id)}`, {
+                        await Utils.api(`/api/devices/${encodeURIComponent(device.id)}`, {
                             method: 'PATCH',
                             body: JSON.stringify({ display_name: displayName, note }),
                             headers: { 'Content-Type': 'application/json' }
                         });
-                        if (resp.success) {
-                            device.display_name = displayName;
-                            device.note = note;
-                            applyFilters();
-                            document.dispatchEvent(new CustomEvent('devices:updated', {
-                                detail: {
-                                    id: device.id,
-                                    display_name: displayName,
-                                    note: note
-                                }
-                            }));
 
-                            if (saveBtn) {
-                                saveBtn.textContent = _('common.saved');
+                        device.display_name = displayName;
+                        device.note = note;
+                        applyFilters();
+                        document.dispatchEvent(new CustomEvent('devices:updated', {
+                            detail: {
+                                id: device.id,
+                                display_name: displayName,
+                                note: note
                             }
+                        }));
 
-                            Notifications.success(_('common.saved'), _('devices.display_name'));
-                            setTimeout(() => Modal.close(), 250);
-                            loadDevices();
-                        } else {
-                            restoreButtons();
-                            Notifications.error(resp.error || _('errors.server_error'));
+                        if (saveBtn) {
+                            saveBtn.textContent = _('common.saved');
                         }
+
+                        Notifications.success(_('common.saved'), _('devices.display_name'));
+                        setTimeout(() => Modal.close(), 250);
+                        loadDevices();
                     } catch (err) {
                         restoreButtons();
                         Notifications.error(err.message || _('errors.server_error'));

@@ -24,6 +24,7 @@ html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
+    height: 100%;
 }
 
 body {
@@ -34,6 +35,11 @@ body {
     background-color: var(--bg-primary);
     overflow-x: hidden;
     min-height: 100vh;
+    height: 100%;
+}
+
+body.app-page {
+    overflow: hidden;
 }
 
 a {
@@ -93,7 +99,9 @@ table {
 
 .app-layout {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .main-wrapper {
@@ -101,7 +109,9 @@ table {
     margin-left: var(--sidebar-current-width, var(--sidebar-width-collapsed));
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
     transition: margin-left var(--transition-normal);
 }
 
@@ -109,8 +119,14 @@ table {
     flex: 1;
     padding: var(--space-lg);
     margin-top: var(--navbar-height);
+    height: calc(100vh - var(--navbar-height));
+    min-height: 0;
     max-width: var(--content-max-width);
     width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
 .page-header {

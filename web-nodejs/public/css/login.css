@@ -28,11 +28,19 @@
 
 .login-language-picker select {
     max-width: 180px;
-    background: transparent;
-    border: none;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     font: inherit;
     outline: none;
+    padding: 4px 28px 4px 8px;
+    color-scheme: dark;
+}
+
+.login-language-picker select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 .login-container {

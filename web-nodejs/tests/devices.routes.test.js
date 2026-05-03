@@ -164,6 +164,55 @@ describe('Devices Routes', () => {
         });
     });
 
+    describe('PATCH /api/devices/:id', () => {
+        it('should update display name and note', async () => {
+            serverBackend.getDeviceById.mockResolvedValue({ id: '123456789', hostname: 'PC-1' });
+            serverBackend.updateDevice.mockResolvedValue({ changes: 1 });
+
+            const res = await request(app)
+                .patch('/api/devices/123456789')
+                .send({ display_name: 'Accounting PC', note: 'Front desk' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data.changes).toBe(1);
+            expect(serverBackend.updateDevice).toHaveBeenCalledWith('123456789', {
+                user: undefined,
+                note: 'Front desk',
+                display_name: 'Accounting PC'
+            });
+        });
+
+        it('should return backend update errors instead of reporting success', async () => {
+            serverBackend.getDeviceById.mockResolvedValue({ id: '123456789', hostname: 'PC-1' });
+            serverBackend.updateDevice.mockResolvedValue({ changes: 0, error: 'Go API update failed' });
+
+            const res = await request(app)
+                .patch('/api/devices/123456789')
+                .send({ display_name: 'Accounting PC' });
+
+            expect(res.status).toBe(502);
+            expect(res.body.success).toBe(false);
+            expect(res.body.error).toBe('Go API update failed');
+        });
+
+        it('should not fail the update when audit logging fails', async () => {
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            serverBackend.getDeviceById.mockResolvedValue({ id: '123456789', hostname: 'PC-1' });
+            serverBackend.updateDevice.mockResolvedValue({ changes: 1 });
+            db.logAction.mockRejectedValueOnce(new Error('audit unavailable'));
+
+            const res = await request(app)
+                .patch('/api/devices/123456789')
+                .send({ display_name: 'Accounting PC' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(warnSpy).toHaveBeenCalledWith('Device update audit log failed:', 'audit unavailable');
+            warnSpy.mockRestore();
+        });
+    });
+
     describe('GET /api/devices (unauthenticated)', () => {
         it('should return 401 without session', async () => {
             const unauthApp = createTestApp();

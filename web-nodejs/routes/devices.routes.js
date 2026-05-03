@@ -141,7 +141,9 @@ router.get('/api/devices/:id', requireAuth, async (req, res) => {
  */
 router.patch('/api/devices/:id', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
-        const { user, note, display_name } = req.body;
+        const user = req.body.user !== undefined ? String(req.body.user).trim().slice(0, 128) : undefined;
+        const note = req.body.note !== undefined ? String(req.body.note).trim().slice(0, 512) : undefined;
+        const display_name = req.body.display_name !== undefined ? String(req.body.display_name).trim().slice(0, 128) : undefined;
         const id = req.params.id;
         
         // Check device exists
@@ -154,13 +156,23 @@ router.patch('/api/devices/:id', requireAuth, requirePermission('device.edit'), 
         }
         
         const result = await serverBackend.updateDevice(id, { user, note, display_name });
+        if (result && result.error) {
+            return res.status(502).json({
+                success: false,
+                error: result.error
+            });
+        }
         
         // Log action
-        await db.logAction(req.session.userId, 'device_updated', `Device ${id} updated`, req.ip);
+        try {
+            await db.logAction(req.session.userId, 'device_updated', `Device ${id} updated`, req.ip);
+        } catch (auditErr) {
+            console.warn('Device update audit log failed:', auditErr.message);
+        }
         
         res.json({
             success: true,
-            data: { changes: result.changes }
+            data: { changes: result?.changes ?? 1 }
         });
     } catch (err) {
         console.error('Update device error:', err);

@@ -14,6 +14,7 @@
         saturation: 100,
         contrast: 'normal',
         colorFilter: 'none',
+        activeProfile: '',
         readableFont: false,
         dyslexiaFont: false,
         underlineLinks: false,
@@ -66,6 +67,7 @@
 
         clean.contrast = SELECT_VALUES.contrast.includes(source.contrast) ? source.contrast : DEFAULTS.contrast;
         clean.colorFilter = SELECT_VALUES.colorFilter.includes(source.colorFilter) ? source.colorFilter : DEFAULTS.colorFilter;
+        clean.activeProfile = ['lowVision', 'dyslexia', 'motionSafe', 'colorAssist'].includes(source.activeProfile) ? source.activeProfile : DEFAULTS.activeProfile;
 
         Object.keys(DEFAULTS).forEach(key => {
             if (typeof DEFAULTS[key] === 'boolean') clean[key] = source[key] === true;
@@ -240,8 +242,9 @@
     }
 
     function profileButton(profile, icon, label, hint) {
+        const active = settings.activeProfile === profile;
         return `
-            <button type="button" class="bd-a11y-profile" data-a11y-profile="${profile}">
+            <button type="button" class="bd-a11y-profile" data-a11y-profile="${profile}" aria-pressed="${active ? 'true' : 'false'}">
                 <span class="material-icons">${esc(icon)}</span>
                 <span><strong>${esc(label)}</strong><small>${esc(hint)}</small></span>
             </button>
@@ -369,6 +372,7 @@
         modalEl.className = 'bd-a11y-overlay';
         modalEl.innerHTML = buildModalHtml();
         document.body.appendChild(modalEl);
+        document.body.classList.add('bd-a11y-modal-open');
 
         modalEl.addEventListener('click', event => {
             if (event.target === modalEl || event.target.closest('[data-a11y-close]') || event.target.closest('.bd-a11y-close')) closeModal();
@@ -387,6 +391,7 @@
         if (!modalEl) return;
         modalEl.remove();
         modalEl = null;
+        document.body.classList.remove('bd-a11y-modal-open');
         if (lastFocusedEl && typeof lastFocusedEl.focus === 'function') lastFocusedEl.focus();
     }
 
@@ -416,7 +421,7 @@
         if (!field) return;
         const key = field.dataset.a11yField;
         const value = field.type === 'range' ? Number(field.value) : field.value;
-        saveSettings({ ...settings, [key]: value });
+        saveSettings({ ...settings, activeProfile: '', [key]: value });
         updateOutput(key);
     }
 
@@ -424,7 +429,7 @@
         const toggle = event.target.closest('[data-a11y-toggle]');
         if (toggle) {
             const key = toggle.dataset.a11yToggle;
-            saveSettings({ ...settings, [key]: !settings[key] });
+            saveSettings({ ...settings, activeProfile: '', [key]: !settings[key] });
             syncModalControls();
             return;
         }
@@ -464,10 +469,19 @@
             const key = toggle.dataset.a11yToggle;
             toggle.setAttribute('aria-pressed', String(settings[key]));
         });
+        modalEl.querySelectorAll('[data-a11y-profile]').forEach(profile => {
+            profile.setAttribute('aria-pressed', String(settings.activeProfile === profile.dataset.a11yProfile));
+        });
     }
 
     function applyProfile(profile) {
+        if (settings.activeProfile === profile) {
+            resetSettings();
+            return;
+        }
+
         const next = { ...settings };
+        next.activeProfile = profile;
         if (profile === 'lowVision') {
             Object.assign(next, {
                 fontScale: 130,
