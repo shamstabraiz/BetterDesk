@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const authService = require('../services/authService');
 const db = require('../services/database');
+const { manager } = require('../services/i18nService');
 const { guestOnly, requireAuth } = require('../middleware/auth');
 const { loginLimiter, passwordChangeLimiter } = require('../middleware/rateLimiter');
 
@@ -109,12 +110,21 @@ router.post('/api/auth/login', loginLimiter, async (req, res) => {
                 return res.status(500).json({ success: false, error: 'Server error' });
             }
             
+            const cookieLang = req.cookies?.betterdesk_lang;
+            const preferredLanguage = manager.hasLanguage(cookieLang) ? cookieLang : (user.preferred_language || null);
+            if (preferredLanguage && preferredLanguage !== user.preferred_language && typeof db.updateUserLanguage === 'function') {
+                db.updateUserLanguage(user.id, preferredLanguage).catch(err => {
+                    console.warn(`[auth] Failed to persist language for ${user.username}:`, err.message);
+                });
+            }
+
             // Restore session data
             req.session.userId = user.id;
             req.session.user = {
                 id: user.id,
                 username: user.username,
-                role: user.role
+                role: user.role,
+                preferred_language: preferredLanguage
             };
             
             // Log successful login
@@ -276,13 +286,22 @@ router.post('/api/auth/totp/verify', loginLimiter, async (req, res) => {
                 });
             }
 
+            const cookieLang = req.cookies?.betterdesk_lang;
+            const preferredLanguage = manager.hasLanguage(cookieLang) ? cookieLang : (pendingUser.preferred_language || null);
+            if (preferredLanguage && preferredLanguage !== pendingUser.preferred_language && typeof db.updateUserLanguage === 'function') {
+                db.updateUserLanguage(pendingUser.id, preferredLanguage).catch(err => {
+                    console.warn(`[auth] Failed to persist language for ${pendingUser.username}:`, err.message);
+                });
+            }
+
             // Pending fields belonged to the old session; the regenerated session
             // starts empty, so we only need to populate the authenticated user.
             req.session.userId = pendingUser.id;
             req.session.user = {
                 id: pendingUser.id,
                 username: pendingUser.username,
-                role: pendingUser.role
+                role: pendingUser.role,
+                preferred_language: preferredLanguage
             };
 
             try {

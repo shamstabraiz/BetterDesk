@@ -169,6 +169,7 @@ async function authenticate(username, password) {
                     id: created.id,
                     username: created.username,
                     role: created.role,
+                    preferred_language: created.preferred_language || null,
                     totpRequired: false,
                 };
             }
@@ -218,6 +219,7 @@ async function authenticate(username, password) {
             id: user.id,
             username: user.username,
             role: user.role,
+            preferred_language: user.preferred_language || null,
             totpRequired: true
         };
     }
@@ -229,6 +231,7 @@ async function authenticate(username, password) {
         id: user.id,
         username: user.username,
         role: user.role,
+        preferred_language: user.preferred_language || null,
         totpRequired: false
     };
 }

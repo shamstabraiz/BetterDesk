@@ -13,6 +13,14 @@
     <link rel="stylesheet" href="/css/login.css?v=<%= cacheVersion %>">
 </head>
 <body class="login-page">
+    <div class="login-language-picker">
+        <span class="material-icons" aria-hidden="true">language</span>
+        <select id="login-language-select" data-language-select aria-label="<%= _('settings.language') %>">
+            <% (availableLanguageList || Object.values(availableLanguages || {})).forEach(function(language) { %>
+                <option value="<%= language.code %>" <%= lang === language.code ? 'selected' : '' %>><%= language.native || language.name || language.code %></option>
+            <% }); %>
+        </select>
+    </div>
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
@@ -161,11 +169,13 @@
         window.BetterDesk = {
             csrfToken: '<%= csrfToken || "" %>',
             lang: '<%= lang || "en" %>',
+            availableLanguages: <%- JSON.stringify(availableLanguageList || []) %>,
             translations: <%- JSON.stringify(translations || {}) %>,
             branding: <%- JSON.stringify(branding || {}) %>
         };
     </script>
     <script src="/js/utils.js?v=<%= cacheVersion %>"></script>
+    <script src="/js/i18n-client.js?v=<%= cacheVersion %>"></script>
     <script src="/js/login.js?v=<%= cacheVersion %>"></script>
 </body>
 </html>

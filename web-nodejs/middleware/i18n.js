@@ -16,14 +16,18 @@ function parseAcceptLanguage(header) {
     const languages = header.split(',')
         .map(lang => {
             const parts = lang.trim().split(';');
-            const code = parts[0].split('-')[0]; // Get primary language code
+            const rawCode = parts[0].trim();
+            const code = rawCode.split('-')[0]; // Get primary language code
             const q = parts[1] ? parseFloat(parts[1].split('=')[1]) : 1;
-            return { code, q };
+            return { rawCode, code, q };
         })
         .sort((a, b) => b.q - a.q);
     
     // Find first supported language
-    for (const { code } of languages) {
+    for (const { rawCode, code } of languages) {
+        if (manager.hasLanguage(rawCode)) {
+            return rawCode;
+        }
         if (manager.hasLanguage(code)) {
             return code;
         }
@@ -39,11 +43,13 @@ function parseAcceptLanguage(header) {
 function i18nMiddleware(req, res, next) {
     // Language detection priority:
     // 1. URL query param ?lang=xx
-    // 2. Cookie betterdesk_lang
-    // 3. Accept-Language header
-    // 4. Default language
+    // 2. Authenticated user preference
+    // 3. Cookie betterdesk_lang
+    // 4. Accept-Language header
+    // 5. Default language
     
     let lang = req.query.lang
+        || req.session?.user?.preferred_language
         || req.cookies?.betterdesk_lang
         || parseAcceptLanguage(req.headers['accept-language'])
         || config.defaultLanguage;
@@ -69,6 +75,8 @@ function i18nMiddleware(req, res, next) {
     res.locals.lang = lang;
     res.locals.isRtl = langMeta?.rtl || false;
     res.locals.availableLanguages = manager.getAvailable();
+    res.locals.availableLanguageList = manager.getAvailableList();
+    res.locals.currentLanguage = langMeta;
     res.locals.appVersion = config.appVersion;
     
     // Branding - inject dynamic app name and branding data
@@ -78,7 +86,7 @@ function i18nMiddleware(req, res, next) {
     res.locals.branding = branding;
     
     // Full translations object for client-side JS
-    res.locals.translations = manager.getTranslations(lang);
+    res.locals.translations = manager.getMergedTranslations(lang);
     
     // Translation function
     res.locals._ = (key, vars) => manager.translate(lang, key, vars);

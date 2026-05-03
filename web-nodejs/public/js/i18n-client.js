@@ -7,6 +7,28 @@
     
     const translations = window.BetterDesk?.translations || {};
     const currentLang = window.BetterDesk?.lang || 'en';
+    const availableLanguages = Array.isArray(window.BetterDesk?.availableLanguages)
+        ? window.BetterDesk.availableLanguages
+        : [];
+    const availableLanguageCodes = new Set(availableLanguages.map(lang => lang.code));
+
+    function hasCookieLanguage() {
+        return document.cookie.split(';').some(part => part.trim().startsWith('betterdesk_lang='));
+    }
+
+    function isSupportedLanguage(langCode) {
+        return typeof langCode === 'string' && availableLanguageCodes.has(langCode);
+    }
+
+    try {
+        const savedLang = localStorage.getItem('betterdesk_lang');
+        const accountLang = window.BetterDesk?.user?.preferred_language;
+        if (savedLang && savedLang !== currentLang && isSupportedLanguage(savedLang) && !hasCookieLanguage() && !accountLang) {
+            window.__betterdeskPendingLanguageRestore = savedLang;
+        } else if (currentLang) {
+            localStorage.setItem('betterdesk_lang', currentLang);
+        }
+    } catch (_) { /* localStorage may be disabled */ }
     
     /**
      * Get translation by key with optional interpolation
@@ -56,6 +78,12 @@
      */
     window.changeLanguage = async function(langCode) {
         try {
+            if (!isSupportedLanguage(langCode)) {
+                throw new Error('Unsupported language');
+            }
+
+            try { localStorage.setItem('betterdesk_lang', langCode); } catch (_) {}
+
             // Set language preference via API
             await Utils.api(`/api/i18n/set/${langCode}`, { method: 'POST' });
             
@@ -63,9 +91,27 @@
             window.location.reload();
         } catch (error) {
             console.error('Failed to change language:', error);
-            Notifications.error(_('errors.language_change_failed'));
+            if (window.Notifications?.error) {
+                Notifications.error(_('errors.language_change_failed'));
+            }
         }
     };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-language-select]').forEach(select => {
+            select.addEventListener('change', () => {
+                if (select.value) {
+                    window.changeLanguage(select.value);
+                }
+            });
+        });
+    });
+
+    if (window.__betterdeskPendingLanguageRestore) {
+        const langToRestore = window.__betterdeskPendingLanguageRestore;
+        delete window.__betterdeskPendingLanguageRestore;
+        window.changeLanguage(langToRestore);
+    }
     
     /**
      * Pluralization helper

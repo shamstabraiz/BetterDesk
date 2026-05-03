@@ -68,14 +68,15 @@
                 <span class="material-icons">language</span>
             </button>
             <div class="lang-dropdown" id="lang-dropdown">
-                <div class="lang-option <%= lang === 'en' ? 'active' : '' %>" data-lang="en">
-                    <span>🇬🇧</span>
-                    <span>English</span>
-                </div>
-                <div class="lang-option <%= lang === 'pl' ? 'active' : '' %>" data-lang="pl">
-                    <span>🇵🇱</span>
-                    <span>Polski</span>
-                </div>
+                <% (availableLanguageList || Object.values(availableLanguages || {})).forEach(function(language) { %>
+                    <div class="lang-option <%= lang === language.code ? 'active' : '' %>" data-lang="<%= language.code %>" role="button" tabindex="0">
+                        <span class="lang-flag"><%= language.flag || '🌐' %></span>
+                        <span class="lang-label"><%= language.native || language.name || language.code %></span>
+                        <% if (lang === language.code) { %>
+                            <span class="material-icons lang-check">check</span>
+                        <% } %>
+                    </div>
+                <% }); %>
             </div>
         </div>
         

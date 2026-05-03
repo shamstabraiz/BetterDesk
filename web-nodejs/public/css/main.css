@@ -547,7 +547,10 @@ table {
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
-    min-width: 160px;
+    min-width: 220px;
+    max-height: min(420px, calc(100vh - 96px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     z-index: var(--z-dropdown);
     opacity: 0;
     visibility: hidden;
@@ -568,6 +571,7 @@ table {
     align-items: center;
     gap: var(--space-sm);
     transition: background var(--transition-fast);
+    min-height: 40px;
 }
 
 .lang-option:hover {
@@ -576,6 +580,18 @@ table {
 
 .lang-option.active {
     color: var(--accent-blue);
+}
+
+.lang-label {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lang-check {
+    font-size: 18px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

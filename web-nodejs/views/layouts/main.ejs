@@ -132,6 +132,7 @@
         // Global config
         window.BetterDesk = {
             lang: '<%= lang || "en" %>',
+            availableLanguages: <%- JSON.stringify(availableLanguageList || []) %>,
             translations: <%- JSON.stringify(translations || {}) %>,
             csrfToken: '<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>',
             user: <%- JSON.stringify(user || null) %>,

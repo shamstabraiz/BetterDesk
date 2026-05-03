@@ -14,6 +14,15 @@
     <link rel="stylesheet" href="/css/desktop-login.css?v=<%= cacheVersion %>">
 </head>
 <body class="desktop-login-page">
+    <div class="dl-language-picker">
+        <span class="material-icons" aria-hidden="true">language</span>
+        <select id="desktop-language-select" data-language-select aria-label="<%= _('settings.language') %>">
+            <% (availableLanguageList || Object.values(availableLanguages || {})).forEach(function(language) { %>
+                <option value="<%= language.code %>" <%= lang === language.code ? 'selected' : '' %>><%= language.native || language.name || language.code %></option>
+            <% }); %>
+        </select>
+    </div>
+
     <!-- Wallpaper layer -->
     <div class="dl-wallpaper" id="dl-wallpaper">
         <div class="dl-wallpaper-overlay"></div>
@@ -144,12 +153,14 @@
         window.BetterDesk = {
             csrfToken: '<%= csrfToken || "" %>',
             lang: '<%= lang || "en" %>',
+            availableLanguages: <%- JSON.stringify(availableLanguageList || []) %>,
             translations: <%- JSON.stringify(translations || {}) %>,
             branding: <%- JSON.stringify(branding || {}) %>,
             users: <%- JSON.stringify(loginUsers || []) %>
         };
     </script>
     <script src="/js/utils.js?v=<%= cacheVersion %>"></script>
+    <script src="/js/i18n-client.js?v=<%= cacheVersion %>"></script>
     <script src="/js/desktop-login.js?v=<%= cacheVersion %>"></script>
 </body>
 </html>

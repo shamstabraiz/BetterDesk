@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { manager } = require('../services/i18nService');
+const { manager, isValidLangCode } = require('../services/i18nService');
 const { requireAuth } = require('../middleware/auth');
 const db = require('../services/database');
 
@@ -32,7 +32,8 @@ router.get('/languages', (req, res) => {
         const languages = manager.getAvailable();
         res.json({
             success: true,
-            data: languages
+            data: languages,
+            list: manager.getAvailableList()
         });
     } catch (err) {
         console.error('Get languages error:', err);
@@ -49,9 +50,16 @@ router.get('/languages', (req, res) => {
 router.get('/translations/:code', (req, res) => {
     try {
         const { code } = req.params;
-        const translations = manager.getTranslations(code);
+        if (!isValidLangCode(code)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid language code'
+            });
+        }
+
+        const translations = manager.getMergedTranslations(code);
         
-        if (!translations) {
+        if (!manager.hasLanguage(code)) {
             return res.status(404).json({
                 success: false,
                 error: 'Language not found'
@@ -78,7 +86,7 @@ router.post('/set/:code', (req, res) => {
     try {
         const { code } = req.params;
         
-        if (!manager.hasLanguage(code)) {
+        if (!isValidLangCode(code) || !manager.hasLanguage(code)) {
             return res.status(400).json({
                 success: false,
                 error: 'Language not supported'
@@ -91,6 +99,14 @@ router.post('/set/:code', (req, res) => {
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production' || process.env.HTTPS_ENABLED === 'true'
         });
+
+        if (req.session?.userId && typeof db.updateUserLanguage === 'function') {
+            db.updateUserLanguage(req.session.userId, code).catch(err => {
+                console.warn(`[i18n] Failed to persist language for user ${req.session.userId}:`, err.message);
+            });
+            req.session.user = req.session.user || {};
+            req.session.user.preferred_language = code;
+        }
         
         res.json({ success: true });
     } catch (err) {

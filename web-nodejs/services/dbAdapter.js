@@ -236,6 +236,7 @@ function createSqliteAdapter(config) {
                 role TEXT DEFAULT 'admin',
                 created_at TEXT DEFAULT (datetime('now')),
                 last_login TEXT,
+                preferred_language TEXT DEFAULT NULL,
                 totp_secret TEXT DEFAULT NULL,
                 totp_enabled INTEGER DEFAULT 0,
                 totp_recovery_codes TEXT DEFAULT NULL
@@ -426,6 +427,7 @@ function createSqliteAdapter(config) {
         // Migration: Add missing columns to existing users table (for upgrades from older versions)
         const userColsMigration = [
             { name: 'last_login', sql: 'TEXT' },
+            { name: 'preferred_language', sql: 'TEXT DEFAULT NULL' },
             { name: 'totp_secret', sql: 'TEXT DEFAULT NULL' },
             { name: 'totp_enabled', sql: 'INTEGER DEFAULT 0' },
             { name: 'totp_recovery_codes', sql: 'TEXT DEFAULT NULL' },
@@ -1098,10 +1100,13 @@ function createSqliteAdapter(config) {
             return (openAuth().prepare('SELECT COUNT(*) as c FROM users').get().c) > 0;
         },
         async getAllUsers() {
-            return openAuth().prepare('SELECT id, username, role, created_at, last_login, totp_enabled FROM users ORDER BY id').all();
+            return openAuth().prepare('SELECT id, username, role, created_at, last_login, preferred_language, totp_enabled FROM users ORDER BY id').all();
         },
         async updateUserRole(id, role) {
             openAuth().prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+        },
+        async updateUserLanguage(id, lang) {
+            openAuth().prepare('UPDATE users SET preferred_language = ? WHERE id = ?').run(lang, id);
         },
         // Phase 4: update operator identity profile (first_name, last_name, email, phone, role_display, avatar_url)
         async updateUserProfile(id, fields) {
@@ -2547,6 +2552,7 @@ function createPostgresAdapter() {
                 role TEXT DEFAULT 'admin',
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 last_login TIMESTAMPTZ,
+                preferred_language TEXT DEFAULT NULL,
                 totp_secret TEXT DEFAULT NULL,
                 totp_enabled BOOLEAN DEFAULT FALSE,
                 totp_recovery_codes TEXT DEFAULT NULL
@@ -3111,6 +3117,9 @@ function createPostgresAdapter() {
         if (!existingCols.has('last_login')) {
             await q('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ');
         }
+        if (!existingCols.has('preferred_language')) {
+            await q('ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT NULL');
+        }
         if (!existingCols.has('totp_secret')) {
             await q('ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT DEFAULT NULL');
         }
@@ -3422,8 +3431,9 @@ function createPostgresAdapter() {
         async updateUserPassword(id, passwordHash) { await q('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, id]); },
         async touchLastLogin(id) { await q('UPDATE users SET last_login = NOW() WHERE id = $1', [id]); },
         async hasUsers() { return +(await one('SELECT COUNT(*) as c FROM users')).c > 0; },
-        async getAllUsers() { return all('SELECT id, username, role, created_at, last_login, totp_enabled FROM users ORDER BY id'); },
+        async getAllUsers() { return all('SELECT id, username, role, created_at, last_login, preferred_language, totp_enabled FROM users ORDER BY id'); },
         async updateUserRole(id, role) { await q('UPDATE users SET role = $1 WHERE id = $2', [role, id]); },
+        async updateUserLanguage(id, lang) { await q('UPDATE users SET preferred_language = $1 WHERE id = $2', [lang, id]); },
         async updateUserProfile(id, fields) {
             const allowed = ['first_name', 'last_name', 'email', 'phone', 'role_display', 'avatar_url'];
             const sets = [];

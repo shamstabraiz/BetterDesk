@@ -51,6 +51,26 @@ function isValidLangCode(code) {
     return typeof code === 'string' && VALID_LANG_CODE.test(code);
 }
 
+function stripBom(content) {
+    return typeof content === 'string' && content.charCodeAt(0) === 0xFEFF
+        ? content.slice(1)
+        : content;
+}
+
+function deepMerge(base, overlay) {
+    if (!base || typeof base !== 'object') return overlay;
+    if (!overlay || typeof overlay !== 'object') return base;
+    const merged = Array.isArray(base) ? [...base] : { ...base };
+    for (const [key, value] of Object.entries(overlay)) {
+        if (value && typeof value === 'object' && !Array.isArray(value) && base[key] && typeof base[key] === 'object' && !Array.isArray(base[key])) {
+            merged[key] = deepMerge(base[key], value);
+        } else {
+            merged[key] = value;
+        }
+    }
+    return merged;
+}
+
 class TranslationManager {
     constructor() {
         this.translations = {};
@@ -102,7 +122,7 @@ class TranslationManager {
                 return false;
             }
             
-            const content = fs.readFileSync(filePath, 'utf8');
+            const content = stripBom(fs.readFileSync(filePath, 'utf8'));
             const data = JSON.parse(content);
             
             this.translations[code] = data;
@@ -180,12 +200,32 @@ class TranslationManager {
     getAvailable() {
         return this.availableLanguages;
     }
+
+    /**
+     * Get available languages as a sorted list for UI rendering.
+     */
+    getAvailableList() {
+        return Object.values(this.availableLanguages)
+            .sort((a, b) => (a.native || a.name || a.code).localeCompare(b.native || b.name || b.code, undefined, { sensitivity: 'base' }));
+    }
     
     /**
      * Get all translations for a language
      */
     getTranslations(code) {
         return this.translations[code] || null;
+    }
+
+    /**
+     * Get translations with default-language fallback merged in.
+     * Useful for client-side i18n where missing keys should not surface as raw keys.
+     */
+    getMergedTranslations(code) {
+        const requested = this.translations[code];
+        const fallback = this.translations[this.defaultLang] || {};
+        if (!requested) return fallback;
+        if (code === this.defaultLang) return requested;
+        return deepMerge(fallback, requested);
     }
     
     /**
@@ -303,5 +343,6 @@ const manager = new TranslationManager();
 
 module.exports = {
     manager,
-    LANGUAGE_META
+    LANGUAGE_META,
+    isValidLangCode
 };

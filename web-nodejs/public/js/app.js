@@ -91,6 +91,14 @@
                     await window.changeLanguage(lang);
                 }
             });
+            option.addEventListener('keydown', async (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                const lang = option.dataset.lang;
+                if (lang) {
+                    await window.changeLanguage(lang);
+                }
+            });
         });
     }
     
