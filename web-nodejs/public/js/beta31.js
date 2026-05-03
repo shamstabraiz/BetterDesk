@@ -12,6 +12,7 @@
     let contentArea = null;
     let currentPanel = null;
     let panelCache = {};
+    let activeRequest = null;
 
     /* ──────────────────────────────────────────────
        Menu definition — mirrors sidebar.ejs entries
@@ -159,6 +160,17 @@
        ────────────────────────────────────────────── */
     function navigateTo(panelId) {
         if (!contentArea) return;
+        const previousPanel = currentPanel;
+
+        if (activeRequest) {
+            activeRequest.abort();
+            activeRequest = null;
+        }
+
+        if (previousPanel) {
+            unmountPanel(previousPanel);
+        }
+
         currentPanel = panelId;
         localStorage.setItem(STORAGE_PANEL, panelId);
 
@@ -176,10 +188,14 @@
             return;
         }
 
+        const request = new AbortController();
+        activeRequest = request;
+
         // Fetch panel content — we load the actual page and extract main-content
         fetch('/' + (panelId === 'dashboard' ? '' : panelId), {
             headers: { 'X-Beta31': '1', 'X-Requested-With': 'XMLHttpRequest' },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            signal: request.signal
         })
         .then(resp => {
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -193,42 +209,103 @@
             if (currentPanel === panelId) renderPanel(panelId, extracted);
         })
         .catch(err => {
+            if (err.name === 'AbortError') return;
             if (currentPanel === panelId) {
-                contentArea.innerHTML = `<div class="b31-card"><div class="b31-card-body">
-                    <p style="color:var(--b31-muted)">Failed to load panel: ${escHtml(err.message)}</p>
-                    <button class="b31-btn" onclick="document.getElementById('b31-refresh-btn').click()">
-                        <span class="material-icons">refresh</span> Retry
-                    </button>
-                </div></div>`;
+                renderLoadError(err);
             }
+        })
+        .finally(() => {
+            if (activeRequest === request) activeRequest = null;
         });
     }
 
     function extractMainContent(html) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
+        const scripts = Array.from(doc.querySelectorAll('script[src]'))
+            .map(script => script.getAttribute('src'))
+            .filter(Boolean);
+
         const main = doc.querySelector('.main-content');
-        if (main) return main.innerHTML;
-        // Fallback: body content
-        return doc.body ? doc.body.innerHTML : html;
-    }
+        const root = main || doc.body;
+        if (!root) return { html: html, scripts: scripts };
 
-    function renderPanel(panelId, html) {
-        contentArea.innerHTML = html;
-
-        // Execute inline scripts
-        contentArea.querySelectorAll('script').forEach(oldScript => {
-            const newScript = document.createElement('script');
-            if (oldScript.src) {
-                newScript.src = oldScript.src;
-            } else {
-                newScript.textContent = oldScript.textContent;
-            }
-            oldScript.parentNode.replaceChild(newScript, oldScript);
+        root.querySelectorAll('script').forEach(script => script.remove());
+        root.querySelectorAll('*').forEach(el => {
+            Array.from(el.attributes).forEach(attr => {
+                if (attr.name.toLowerCase().startsWith('on')) {
+                    el.removeAttribute(attr.name);
+                }
+            });
         });
 
-        // Trigger page-specific init
-        window.dispatchEvent(new CustomEvent('app:refresh'));
+        if (main) return { html: main.innerHTML, scripts: scripts };
+        // Fallback: body content
+        return { html: root.innerHTML, scripts: scripts };
+    }
+
+    function renderPanel(panelId, extracted) {
+        const payload = typeof extracted === 'string' ? { html: extracted, scripts: [] } : extracted;
+        contentArea.innerHTML = payload.html || '';
+
+        loadExternalScripts(payload.scripts || [])
+            .then(() => mountPanel(panelId))
+            .catch(() => mountPanel(panelId));
+    }
+
+    function renderLoadError(err) {
+        contentArea.innerHTML = `<div class="b31-card"><div class="b31-card-body">
+            <p style="color:var(--b31-muted)">Failed to load panel: ${escHtml(err.message)}</p>
+            <button class="b31-btn" id="b31-retry-panel-btn">
+                <span class="material-icons">refresh</span> Retry
+            </button>
+        </div></div>`;
+        contentArea.querySelector('#b31-retry-panel-btn')?.addEventListener('click', () => {
+            document.getElementById('b31-refresh-btn')?.click();
+        });
+    }
+
+    function loadExternalScripts(scripts) {
+        const uniqueScripts = Array.from(new Set(scripts.filter(src => src.startsWith('/js/'))));
+        return uniqueScripts.reduce((chain, src) => {
+            return chain.then(() => loadScriptOnce(src));
+        }, Promise.resolve());
+    }
+
+    function loadScriptOnce(src) {
+        const path = src.split('?')[0];
+        const existing = Array.from(document.scripts).some(script => {
+            const scriptSrc = script.getAttribute('src') || '';
+            return scriptSrc.split('?')[0] === path;
+        });
+        if (existing) return Promise.resolve();
+
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.body.appendChild(script);
+        });
+    }
+
+    function mountPanel(panelId) {
+        const controller = window.BetterDeskPanelMounts && window.BetterDeskPanelMounts[panelId];
+        if (!controller) return;
+        if (typeof controller === 'function') {
+            controller(contentArea);
+            return;
+        }
+        if (typeof controller.mount === 'function') {
+            controller.mount(contentArea);
+        }
+    }
+
+    function unmountPanel(panelId) {
+        const controller = window.BetterDeskPanelMounts && window.BetterDeskPanelMounts[panelId];
+        if (controller && typeof controller.destroy === 'function') {
+            controller.destroy();
+        }
     }
 
     /* ──────────────────────────────────────────────
@@ -246,6 +323,11 @@
     }
 
     function deactivate() {
+        if (currentPanel) unmountPanel(currentPanel);
+        if (activeRequest) {
+            activeRequest.abort();
+            activeRequest = null;
+        }
         if (shell) shell.classList.remove('active');
         document.body.style.overflow = '';
         localStorage.setItem(STORAGE_KEY, '0');

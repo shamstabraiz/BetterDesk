@@ -7,9 +7,16 @@
     
     const _ = window._ || (k => k);
     
-    document.addEventListener('DOMContentLoaded', init);
-    
+    let rootEl = document;
+    let initialized = false;
     let refreshInterval = null;
+    let activityInterval = null;
+    let refreshHandler = null;
+    let statusButton = null;
+    let statusButtonHandler = null;
+    let tipDismissButton = null;
+    let tipDismissHandler = null;
+    const pendingRequests = new Map();
     
     // Tips pool — rotated daily
     const TIPS = [
@@ -23,57 +30,83 @@
         'dashboard.tip_tutorials'
     ];
     
-    function init() {
+    function init(root) {
+        destroy();
+        rootEl = root || document;
+
+        if (!findById('welcome-section')) return;
+        initialized = true;
+
         renderGreeting();
         renderTip();
-        loadStats();
-        loadServerStatus();
         loadActivityFeed();
-        loadHealthOverview();
+        loadOverview();
         
         // Auto-refresh every 30 seconds
         refreshInterval = setInterval(() => {
-            loadStats();
-            loadServerStatus();
-            loadHealthOverview();
+            loadOverview();
         }, 30000);
         
         // Activity feed refresh every 60 seconds
-        setInterval(loadActivityFeed, 60000);
+        activityInterval = setInterval(loadActivityFeed, 60000);
         
         // Manual refresh
-        window.addEventListener('app:refresh', () => {
-            loadStats();
-            loadServerStatus();
+        refreshHandler = () => {
             loadActivityFeed();
-            loadHealthOverview();
-        });
+            loadOverview();
+        };
+        window.addEventListener('app:refresh', refreshHandler);
         
         // Refresh status button
-        document.getElementById('refresh-status-btn')?.addEventListener('click', () => {
-            loadServerStatus();
-        });
+        statusButton = findById('refresh-status-btn');
+        statusButtonHandler = () => loadServerStatus();
+        statusButton?.addEventListener('click', statusButtonHandler);
         
         // Tip dismiss
-        document.getElementById('tip-dismiss')?.addEventListener('click', () => {
-            const tip = document.getElementById('welcome-tip');
+        tipDismissButton = findById('tip-dismiss');
+        tipDismissHandler = () => {
+            const tip = findById('welcome-tip');
             if (tip) {
                 tip.style.display = 'none';
                 try { localStorage.setItem('bd_tip_dismissed', new Date().toDateString()); } catch {}
             }
-        });
+        };
+        tipDismissButton?.addEventListener('click', tipDismissHandler);
         
         // Cleanup on page leave
-        window.addEventListener('beforeunload', () => {
-            if (refreshInterval) clearInterval(refreshInterval);
-        });
+        window.addEventListener('beforeunload', destroy, { once: true });
+    }
+
+    function destroy() {
+        if (refreshInterval) clearInterval(refreshInterval);
+        if (activityInterval) clearInterval(activityInterval);
+        if (refreshHandler) window.removeEventListener('app:refresh', refreshHandler);
+        if (statusButton && statusButtonHandler) statusButton.removeEventListener('click', statusButtonHandler);
+        if (tipDismissButton && tipDismissHandler) tipDismissButton.removeEventListener('click', tipDismissHandler);
+
+        refreshInterval = null;
+        activityInterval = null;
+        refreshHandler = null;
+        statusButton = null;
+        statusButtonHandler = null;
+        tipDismissButton = null;
+        tipDismissHandler = null;
+        initialized = false;
+    }
+
+    async function loadOverview() {
+        const [stats, status] = await Promise.all([
+            loadStats(),
+            loadServerStatus()
+        ]);
+        loadHealthOverview(stats, status);
     }
     
     /**
      * Render time-based personalized greeting
      */
     function renderGreeting() {
-        const el = document.getElementById('welcome-greeting-text');
+        const el = findById('welcome-greeting-text');
         if (!el) return;
         
         const hour = new Date().getHours();
@@ -94,8 +127,8 @@
      * Show tip of the day
      */
     function renderTip() {
-        const tipEl = document.getElementById('welcome-tip');
-        const textEl = document.getElementById('tip-text');
+        const tipEl = findById('welcome-tip');
+        const textEl = findById('tip-text');
         if (!tipEl || !textEl) return;
         
         // Hide if already dismissed today
@@ -117,18 +150,16 @@
      * Load device statistics
      */
     async function loadStats() {
-        console.log('loadStats called');
         try {
-            const data = await Utils.api('/api/stats');
-            console.log('Stats API response:', data);
+            const data = await fetchApi('/api/stats');
             const stats = data.devices || data;
-            console.log('Stats object:', stats);
             
             // Update stats with values
             setStatValue('stat-total', stats.total ?? 0);
             setStatValue('stat-online', stats.online ?? 0);
             setStatValue('stat-banned', stats.banned ?? 0);
             setStatValue('stat-connections', stats.offline ?? 0);
+            return stats;
             
         } catch (error) {
             console.error('Failed to load stats:', error);
@@ -137,6 +168,7 @@
             setStatValue('stat-online', 0);
             setStatValue('stat-banned', 0);
             setStatValue('stat-connections', 0);
+            return null;
         }
     }
     
@@ -144,7 +176,7 @@
      * Set stat value directly (replacing skeleton)
      */
     function setStatValue(elementId, value) {
-        const element = document.getElementById(elementId);
+        const element = findById(elementId);
         if (!element) return;
         // Use textContent for security (no HTML parsing)
         element.textContent = value;
@@ -154,7 +186,7 @@
      * Update a stat element with animation
      */
     function updateStat(elementId, value) {
-        const element = document.getElementById(elementId);
+        const element = findById(elementId);
         if (!element) return;
         
         const currentValue = parseInt(element.textContent) || 0;
@@ -183,7 +215,7 @@
      */
     async function loadServerStatus() {
         try {
-            const status = await Utils.api('/api/server/status');
+            const status = await fetchApi('/api/server/status');
             
             updateServerStatus('hbbs-status', status.hbbs);
             updateServerStatus('hbbr-status', status.hbbr);
@@ -201,14 +233,16 @@
             };
             
             for (const [id, value] of Object.entries(portMap)) {
-                const el = document.getElementById(id);
+                const el = findById(id);
                 if (el && value) el.textContent = value;
             }
+            return status;
             
         } catch (error) {
             console.error('Failed to load server status:', error);
             updateServerStatus('hbbs-status', { status: 'unknown' });
             updateServerStatus('hbbr-status', { status: 'unknown' });
+            return null;
         }
     }
     
@@ -216,7 +250,7 @@
      * Update server status indicator
      */
     function updateServerStatus(elementId, status) {
-        const element = document.getElementById(elementId);
+        const element = findById(elementId);
         if (!element) return;
         
         const statusDot = element.querySelector('.status-dot');
@@ -241,11 +275,11 @@
      * Load activity feed from audit log
      */
     async function loadActivityFeed() {
-        const container = document.getElementById('activity-feed');
+        const container = findById('activity-feed');
         if (!container) return;
         
         try {
-            const data = await Utils.api('/api/dashboard/activity');
+            const data = await fetchApi('/api/dashboard/activity');
             const events = data.events || data.data?.events || [];
             
             if (events.length === 0) {
@@ -287,10 +321,12 @@
     /**
      * Load health overview data
      */
-    async function loadHealthOverview() {
+    async function loadHealthOverview(stats, status) {
         try {
-            const data = await Utils.api('/api/stats');
-            const stats = data.devices || data.data?.devices || data;
+            if (!stats) {
+                const data = await fetchApi('/api/stats');
+                stats = data.devices || data.data?.devices || data;
+            }
             
             setText('health-online', stats.online ?? 0);
             setText('health-alerts', stats.banned ?? 0);
@@ -298,7 +334,7 @@
             
             // Server uptime from status
             try {
-                const status = await Utils.api('/api/server/status');
+                status = status || await fetchApi('/api/server/status');
                 const uptime = status.uptime || status.data?.uptime;
                 setText('health-uptime', uptime ? formatUptime(uptime) : '-');
             } catch {
@@ -310,8 +346,23 @@
     }
     
     function setText(id, value) {
-        const el = document.getElementById(id);
+        const el = findById(id);
         if (el) el.textContent = value;
+    }
+
+    function findById(id) {
+        if (rootEl && rootEl !== document && typeof rootEl.querySelector === 'function') {
+            const scoped = rootEl.querySelector('#' + id);
+            if (scoped) return scoped;
+        }
+        return document.getElementById(id);
+    }
+
+    function fetchApi(endpoint) {
+        if (pendingRequests.has(endpoint)) return pendingRequests.get(endpoint);
+        const request = Utils.api(endpoint).finally(() => pendingRequests.delete(endpoint));
+        pendingRequests.set(endpoint, request);
+        return request;
     }
     
     function formatUptime(seconds) {
@@ -341,6 +392,19 @@
         const d = document.createElement('div');
         d.textContent = str;
         return d.innerHTML;
+    }
+
+    window.BetterDeskPanelMounts = window.BetterDeskPanelMounts || {};
+    window.BetterDeskPanelMounts.dashboard = {
+        mount: init,
+        destroy: destroy,
+        refresh: loadOverview
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => init(document));
+    } else {
+        init(document);
     }
     
 })();
