@@ -35,9 +35,9 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/shamstabraiz/yomie-server/audit"
-	"github.com/shamstabraiz/yomie-server/auth"
-	"github.com/shamstabraiz/yomie-server/db"
+	"github.com/unitronix/betterdesk-server/audit"
+	"github.com/unitronix/betterdesk-server/auth"
+	"github.com/unitronix/betterdesk-server/db"
 )
 
 var slugRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]$`)

@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shamstabraiz/yomie-server/config"
-	"github.com/shamstabraiz/yomie-server/crypto"
-	"github.com/shamstabraiz/yomie-server/db"
-	"github.com/shamstabraiz/yomie-server/peer"
-	pb "github.com/shamstabraiz/yomie-server/proto"
+	"github.com/unitronix/betterdesk-server/config"
+	"github.com/unitronix/betterdesk-server/crypto"
+	"github.com/unitronix/betterdesk-server/db"
+	"github.com/unitronix/betterdesk-server/peer"
+	pb "github.com/unitronix/betterdesk-server/proto"
 )
 
 // handleUDPMessage dispatches a UDP message to the appropriate handler.

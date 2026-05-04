@@ -9,9 +9,9 @@ import (
 	"net/url"
 
 	"github.com/coder/websocket"
-	"github.com/shamstabraiz/yomie-server/codec"
-	"github.com/shamstabraiz/yomie-server/config"
-	pb "github.com/shamstabraiz/yomie-server/proto"
+	"github.com/unitronix/betterdesk-server/codec"
+	"github.com/unitronix/betterdesk-server/config"
+	pb "github.com/unitronix/betterdesk-server/proto"
 )
 
 // serveWS starts the WebSocket relay listener (e.g., port 21119).

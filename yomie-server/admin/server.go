@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shamstabraiz/yomie-server/config"
-	"github.com/shamstabraiz/yomie-server/db"
-	"github.com/shamstabraiz/yomie-server/peer"
-	"github.com/shamstabraiz/yomie-server/security"
+	"github.com/unitronix/betterdesk-server/config"
+	"github.com/unitronix/betterdesk-server/db"
+	"github.com/unitronix/betterdesk-server/peer"
+	"github.com/unitronix/betterdesk-server/security"
 )
 
 // Server is the TCP admin interface.

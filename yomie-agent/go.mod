@@ -1,4 +1,4 @@
-module github.com/shamstabraiz/yomie-agent
+module github.com/unitronix/betterdesk-agent
 
 go 1.25.0
 

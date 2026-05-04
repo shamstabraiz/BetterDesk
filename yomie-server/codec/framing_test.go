@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/shamstabraiz/yomie-server/proto"
+	pb "github.com/unitronix/betterdesk-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

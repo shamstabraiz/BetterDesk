@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/shamstabraiz/yomie-server/db"
+	"github.com/unitronix/betterdesk-server/db"
 )
 
 // handleChatHistory returns message history for a conversation.

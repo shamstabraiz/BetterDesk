@@ -1,4 +1,4 @@
-module github.com/shamstabraiz/yomie-server
+module github.com/unitronix/betterdesk-server
 
 go 1.25.0
 

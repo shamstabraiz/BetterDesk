@@ -17,14 +17,14 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/shamstabraiz/yomie-server/audit"
-	"github.com/shamstabraiz/yomie-server/auth"
-	"github.com/shamstabraiz/yomie-server/config"
-	"github.com/shamstabraiz/yomie-server/db"
-	"github.com/shamstabraiz/yomie-server/events"
-	"github.com/shamstabraiz/yomie-server/peer"
-	"github.com/shamstabraiz/yomie-server/ratelimit"
-	"github.com/shamstabraiz/yomie-server/security"
+	"github.com/unitronix/betterdesk-server/audit"
+	"github.com/unitronix/betterdesk-server/auth"
+	"github.com/unitronix/betterdesk-server/config"
+	"github.com/unitronix/betterdesk-server/db"
+	"github.com/unitronix/betterdesk-server/events"
+	"github.com/unitronix/betterdesk-server/peer"
+	"github.com/unitronix/betterdesk-server/ratelimit"
+	"github.com/unitronix/betterdesk-server/security"
 )
 
 // Gateway is the CDAP WebSocket server.

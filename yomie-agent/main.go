@@ -15,7 +15,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/shamstabraiz/yomie-agent/agent"
+	"github.com/unitronix/betterdesk-agent/agent"
 )
 
 var version = "1.0.0"

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shamstabraiz/yomie-server/db"
-	"github.com/shamstabraiz/yomie-server/events"
+	"github.com/unitronix/betterdesk-server/db"
+	"github.com/unitronix/betterdesk-server/events"
 )
 
 // ---------------------------------------------------------------------------

@@ -16,10 +16,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/shamstabraiz/yomie-server/codec"
-	"github.com/shamstabraiz/yomie-server/config"
-	pb "github.com/shamstabraiz/yomie-server/proto"
-	"github.com/shamstabraiz/yomie-server/ratelimit"
+	"github.com/unitronix/betterdesk-server/codec"
+	"github.com/unitronix/betterdesk-server/config"
+	pb "github.com/unitronix/betterdesk-server/proto"
+	"github.com/unitronix/betterdesk-server/ratelimit"
 )
 
 // Server is the relay server instance.

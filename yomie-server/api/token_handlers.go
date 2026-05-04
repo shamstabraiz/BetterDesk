@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shamstabraiz/yomie-server/db"
+	"github.com/unitronix/betterdesk-server/db"
 )
 
 // generateSecureToken creates a cryptographically secure random token.
