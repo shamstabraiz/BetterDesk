@@ -32,8 +32,8 @@ import (
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
 
-	"github.com/unitronix/yomie-server/codec"
-	pb "github.com/unitronix/yomie-server/proto"
+	"github.com/shamstabraiz/yomie-server/codec"
+	pb "github.com/shamstabraiz/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

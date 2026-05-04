@@ -10,7 +10,7 @@ import (
 	"net"
 
 	"github.com/coder/websocket"
-	pb "github.com/unitronix/yomie-server/proto"
+	pb "github.com/shamstabraiz/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

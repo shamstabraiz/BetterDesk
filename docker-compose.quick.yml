@@ -20,7 +20,7 @@
 services:
   # Yomie Server (Go) — handles signal, relay, and API
   server:
-    image: ghcr.io/unitronix/yomie-server:latest
+    image: ghcr.io/shamstabraiz/yomie-server:latest
     container_name: yomie-server
     hostname: yomie-server
     command: ["/usr/local/bin/yomie-server", "-mode", "all", "-key-file", "/opt/rustdesk/id_ed25519"]
@@ -48,7 +48,7 @@ services:
 
   # Yomie Console — Web Management Interface
   console:
-    image: ghcr.io/unitronix/yomie-console:latest
+    image: ghcr.io/shamstabraiz/yomie-console:latest
     container_name: yomie-console
     hostname: yomie-console
     ports:

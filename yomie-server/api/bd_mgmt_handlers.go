@@ -26,7 +26,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/unitronix/yomie-server/audit"
+	"github.com/shamstabraiz/yomie-server/audit"
 )
 
 const (

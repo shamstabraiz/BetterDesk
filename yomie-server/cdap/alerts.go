@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unitronix/yomie-server/events"
+	"github.com/shamstabraiz/yomie-server/events"
 )
 
 // AlertState tracks whether an individual alert is currently firing.

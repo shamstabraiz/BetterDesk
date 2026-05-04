@@ -15,7 +15,7 @@ We take the security of Yomie seriously. If you discover a security vulnerabilit
 ### How to Report
 
 1. **Do NOT open a public GitHub Issue** for security vulnerabilities.
-2. Email your findings to **security@unitronix.com** with:
+2. Email your findings to **security@shamstabraiz.com** with:
    - Description of the vulnerability
    - Steps to reproduce
    - Affected component (Go server, Node.js console, desktop client, installer scripts)

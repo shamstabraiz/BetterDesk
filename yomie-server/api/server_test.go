@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/unitronix/yomie-server/config"
-	"github.com/unitronix/yomie-server/db"
-	"github.com/unitronix/yomie-server/peer"
-	"github.com/unitronix/yomie-server/ratelimit"
-	"github.com/unitronix/yomie-server/security"
+	"github.com/shamstabraiz/yomie-server/config"
+	"github.com/shamstabraiz/yomie-server/db"
+	"github.com/shamstabraiz/yomie-server/peer"
+	"github.com/shamstabraiz/yomie-server/ratelimit"
+	"github.com/shamstabraiz/yomie-server/security"
 )
 
 const testAPIKey = "test-api-key-12345"

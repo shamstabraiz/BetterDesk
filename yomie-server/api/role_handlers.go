@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/unitronix/yomie-server/auth"
+	"github.com/shamstabraiz/yomie-server/auth"
 )
 
 // roleInfo describes a single role for the /api/roles response.

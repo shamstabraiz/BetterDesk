@@ -876,7 +876,7 @@ jobs:
 ### 12.6 GitHub Actions — Automated Container Builds
 Extend existing `.github/workflows/docker-publish.yml`:
 - Trigger on tag push (`v*`) and main branch merge
-- Build: `ghcr.io/unitronix/yomie-server`, `ghcr.io/unitronix/yomie-console`, `ghcr.io/unitronix/yomie` (all-in-one)
+- Build: `ghcr.io/shamstabraiz/yomie-server`, `ghcr.io/shamstabraiz/yomie-console`, `ghcr.io/shamstabraiz/yomie` (all-in-one)
 - Multi-arch: `linux/amd64` + `linux/arm64`
 - Automatic SBOM generation for supply chain security
 - Trivy vulnerability scan before publish

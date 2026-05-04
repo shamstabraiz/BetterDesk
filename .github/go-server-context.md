@@ -558,7 +558,7 @@ states is a bitmask: 2 bits per peer
 
 ```go
 // go.mod
-module github.com/unitronix/yomie-server
+module github.com/shamstabraiz/yomie-server
 
 go 1.22
 

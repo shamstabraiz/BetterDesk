@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/unitronix/yomie-server/audit"
-	"github.com/unitronix/yomie-server/auth"
+	"github.com/shamstabraiz/yomie-server/audit"
+	"github.com/shamstabraiz/yomie-server/auth"
 )
 
 // handleAuth reads the initial "auth" message from the client, validates

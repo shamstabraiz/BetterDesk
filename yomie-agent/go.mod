@@ -1,4 +1,4 @@
-module github.com/unitronix/yomie-agent
+module github.com/shamstabraiz/yomie-agent
 
 go 1.25.0
 

@@ -2517,7 +2517,7 @@ const file_rendezvous_proto_rawDesc = "" +
 	"\vUNKNOWN_NAT\x10\x00\x12\x0e\n" +
 	"\n" +
 	"ASYMMETRIC\x10\x01\x12\r\n" +
-	"\tSYMMETRIC\x10\x02B.Z,github.com/unitronix/yomie-server/protob\x06proto3"
+	"\tSYMMETRIC\x10\x02B.Z,github.com/shamstabraiz/yomie-server/protob\x06proto3"
 
 var (
 	file_rendezvous_proto_rawDescOnce sync.Once

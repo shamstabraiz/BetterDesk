@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitronix/yomie-server/audit"
-	"github.com/unitronix/yomie-server/auth"
-	"github.com/unitronix/yomie-server/db"
+	"github.com/shamstabraiz/yomie-server/audit"
+	"github.com/shamstabraiz/yomie-server/auth"
+	"github.com/shamstabraiz/yomie-server/db"
 )
 
 // Context keys for authenticated request metadata.

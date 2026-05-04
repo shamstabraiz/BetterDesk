@@ -1,4 +1,4 @@
-module github.com/unitronix/yomie-server
+module github.com/shamstabraiz/yomie-server
 
 go 1.25.0
 

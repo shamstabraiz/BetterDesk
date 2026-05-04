@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitronix/yomie-server/db"
-	"github.com/unitronix/yomie-server/events"
+	"github.com/shamstabraiz/yomie-server/db"
+	"github.com/shamstabraiz/yomie-server/events"
 )
 
 // handleRegister processes the "register" message after authentication.

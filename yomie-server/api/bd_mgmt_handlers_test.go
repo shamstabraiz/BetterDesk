@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/unitronix/yomie-server/config"
-	"github.com/unitronix/yomie-server/db"
-	"github.com/unitronix/yomie-server/peer"
+	"github.com/shamstabraiz/yomie-server/config"
+	"github.com/shamstabraiz/yomie-server/db"
+	"github.com/shamstabraiz/yomie-server/peer"
 )
 
 func signedBdMgmtHeaders(t *testing.T, privateKey ed25519.PrivateKey, deviceID string) http.Header {

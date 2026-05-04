@@ -4,9 +4,9 @@
 # This workflow builds and publishes Docker images to ghcr.io.
 #
 # Images published:
-#   - ghcr.io/unitronix/yomie-server:latest  (Go server)
-#   - ghcr.io/unitronix/yomie-console:latest (Node.js console)
-#   - ghcr.io/unitronix/yomie:latest         (All-in-one)
+#   - ghcr.io/shamstabraiz/yomie-server:latest  (Go server)
+#   - ghcr.io/shamstabraiz/yomie-console:latest (Node.js console)
+#   - ghcr.io/shamstabraiz/yomie:latest         (All-in-one)
 #
 # Triggers:
 #   - Push to 'main' with changes to Dockerfile*, docker-compose*, yomie-server/**, web-nodejs/**

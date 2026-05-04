@@ -8,7 +8,7 @@
 syntax = "proto3";
 package hbb;
 
-option go_package = "github.com/unitronix/yomie-server/proto";
+option go_package = "github.com/shamstabraiz/yomie-server/proto";
 
 message RegisterPeer {
   string id = 1;
