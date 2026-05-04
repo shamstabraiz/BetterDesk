@@ -1,7 +1,7 @@
-# Prompt: BetterDesk Agent Client
+# Prompt: Yomie Agent Client
 
 ## Cel
-Na bazie istniejącego projektu `shamstabraiz/BetterDesk` utwórz nowy, wydzielony typ klienta o nazwie **BetterDesk Agent Client** — klient instalowany na komputerze docelowym użytkownika końcowego, którego zadaniem jest umożliwienie administratorom bezpiecznego zdalnego dostępu, zbieranie informacji o urządzeniu, wykonywanie zadań automatyzacyjnych oraz zapewnienie lekkiego i możliwie dyskretnego działania.
+Na bazie istniejącego projektu `shamstabraiz/Yomie` utwórz nowy, wydzielony typ klienta o nazwie **Yomie Agent Client** — klient instalowany na komputerze docelowym użytkownika końcowego, którego zadaniem jest umożliwienie administratorom bezpiecznego zdalnego dostępu, zbieranie informacji o urządzeniu, wykonywanie zadań automatyzacyjnych oraz zapewnienie lekkiego i możliwie dyskretnego działania.
 
 Klient Agent ma być zoptymalizowany pod kątem:
 - bezpieczeństwa,
@@ -9,13 +9,13 @@ Klient Agent ma być zoptymalizowany pod kątem:
 - pracy cross-platform,
 - małej ingerencji w system,
 - prostoty po stronie użytkownika końcowego,
-- łatwej rejestracji do serwera BetterDesk,
+- łatwej rejestracji do serwera Yomie,
 - zdalnego zarządzania przez klienta MGMT,
 - przyszłej skalowalności i automatyzacji.
 
 ## Główna rola klienta Agent
 Klient Agent ma działać jako instalowany na urządzeniu końcowym komponent, który:
-1. rejestruje urządzenie w serwerze BetterDesk,
+1. rejestruje urządzenie w serwerze Yomie,
 2. umożliwia administratorom zdalny dostęp do urządzenia,
 3. zbiera podstawowe i rozszerzone informacje o systemie,
 4. przyjmuje polecenia automatyzacji od administratorów,
@@ -37,7 +37,7 @@ Jednocześnie architektura ma pozwalać, aby klient działał:
 - opcjonalnie jako tryb bardziej ukryty/managed deployment w środowiskach firmowych, **ale wyłącznie z zachowaniem zgodności z prawem, politykami bezpieczeństwa i transparentnością wymaganą w danym środowisku**.
 
 ## Proces instalacji i rejestracji
-Podczas instalacji klienta Agent ma pojawić się monit o wpisanie adresu serwera BetterDesk.
+Podczas instalacji klienta Agent ma pojawić się monit o wpisanie adresu serwera Yomie.
 
 Wymagany przebieg:
 1. użytkownik wpisuje adres serwera,
@@ -187,7 +187,7 @@ Uwzględnij:
 - różnice w uruchamianiu skryptów PowerShell/Shell.
 
 ## Wymagania implementacyjne
-Na bazie aktualnego projektu `BetterDesk`:
+Na bazie aktualnego projektu `Yomie`:
 1. przeanalizuj istniejące moduły klienta i serwera,
 2. wykorzystaj maksymalnie to, co już istnieje,
 3. zaprojektuj klienta Agent jako komponent lekki i stabilny,
@@ -225,7 +225,7 @@ Przygotuj rozwiązanie wraz z planem:
 - testów rekonfiguracji po zmianie serwera lub certyfikatu.
 
 ## Oczekiwany rezultat
-Wygeneruj kompletną koncepcję i implementację **BetterDesk Agent Client**, obejmującą:
+Wygeneruj kompletną koncepcję i implementację **Yomie Agent Client**, obejmującą:
 - architekturę,
 - strukturę katalogów,
 - proces instalacji,

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="<%= appName %> - <%= appDescription %>">
     <meta name="robots" content="noindex, nofollow">
-    <title><%= typeof title !== 'undefined' ? title + ' - ' : '' %><%= appName %></title>
+    <title><%= appName %></title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/branding/favicon.svg">
@@ -130,7 +130,7 @@
     <!-- Scripts -->
     <script nonce="<%= cspNonce %>">
         // Global config
-        window.BetterDesk = {
+        window.Yomie = {
             lang: '<%= lang || "en" %>',
             translations: <%- JSON.stringify(translations || {}) %>,
             csrfToken: '<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>',

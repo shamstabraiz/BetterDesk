@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# BetterDesk Agent — Linux installer (systemd)
+# Yomie Agent — Linux installer (systemd)
 # Usage: sudo ./install.sh [OPTIONS]
 #   -s URL        Gateway WebSocket URL
 #   -k KEY        API key
 #   -n NAME       Device name
-#   -d DIR        Install directory (default: /opt/betterdesk-agent)
+#   -d DIR        Install directory (default: /opt/yomie-agent)
 #   -u            Uninstall
 set -euo pipefail
 
-INSTALL_DIR="/opt/betterdesk-agent"
-SERVICE_NAME="betterdesk-agent"
-USER_NAME="betterdesk-agent"
+INSTALL_DIR="/opt/yomie-agent"
+SERVICE_NAME="yomie-agent"
+USER_NAME="yomie-agent"
 CONFIG_FILE=""
 SERVER_URL=""
 API_KEY=""
@@ -22,7 +22,7 @@ usage() {
     echo "  -s URL   Gateway WebSocket URL (ws://host:21122/cdap)"
     echo "  -k KEY   API key for authentication"
     echo "  -n NAME  Device name (default: hostname)"
-    echo "  -d DIR   Install directory (default: /opt/betterdesk-agent)"
+    echo "  -d DIR   Install directory (default: /opt/yomie-agent)"
     echo "  -u       Uninstall"
     exit 1
 }
@@ -44,7 +44,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 uninstall() {
-    echo "=== Uninstalling BetterDesk Agent ==="
+    echo "=== Uninstalling Yomie Agent ==="
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
     systemctl disable "$SERVICE_NAME" 2>/dev/null || true
     rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
@@ -53,7 +53,7 @@ uninstall() {
         userdel "$USER_NAME" 2>/dev/null || true
     fi
     rm -rf "$INSTALL_DIR"
-    echo "BetterDesk Agent uninstalled."
+    echo "Yomie Agent uninstalled."
     exit 0
 }
 
@@ -64,16 +64,16 @@ fi
 # Detect binary
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BINARY=""
-if [ -f "${SCRIPT_DIR}/../betterdesk-agent-linux-amd64" ] && [ "$(uname -m)" = "x86_64" ]; then
-    BINARY="${SCRIPT_DIR}/../betterdesk-agent-linux-amd64"
-elif [ -f "${SCRIPT_DIR}/../betterdesk-agent" ]; then
-    BINARY="${SCRIPT_DIR}/../betterdesk-agent"
+if [ -f "${SCRIPT_DIR}/../yomie-agent-linux-amd64" ] && [ "$(uname -m)" = "x86_64" ]; then
+    BINARY="${SCRIPT_DIR}/../yomie-agent-linux-amd64"
+elif [ -f "${SCRIPT_DIR}/../yomie-agent" ]; then
+    BINARY="${SCRIPT_DIR}/../yomie-agent"
 else
-    echo "ERROR: Agent binary not found. Build it first: go build -o betterdesk-agent ."
+    echo "ERROR: Agent binary not found. Build it first: go build -o yomie-agent ."
     exit 1
 fi
 
-echo "=== Installing BetterDesk Agent ==="
+echo "=== Installing Yomie Agent ==="
 
 # Create service user
 if ! id "$USER_NAME" &>/dev/null; then
@@ -83,8 +83,8 @@ fi
 
 # Install binary
 mkdir -p "$INSTALL_DIR"
-cp "$BINARY" "${INSTALL_DIR}/betterdesk-agent"
-chmod 755 "${INSTALL_DIR}/betterdesk-agent"
+cp "$BINARY" "${INSTALL_DIR}/yomie-agent"
+chmod 755 "${INSTALL_DIR}/yomie-agent"
 
 # Create data directory
 mkdir -p "${INSTALL_DIR}/data"
@@ -132,7 +132,7 @@ fi
 # Create systemd service
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
 [Unit]
-Description=BetterDesk CDAP Agent
+Description=Yomie CDAP Agent
 After=network-online.target
 Wants=network-online.target
 
@@ -140,7 +140,7 @@ Wants=network-online.target
 Type=simple
 User=${USER_NAME}
 Group=${USER_NAME}
-ExecStart=${INSTALL_DIR}/betterdesk-agent -config ${CONFIG_FILE}
+ExecStart=${INSTALL_DIR}/yomie-agent -config ${CONFIG_FILE}
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -163,8 +163,8 @@ systemctl enable "$SERVICE_NAME"
 systemctl start "$SERVICE_NAME"
 
 echo ""
-echo "=== BetterDesk Agent Installed ==="
-echo "  Binary:  ${INSTALL_DIR}/betterdesk-agent"
+echo "=== Yomie Agent Installed ==="
+echo "  Binary:  ${INSTALL_DIR}/yomie-agent"
 echo "  Config:  ${CONFIG_FILE}"
 echo "  Service: ${SERVICE_NAME}"
 echo ""

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""BetterDesk CDAP — SNMP v2c/v3 Bridge.
+"""Yomie CDAP — SNMP v2c/v3 Bridge.
 
-Periodically polls SNMP OIDs and pushes values to BetterDesk via CDAP.
+Periodically polls SNMP OIDs and pushes values to Yomie via CDAP.
 Supports counter-rate computation, timetick formatting, and byte formatting.
 
 Usage:
-    pip install betterdesk-cdap pysnmplib
+    pip install yomie-cdap pysnmplib
     python bridge_snmp.py --config config.json
 """
 
@@ -228,7 +228,7 @@ class SNMPBridge:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="BetterDesk CDAP SNMP Bridge")
+    parser = argparse.ArgumentParser(description="Yomie CDAP SNMP Bridge")
     parser.add_argument("--config", "-c", default="config.json", help="Path to config file")
     parser.add_argument("--log-level", "-l", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()

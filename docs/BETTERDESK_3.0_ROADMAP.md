@@ -1,15 +1,15 @@
-# BetterDesk 3.0 — Implementation Roadmap
+# Yomie 3.0 — Implementation Roadmap
 
 > **Created:** 2026-03-25
 > **Status:** Planning phase — awaiting implementation approval
-> **Vision:** BetterDesk evolves from a remote desktop tool into a full-scale device fleet management ecosystem, comparable to Windows Server domain services but cross-platform and open.
+> **Vision:** Yomie evolves from a remote desktop tool into a full-scale device fleet management ecosystem, comparable to Windows Server domain services but cross-platform and open.
 
 ---
 
 ## Phase 0 — Immediate Bug Fixes & Code Cleanup ✅ COMPLETED
 
 ### 0.1 Chat — Tray Menu Opens Main Window Instead of Chat ✅
-**Problem:** Clicking "Chat" in the tray context menu opens the default BetterDesk window first, then the user has to click Chat inside it.
+**Problem:** Clicking "Chat" in the tray context menu opens the default Yomie window first, then the user has to click Chat inside it.
 - ✅ `tray.rs`: `on_menu_event` "chat" handler now opens the dedicated `chat` WebviewWindow directly via `app.get_webview_window("chat")`
 - ✅ Falls back to `navigate_to(app, "/chat")` only if chat window is not found
 - Chat WebSocket auto-connects on window open (handled by `ChatWindow.tsx` `onMount`)
@@ -24,7 +24,7 @@
 - ✅ `chat-window.css`: Styled `.cw-reconnect-btn` with hover state
 - Reconnect logic with exponential backoff already existed (3s → 60s cap)
 
-### 0.3 Rust Compilation Warnings (betterdesk-client) ✅
+### 0.3 Rust Compilation Warnings (yomie-client) ✅
 All 10 warnings fixed:
 - ✅ Removed unused import `Instant` from `bd_registration.rs`
 - ✅ Removed unused label `'heartbeat` on loop
@@ -32,13 +32,13 @@ All 10 warnings fixed:
 - ✅ Added `#[allow(unused_assignments)]` on `bd_registration_loop` for intentional re-initialization pattern
 - ✅ `cargo check`: 0 warnings, 0 errors
 
-### 0.4 Go Compilation Warnings (betterdesk-server) ✅
+### 0.4 Go Compilation Warnings (yomie-server) ✅
 - ✅ `go vet ./...` — clean, 0 issues
 - ✅ `go build ./...` — clean, 0 warnings/errors
 
 ### 0.5 Dependency Audit ✅
 - ✅ `npm audit --omit=dev` for web-nodejs: 0 vulnerabilities
-- `cargo audit` for betterdesk-client: pending (requires cargo-audit installation)
+- `cargo audit` for yomie-client: pending (requires cargo-audit installation)
 - ✅ All compile-time dependencies verified clean
 
 ---
@@ -137,7 +137,7 @@ CREATE TABLE org_settings (
 | `POST` | `/api/org/login` | User login (returns JWT) |
 | `POST` | `/api/org/logout` | User logout |
 
-### 1.3 Client-Side Login (BetterDesk Desktop) ✅
+### 1.3 Client-Side Login (Yomie Desktop) ✅
 - ✅ Login screen: server address + username + password (or org invitation token) — `OrgLoginPanel.tsx`
 - After login: automatic chat name setup from `display_name`
 - Device automatically assigned to organization on first login
@@ -161,11 +161,11 @@ CREATE TABLE org_settings (
 - Bulk operations: assign 50 devices to org at once
 
 ### 1.5 Organization Discovery Protocol (Enhancement) ✅
-- ✅ Client auto-discovers BetterDesk server on LAN via mDNS/DNS-SD (`_betterdesk._tcp`) — `discovery/mdns.rs`
+- ✅ Client auto-discovers Yomie server on LAN via mDNS/DNS-SD (`_betterdesk._tcp`) — `discovery/mdns.rs`
 - ✅ `discover_mdns_servers` IPC command with 10s browse timeout
 - ✅ `DiscoveryPanel.tsx` runs both UDP broadcast + mDNS in parallel, merges/deduplicates results
 - ✅ Source badge (UDP/mDNS/both) shown on each discovered server
-- User sees: "BetterDesk server found: office.example.com — Join?" → login → done.
+- User sees: "Yomie server found: office.example.com — Join?" → login → done.
 - Zero manual configuration for corporate deployments.
 
 ---
@@ -519,7 +519,7 @@ Server adapts behavior based on capabilities — never sends unsupported command
 | `nl` | Dutch | ✅ Added |
 | `pt` | Portuguese | ✅ Added |
 
-**BetterDesk Desktop Client** — `language` field exists in Settings struct but no i18n framework is implemented yet. All UI strings are hardcoded in English.
+**Yomie Desktop Client** — `language` field exists in Settings struct but no i18n framework is implemented yet. All UI strings are hardcoded in English.
 
 ### 9.2 New Languages to Add (Both Console and Client)
 
@@ -626,7 +626,7 @@ Tauri NSIS config in `tauri.conf.json`:
 
 ### 9.6 Translation Workflow for Contributors
 1. Copy `web-nodejs/lang/en.json` → `web-nodejs/lang/{code}.json`
-2. Copy `betterdesk-client/src/locales/en.json` → `betterdesk-client/src/locales/{code}.json`
+2. Copy `yomie-client/src/locales/en.json` → `yomie-client/src/locales/{code}.json`
 3. Translate all values (keep keys in English)
 4. Run `npm run i18n:check` to verify 100% coverage
 5. Submit PR with both console + client translations
@@ -780,7 +780,7 @@ All desktop widget app windows now use a unified modern design:
 ## Phase 12 — Documentation, CI/CD & Automated Releases
 
 ### 12.1 README Rebuild
-- **Complete rewrite** of `README.md` for BetterDesk 3.0 identity
+- **Complete rewrite** of `README.md` for Yomie 3.0 identity
 - Sections: Overview, Architecture diagram, Quick Start (Docker/bare-metal/Windows), Feature matrix, Screenshots, Contributing, License
 - Badges: build status, latest release, Docker pulls, license, languages count
 - Migration guide from 2.x → 3.0
@@ -794,12 +794,12 @@ All desktop widget app windows now use a unified modern design:
 | `docs/cdap/BRIDGE_GUIDE.md` | How to build a CDAP bridge for IoT/industrial protocols |
 | `docs/cdap/API_REFERENCE.md` | REST API endpoints for CDAP management |
 
-### 12.3 BetterDesk SDK Documentation
+### 12.3 Yomie SDK Documentation
 | Document | Description |
 |----------|-------------|
 | `docs/sdk/OVERVIEW.md` | SDK architecture, supported platforms, capabilities |
-| `docs/sdk/PYTHON_SDK.md` | Python SDK reference (`betterdesk-cdap` package) |
-| `docs/sdk/NODEJS_SDK.md` | Node.js SDK reference (`betterdesk-cdap` package) |
+| `docs/sdk/PYTHON_SDK.md` | Python SDK reference (`yomie-cdap` package) |
+| `docs/sdk/NODEJS_SDK.md` | Node.js SDK reference (`yomie-cdap` package) |
 | `docs/sdk/EXAMPLES.md` | Real-world integration examples (Modbus, SNMP, REST) |
 | `docs/sdk/STUDIO_GUIDE.md` | CDAP SDK Studio user guide (Phase 14) |
 
@@ -833,32 +833,32 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: cd betterdesk-client && pnpm install && pnpm tauri build
+      - run: cd yomie-client && pnpm install && pnpm tauri build
       - uses: actions/upload-artifact@v4
         with:
-          name: betterdesk-windows-x64
-          path: betterdesk-client/src-tauri/target/release/bundle/nsis/*.exe
+          name: yomie-windows-x64
+          path: yomie-client/src-tauri/target/release/bundle/nsis/*.exe
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev
-      - run: cd betterdesk-client && pnpm install && pnpm tauri build
+      - run: cd yomie-client && pnpm install && pnpm tauri build
       - uses: actions/upload-artifact@v4
         with:
-          name: betterdesk-linux-x64
-          path: betterdesk-client/src-tauri/target/release/bundle/deb/*.deb
+          name: yomie-linux-x64
+          path: yomie-client/src-tauri/target/release/bundle/deb/*.deb
 
   build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cd betterdesk-client && pnpm install && pnpm tauri build
+      - run: cd yomie-client && pnpm install && pnpm tauri build
       - uses: actions/upload-artifact@v4
         with:
-          name: betterdesk-macos
-          path: betterdesk-client/src-tauri/target/release/bundle/dmg/*.dmg
+          name: yomie-macos
+          path: yomie-client/src-tauri/target/release/bundle/dmg/*.dmg
 
   release:
     needs: [build-windows, build-linux, build-macos]
@@ -868,15 +868,15 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            betterdesk-windows-x64/*.exe
-            betterdesk-linux-x64/*.deb
-            betterdesk-macos/*.dmg
+            yomie-windows-x64/*.exe
+            yomie-linux-x64/*.deb
+            yomie-macos/*.dmg
 ```
 
 ### 12.6 GitHub Actions — Automated Container Builds
 Extend existing `.github/workflows/docker-publish.yml`:
 - Trigger on tag push (`v*`) and main branch merge
-- Build: `ghcr.io/unitronix/betterdesk-server`, `ghcr.io/unitronix/betterdesk-console`, `ghcr.io/unitronix/betterdesk` (all-in-one)
+- Build: `ghcr.io/unitronix/yomie-server`, `ghcr.io/unitronix/yomie-console`, `ghcr.io/unitronix/yomie` (all-in-one)
 - Multi-arch: `linux/amd64` + `linux/arm64`
 - Automatic SBOM generation for supply chain security
 - Trivy vulnerability scan before publish
@@ -896,7 +896,7 @@ The tutorial system exists in code but is non-functional. This phase activates a
 **Tutorial flow (first-time user):**
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  👋 Welcome to BetterDesk!                                │
+│  👋 Welcome to Yomie!                                │
 │                                                          │
 │  Let's get you started in 3 steps:                       │
 │                                                          │
@@ -1020,7 +1020,7 @@ A visual development environment inside the web console for building CDAP integr
 | 🟦 REST Poll | Poll HTTP/REST endpoint | URL, method, headers, auth, interval, JMESPath |
 | 🟦 MQTT Subscribe | Listen to MQTT topic | Broker, topic, QoS, TLS |
 | 🟦 Webhook Listen | Receive HTTP webhooks | Path, method filter, auth token |
-| 🟦 Device Telemetry | BetterDesk agent metrics | Device ID, metric names |
+| 🟦 Device Telemetry | Yomie agent metrics | Device ID, metric names |
 | 🟦 Database Query | Poll SQL database | DSN, query, interval |
 | 🟦 File Watch | Watch file changes | Path, pattern, events (create/modify/delete) |
 
@@ -1067,7 +1067,7 @@ For advanced users who prefer writing code:
 
 ```javascript
 // CDAP SDK Studio — Code Mode
-import { Source, Filter, Output, Flow } from 'betterdesk-cdap-studio';
+import { Source, Filter, Output, Flow } from 'yomie-cdap-studio';
 
 const flow = new Flow('temperature-monitor');
 
@@ -1195,11 +1195,11 @@ Before launching Studio, ensure CDAP/SDK coverage is complete:
 
 ## Long-Term Vision (v4.0)
 
-BetterDesk as a Linux-native domain controller alternative:
-- Deep OS integration via BetterDesk SDK/agent
+Yomie as a Linux-native domain controller alternative:
+- Deep OS integration via Yomie SDK/agent
 - Group Policy equivalent for Linux (pushed via agent)
 - User provisioning across fleet (create Linux users on 500 machines in one click)
-- Centralized authentication (BetterDesk as identity provider, LDAP/SAML bridge)
+- Centralized authentication (Yomie as identity provider, LDAP/SAML bridge)
 - Package management across fleet (apt/dnf/pacman unified)
 - Kernel-level integration for maximum security and performance
 

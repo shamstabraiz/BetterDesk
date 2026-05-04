@@ -1,4 +1,4 @@
-// BetterDesk Server — Message Protocol Definitions
+// Yomie Server — Message Protocol Definitions
 // Copyright (c) 2025-2026 shamstabraiz. Licensed under Apache-2.0.
 //
 // These protocol definitions describe message formats for interoperability
@@ -8,7 +8,7 @@
 syntax = "proto3";
 package hbb;
 
-option go_package = "github.com/unitronix/betterdesk-server/proto";
+option go_package = "github.com/unitronix/yomie-server/proto";
 
 message EncodedVideoFrame {
   bytes data = 1;

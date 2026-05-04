@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Auth Middleware
+ * Yomie Console - Auth Middleware
  * Protects routes that require authentication
  */
 

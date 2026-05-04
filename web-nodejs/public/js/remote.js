@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Remote Desktop Session Manager
+ * Yomie Console - Remote Desktop Session Manager
  * Multi-tab remote desktop viewer with shared toolbar
  * Supports multiple concurrent RDClient sessions
  */
@@ -253,10 +253,10 @@
 
         // Create RDClient — start conservative; AdaptiveQuality promotes when the
         // pipeline proves it can keep up (prevents 3–7 FPS stalls on weaker CPUs/JMuxer).
-        const userName = (window.BetterDesk.user && (window.BetterDesk.user.display_name || window.BetterDesk.user.username)) || 'BetterDesk Web';
+        const userName = (window.Yomie.user && (window.Yomie.user.display_name || window.Yomie.user.username)) || 'Yomie Web';
         session.client = createTransportClient(session.canvas, {
             deviceId: deviceId,
-            serverPubKey: window.BetterDesk.serverPubKey || '',
+            serverPubKey: window.Yomie.serverPubKey || '',
             myName: userName,
             scaleMode: 'fit',
             fps: 30,
@@ -345,10 +345,10 @@
         if (spinner) spinner.style.display = 'block';
         session.statusText.textContent = _('remote.connecting');
 
-        const userName = (window.BetterDesk.user && (window.BetterDesk.user.display_name || window.BetterDesk.user.username)) || 'BetterDesk Web';
+        const userName = (window.Yomie.user && (window.Yomie.user.display_name || window.Yomie.user.username)) || 'Yomie Web';
         session.client = createTransportClient(session.canvas, {
             deviceId: session.deviceId,
-            serverPubKey: window.BetterDesk.serverPubKey || '',
+            serverPubKey: window.Yomie.serverPubKey || '',
             myName: userName,
             scaleMode: 'fit',
             fps: 30,
@@ -1193,7 +1193,7 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'betterdesk-' + session.deviceId + '-' + Date.now() + '.webm';
+                    a.download = 'yomie-' + session.deviceId + '-' + Date.now() + '.webm';
                     a.click();
                     URL.revokeObjectURL(url);
                     session.mediaRecorder = null;
@@ -1319,7 +1319,7 @@
     if (typeof window._ === 'undefined') {
         window._ = function (key) {
             const parts = key.split('.');
-            let val = window.BetterDesk?.translations;
+            let val = window.Yomie?.translations;
             for (const p of parts) {
                 if (!val) return key;
                 val = val[p];
@@ -1349,7 +1349,7 @@
         // Devices page can send {type:'add-session', deviceId, deviceName}
         // to add a new tab here without opening a new browser tab.
         try {
-            const bc = new BroadcastChannel('betterdesk-remote');
+            const bc = new BroadcastChannel('yomie-remote');
             bc.onmessage = (ev) => {
                 const msg = ev.data;
                 if (!msg || typeof msg !== 'object') return;

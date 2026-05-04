@@ -20,14 +20,14 @@ web-nodejs/package-lock.json
 .github/
 
 # Go build artifacts (binary is built inside Docker)
-betterdesk-server/betterdesk-server
-betterdesk-server/betterdesk-server-*
-betterdesk-server/*.exe
-betterdesk-server/db_v2.sqlite3
-betterdesk-server/id_ed25519
-betterdesk-server/id_ed25519.pub
-betterdesk-server/test_*.go
-betterdesk-server/_test_*
+yomie-server/yomie-server
+yomie-server/yomie-server-*
+yomie-server/*.exe
+yomie-server/db_v2.sqlite3
+yomie-server/id_ed25519
+yomie-server/id_ed25519.pub
+yomie-server/test_*.go
+yomie-server/_test_*
 
 # Archive (old/deprecated files)
 archive/
@@ -44,7 +44,7 @@ screenshots/
 # Development & testing
 dev_modules/
 TESTING.local.md
-betterdesk-client/
+yomie-client/
 
 # Sensitive files
 *.key

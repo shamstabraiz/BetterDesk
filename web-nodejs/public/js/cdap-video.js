@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — CDAP Video Stream Widget
+ * Yomie Console — CDAP Video Stream Widget
  * Provides read-only video stream viewing from CDAP devices via WebSocket.
  * Renders frames on canvas from base64-encoded images.
  * Supports: quality reporting, codec negotiation, keyframe requests.
@@ -250,7 +250,7 @@
         if (session.overlay) {
             session.overlay.classList.remove('hidden');
             session.overlay.querySelector('span:last-child').textContent =
-                window.BetterDesk?.t?.('cdap.disconnected') || 'Disconnected';
+                window.Yomie?.t?.('cdap.disconnected') || 'Disconnected';
         }
         const connectDiv = session.widgetEl?.querySelector('.cdap-video-connect');
         if (connectDiv) connectDiv.classList.remove('hidden');

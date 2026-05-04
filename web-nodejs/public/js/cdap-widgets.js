@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - CDAP Widget Renderer
+ * Yomie Console - CDAP Widget Renderer
  * Renders device widgets based on CDAP manifest and polls state updates.
  * Supports Phase 2 widget types: toggle, gauge, button, led, text, slider, select, chart.
  */
@@ -7,7 +7,7 @@
 (function () {
     'use strict';
 
-    const __ = window.BetterDesk?.translations || {};
+    const __ = window.Yomie?.translations || {};
     const t = (key) => {
         const parts = key.split('.');
         let val = __;
@@ -45,7 +45,7 @@
     async function loadDeviceInfo() {
         try {
             const res = await fetch(`/api/cdap/devices/${encodeURIComponent(deviceId)}`, {
-                headers: { 'X-CSRF-Token': window.BetterDesk?.csrfToken || '' }
+                headers: { 'X-CSRF-Token': window.Yomie?.csrfToken || '' }
             });
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
@@ -134,10 +134,10 @@
             // Fetch manifest and state in parallel
             const [manifestRes, stateRes] = await Promise.all([
                 fetch(`/api/cdap/devices/${encodeURIComponent(deviceId)}/manifest`, {
-                    headers: { 'X-CSRF-Token': window.BetterDesk?.csrfToken || '' }
+                    headers: { 'X-CSRF-Token': window.Yomie?.csrfToken || '' }
                 }),
                 fetch(`/api/cdap/devices/${encodeURIComponent(deviceId)}/state`, {
-                    headers: { 'X-CSRF-Token': window.BetterDesk?.csrfToken || '' }
+                    headers: { 'X-CSRF-Token': window.Yomie?.csrfToken || '' }
                 })
             ]);
 
@@ -558,7 +558,7 @@
     async function pollState() {
         try {
             const res = await fetch(`/api/cdap/devices/${encodeURIComponent(deviceId)}/state`, {
-                headers: { 'X-CSRF-Token': window.BetterDesk?.csrfToken || '' }
+                headers: { 'X-CSRF-Token': window.Yomie?.csrfToken || '' }
             });
             if (!res.ok) return;
             const data = await res.json();
@@ -1163,7 +1163,7 @@
     async function pollAlerts() {
         try {
             const res = await fetch(`/api/cdap/alerts?device_id=${encodeURIComponent(deviceId)}`, {
-                headers: { 'X-CSRF-Token': window.BetterDesk?.csrfToken || '' }
+                headers: { 'X-CSRF-Token': window.Yomie?.csrfToken || '' }
             });
             if (!res.ok) return;
             const data = await res.json();
@@ -1213,7 +1213,7 @@
     async function loadLinkedDevices() {
         try {
             const res = await fetch(`/api/cdap/devices/${encodeURIComponent(deviceId)}/linked`, {
-                headers: { 'X-CSRF-Token': window.BetterDesk?.csrfToken || '' }
+                headers: { 'X-CSRF-Token': window.Yomie?.csrfToken || '' }
             });
             if (!res.ok) return;
             const data = await res.json();
@@ -1273,7 +1273,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-Token': window.BetterDesk?.csrfToken || ''
+                            'X-CSRF-Token': window.Yomie?.csrfToken || ''
                         },
                         body: JSON.stringify({ linked_peer_id: '' })
                     });
@@ -1296,7 +1296,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-Token': window.BetterDesk?.csrfToken || ''
+                        'X-CSRF-Token': window.Yomie?.csrfToken || ''
                     },
                     body: JSON.stringify({ linked_peer_id: deviceId })
                 });

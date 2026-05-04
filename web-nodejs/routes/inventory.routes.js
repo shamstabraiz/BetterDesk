@@ -1,8 +1,8 @@
 /**
- * BetterDesk Console — Inventory & Telemetry API Routes
+ * Yomie Console — Inventory & Telemetry API Routes
  *
  * Receives hardware/software inventory and lightweight telemetry
- * data from BetterDesk desktop agents.  Data is persisted to the
+ * data from Yomie desktop agents.  Data is persisted to the
  * database via dbAdapter (SQLite or PostgreSQL).
  *
  * Endpoints:

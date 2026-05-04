@@ -45,7 +45,7 @@ func checkScreenRecordingPermission() error {
 	cmd := exec.Command("screencapture", "-x", "-t", "png", "/dev/null")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf(
-			"screen recording permission denied — open System Settings > Privacy & Security > Screen Recording and enable BetterDesk Agent (exit: %v)",
+			"screen recording permission denied — open System Settings > Privacy & Security > Screen Recording and enable Yomie Agent (exit: %v)",
 			err,
 		)
 	}

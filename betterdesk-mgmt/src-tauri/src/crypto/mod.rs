@@ -5,7 +5,7 @@
 //! - Counter-based secretbox stream encryption (XSalsa20-Poly1305)
 //! - Ed25519 signature verification
 //! - Password hashing for RustDesk authentication
-//! - BetterDesk native E2E encryption (X25519 + XSalsa20-Poly1305)
+//! - Yomie native E2E encryption (X25519 + XSalsa20-Poly1305)
 
 mod exchange;
 mod keys;

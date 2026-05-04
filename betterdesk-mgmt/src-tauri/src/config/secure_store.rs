@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use keyring::{Entry, Error as KeyringError};
 
-const SERVICE: &str = "BetterDesk";
+const SERVICE: &str = "Yomie";
 const ACCESS_TOKEN_ACCOUNT: &str = "access_token";
 const DEVICE_PASSWORD_ACCOUNT: &str = "device_password";
 

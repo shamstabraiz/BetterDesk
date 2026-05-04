@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - LAN Discovery Service
+ * Yomie Console - LAN Discovery Service
  *
  * UDP broadcast responder on port 21119.
  * Clients send a JSON probe; the server replies with its identity
@@ -7,10 +7,10 @@
  *
  * Protocol:
  *   Client → broadcast 255.255.255.255:21119
- *     { "type": "betterdesk-discover", "version": 1 }
+ *     { "type": "yomie-discover", "version": 1 }
  *
  *   Server → unicast reply to client
- *     { "type": "betterdesk-announce", "version": 1, "server": { ... } }
+ *     { "type": "yomie-announce", "version": 1, "server": { ... } }
  *
  * @module services/lanDiscovery
  */
@@ -50,7 +50,7 @@ function buildAnnouncement() {
     }
 
     return {
-        type: 'betterdesk-announce',
+        type: 'yomie-announce',
         version: PROTOCOL_VERSION,
         server: {
             name: os.hostname(),
@@ -79,7 +79,7 @@ function startDiscoveryService() {
     udpServer.on('message', (msg, rinfo) => {
         try {
             const data = JSON.parse(msg.toString('utf8'));
-            if (data.type !== 'betterdesk-discover') return;
+            if (data.type !== 'yomie-discover') return;
 
             const announcement = buildAnnouncement();
             const reply = Buffer.from(JSON.stringify(announcement), 'utf8');

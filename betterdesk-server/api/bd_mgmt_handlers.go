@@ -1,6 +1,6 @@
 package api
 
-// BetterDesk Desktop Client Management WebSocket
+// Yomie Desktop Client Management WebSocket
 //
 // Endpoint: GET /ws/bd-mgmt/{device_id}
 //
@@ -26,7 +26,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/unitronix/betterdesk-server/audit"
+	"github.com/unitronix/yomie-server/audit"
 )
 
 const (
@@ -43,7 +43,7 @@ type bdMgmtMessage struct {
 	Payload   json.RawMessage `json:"payload,omitempty"`
 }
 
-// bdMgmtSession tracks a single connected BetterDesk desktop client.
+// bdMgmtSession tracks a single connected Yomie desktop client.
 type bdMgmtSession struct {
 	DeviceID  string
 	Conn      *websocket.Conn
@@ -53,7 +53,7 @@ type bdMgmtSession struct {
 	CreatedAt time.Time
 }
 
-// bdMgmtHub manages all active BetterDesk desktop management sessions.
+// bdMgmtHub manages all active Yomie desktop management sessions.
 type bdMgmtHub struct {
 	mu       sync.RWMutex
 	sessions map[string]*bdMgmtSession // device_id -> session
@@ -204,7 +204,7 @@ func (h *bdMgmtHub) Remove(deviceID string) {
 	delete(h.sessions, deviceID)
 }
 
-// IsConnected checks if a BetterDesk desktop client is connected.
+// IsConnected checks if a Yomie desktop client is connected.
 func (h *bdMgmtHub) IsConnected(deviceID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -445,7 +445,7 @@ func (s *Server) handleBdMgmtSend(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleBdMgmtConnected returns all connected BetterDesk desktop clients.
+// handleBdMgmtConnected returns all connected Yomie desktop clients.
 // Route: GET /api/bd/mgmt/connected
 func (s *Server) handleBdMgmtConnected(w http.ResponseWriter, r *http.Request) {
 	ids := mgmtHub.ConnectedDevices()

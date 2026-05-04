@@ -1,7 +1,7 @@
 # CDAP — Custom Device API Protocol
 
 > **Protocol Version**: 1.0  
-> **Server Version**: BetterDesk v3.0.0  
+> **Server Version**: Yomie v3.0.0  
 > **Status**: Production-ready (Phases 0-7 implemented)
 
 ---
@@ -26,7 +26,7 @@
 
 ## Overview
 
-CDAP (Custom Device API Protocol) is a WebSocket-based protocol that connects non-RustDesk devices to the BetterDesk ecosystem. It provides:
+CDAP (Custom Device API Protocol) is a WebSocket-based protocol that connects non-RustDesk devices to the Yomie ecosystem. It provides:
 
 - **Real-time state synchronization** — Devices push state updates; panel renders widgets
 - **Bidirectional commands** — Operators send commands to devices; devices respond with results
@@ -42,7 +42,7 @@ CDAP (Custom Device API Protocol) is a WebSocket-based protocol that connects no
 | SCADA/PLC monitoring | ✅ Yes | — |
 | Network device management | ✅ Yes | — |
 | Remote desktop (existing) | ❌ No | RustDesk client |
-| Remote desktop (CDAP agent) | ✅ Yes | BetterDesk native agent |
+| Remote desktop (CDAP agent) | ✅ Yes | Yomie native agent |
 | Custom automation agent | ✅ Yes | — |
 
 ---
@@ -62,7 +62,7 @@ The CDAP gateway uses **dual-mode listening** — auto-detects TLS (first byte `
 
 ```bash
 # Enable TLS on CDAP gateway
-betterdesk-server --tls-cert /path/to/cert.pem --tls-key /path/to/key.pem
+yomie-server --tls-cert /path/to/cert.pem --tls-key /path/to/key.pem
 
 # CDAP auto-detects TLS when cert/key are provided
 # Both plain and TLS connections accepted on port 21122
@@ -848,14 +848,14 @@ Widgets marked `"dangerous": true` are hidden from non-admin users and require e
 ### Python SDK
 
 ```bash
-pip install betterdesk-cdap
+pip install yomie-cdap
 ```
 
 ```python
 from betterdesk_cdap import CDAPBridge, Widget, WidgetType
 
 bridge = CDAPBridge(
-    server="ws://betterdesk.example.com:21122",
+    server="ws://yomie.example.com:21122",
     api_key="your-api-key",
     device_id="BRIDGE-MODBUS01"
 )
@@ -883,11 +883,11 @@ bridge.run()  # Starts event loop
 
 | Bridge | Protocol | Status |
 |--------|----------|--------|
-| `betterdesk-bridge-modbus` | Modbus TCP/RTU | v3.0 |
-| `betterdesk-bridge-snmp` | SNMP v2c/v3 | v3.0 |
-| `betterdesk-bridge-rest` | REST webhook | v3.0 |
-| `betterdesk-bridge-mqtt` | MQTT 3.1.1/5.0 | Planned |
-| `betterdesk-bridge-opcua` | OPC UA | Planned |
+| `yomie-bridge-modbus` | Modbus TCP/RTU | v3.0 |
+| `yomie-bridge-snmp` | SNMP v2c/v3 | v3.0 |
+| `yomie-bridge-rest` | REST webhook | v3.0 |
+| `yomie-bridge-mqtt` | MQTT 3.1.1/5.0 | Planned |
+| `yomie-bridge-opcua` | OPC UA | Planned |
 
 ---
 
@@ -918,4 +918,4 @@ bridge.run()  # Starts event loop
 
 ---
 
-*Last updated: March 2026 — BetterDesk v3.0.0*
+*Last updated: March 2026 — Yomie v3.0.0*

@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - WebSocket Relay Proxy
+ * Yomie Console - WebSocket Relay Proxy
  * Bridges browser WebSocket connections to TCP connections for hbbs/hbbr
  * 
  * Provides two WebSocket endpoints:

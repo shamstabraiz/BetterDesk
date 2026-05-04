@@ -1,5 +1,5 @@
 /**
- * BetterDesk Web Remote Client - File Transfer Module
+ * Yomie Web Remote Client - File Transfer Module
  * Handles RustDesk file transfer protocol: browse, download, upload, manage
  *
  * Protocol flow:

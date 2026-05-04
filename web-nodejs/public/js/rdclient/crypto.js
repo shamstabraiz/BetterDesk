@@ -1,5 +1,5 @@
 /**
- * BetterDesk Web Remote Client - Encryption Layer
+ * Yomie Web Remote Client - Encryption Layer
  * NaCl-compatible encryption using tweetnacl-js
  * Matches RustDesk's sodiumoxide crypto_box / crypto_secretbox
  *

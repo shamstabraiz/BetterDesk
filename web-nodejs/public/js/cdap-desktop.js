@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — CDAP Remote Desktop Widget
+ * Yomie Console — CDAP Remote Desktop Widget
  * Provides interactive remote desktop access to CDAP devices via WebSocket.
  * Renders screen frames on canvas and relays mouse/keyboard input.
  * Supports: clipboard sync, custom cursors, quality reporting, codec
@@ -749,7 +749,7 @@
         if (session.overlay) {
             session.overlay.classList.remove('hidden');
             session.overlay.querySelector('span:last-child').textContent =
-                window.BetterDesk?.t?.('cdap.disconnected') || 'Disconnected';
+                window.Yomie?.t?.('cdap.disconnected') || 'Disconnected';
         }
         // Reset cursor
         if (session.canvas) session.canvas.style.cursor = 'default';

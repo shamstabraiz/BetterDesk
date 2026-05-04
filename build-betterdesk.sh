@@ -1,16 +1,16 @@
 #!/bin/bash
 # =============================================================================
-# BetterDesk Server - Interactive Build Script
+# Yomie Server - Interactive Build Script
 # =============================================================================
-# This script automates building BetterDesk enhanced binaries from source.
-# It handles downloading RustDesk sources, applying BetterDesk modifications,
+# This script automates building Yomie enhanced binaries from source.
+# It handles downloading RustDesk sources, applying Yomie modifications,
 # and compiling the final binaries.
 #
 # Usage:
-#   ./build-betterdesk.sh              # Interactive mode
-#   ./build-betterdesk.sh --auto       # Non-interactive (use defaults)
-#   ./build-betterdesk.sh --clean      # Clean build directory
-#   ./build-betterdesk.sh --help       # Show help
+#   ./build-yomie.sh              # Interactive mode
+#   ./build-yomie.sh --auto       # Non-interactive (use defaults)
+#   ./build-yomie.sh --clean      # Clean build directory
+#   ./build-yomie.sh --help       # Show help
 #
 # Requirements:
 #   - Rust toolchain (rustup)
@@ -66,7 +66,7 @@ print_info() { echo -e "${BLUE}ℹ${NC} $1"; }
 print_step() { echo -e "${CYAN}→${NC} $1"; }
 
 show_help() {
-    echo "BetterDesk Server - Build Script"
+    echo "Yomie Server - Build Script"
     echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""
@@ -273,11 +273,11 @@ download_rustdesk() {
 }
 
 # =============================================================================
-# Apply BetterDesk Modifications
+# Apply Yomie Modifications
 # =============================================================================
 
 apply_modifications() {
-    print_header "Applying BetterDesk Modifications"
+    print_header "Applying Yomie Modifications"
     
     local source_dir="$BUILD_DIR/rustdesk-server-$RUSTDESK_VERSION"
     
@@ -299,7 +299,7 @@ apply_modifications() {
         "rendezvous_server_core.rs"
     )
     
-    print_step "Copying BetterDesk modifications..."
+    print_step "Copying Yomie modifications..."
     
     for file in "${patch_files[@]}"; do
         if [ -f "$PATCHES_DIR/$file" ]; then
@@ -324,7 +324,7 @@ apply_modifications() {
     done
     
     # Update Cargo.toml to include new dependencies
-    print_step "Updating Cargo.toml with BetterDesk dependencies..."
+    print_step "Updating Cargo.toml with Yomie dependencies..."
     
     # Check if we need to add axum dependency
     if ! grep -q "axum" Cargo.toml; then
@@ -332,7 +332,7 @@ apply_modifications() {
         
         # Add dependencies before [features] or at end of [dependencies]
         sed -i '/^\[dependencies\]/a \
-# BetterDesk HTTP API dependencies\
+# Yomie HTTP API dependencies\
 axum = { version = "0.5", features = ["ws"] }\
 chrono = { version = "0.4", features = ["serde"] }' Cargo.toml
         
@@ -341,7 +341,7 @@ chrono = { version = "0.4", features = ["serde"] }' Cargo.toml
         print_info "Cargo.toml already has required dependencies"
     fi
     
-    print_success "BetterDesk modifications applied successfully"
+    print_success "Yomie modifications applied successfully"
 }
 
 # =============================================================================
@@ -349,7 +349,7 @@ chrono = { version = "0.4", features = ["serde"] }' Cargo.toml
 # =============================================================================
 
 build_binaries() {
-    print_header "Building BetterDesk Binaries"
+    print_header "Building Yomie Binaries"
     
     local source_dir="$BUILD_DIR/rustdesk-server-$RUSTDESK_VERSION"
     cd "$source_dir"
@@ -428,11 +428,11 @@ generate_checksums() {
     local date_now=$(date +"%Y-%m-%d %H:%M:%S")
     
     cat > "$checksums_file" << EOF
-# BetterDesk Server - Binary Checksums
+# Yomie Server - Binary Checksums
 
 Generated: $date_now
 RustDesk Base Version: $RUSTDESK_VERSION
-BetterDesk Version: 2.0.1
+Yomie Version: 2.0.1
 
 ## SHA256 Checksums
 
@@ -511,7 +511,7 @@ main() {
     # Banner
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}     ${BOLD}BetterDesk Server - Build from Source${NC}               ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}     ${BOLD}Yomie Server - Build from Source${NC}               ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}     Enhanced RustDesk with HTTP API & Management       ${CYAN}║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
@@ -527,7 +527,7 @@ main() {
     # Final message
     print_header "Build Complete!"
     
-    echo -e "${GREEN}BetterDesk binaries have been built successfully!${NC}"
+    echo -e "${GREEN}Yomie binaries have been built successfully!${NC}"
     echo ""
     echo "Output location: $OUTPUT_DIR"
     echo ""

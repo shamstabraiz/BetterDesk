@@ -10,7 +10,7 @@ func BuildManifest(cfg *Config, sys *SystemCollector, version string) map[string
 	info := sys.GetInfo()
 
 	// Capabilities based on config. Server-side allowedCapabilities (see
-	// betterdesk-server/cdap/manifest.go) accepts: telemetry, commands,
+	// yomie-server/cdap/manifest.go) accepts: telemetry, commands,
 	// alerts, logs, remote_desktop, video_stream, audio, clipboard,
 	// file_transfer, input_control. Anything else is rejected with
 	// "unknown capability". Both terminal and screenshot map to
@@ -40,7 +40,7 @@ func BuildManifest(cfg *Config, sys *SystemCollector, version string) map[string
 	device := map[string]any{
 		"name":     cfg.DeviceName,
 		"type":     cfg.DeviceType,
-		"vendor":   "BetterDesk",
+		"vendor":   "Yomie",
 		"model":    fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 		"firmware": version,
 	}

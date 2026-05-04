@@ -1,7 +1,7 @@
 /**
- * BetterDesk Console — Remote Desktop WebSocket Relay
+ * Yomie Console — Remote Desktop WebSocket Relay
  *
- * Bridges the BetterDesk desktop agent (JPEG screen stream) and the operator
+ * Bridges the Yomie desktop agent (JPEG screen stream) and the operator
  * browser viewer (Canvas element).
  *
  * Endpoints:

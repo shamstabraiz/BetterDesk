@@ -1,10 +1,10 @@
 # check=skip=SecretsUsedInArgOrEnv
-# BetterDesk — Single Container Image
+# Yomie — Single Container Image
 # =====================================
 # Combines Go server (signal + relay + API) and Node.js web console
 # into a single container using supervisord as process manager.
 #
-# Build:  docker build -t betterdesk:local .
+# Build:  docker build -t yomie:local .
 # Run:    docker compose up -d
 #
 # Ports:
@@ -24,14 +24,14 @@ FROM golang:1.25-alpine AS go-builder
 RUN apk add --no-cache git || { sleep 2 && apk add --no-cache git; }
 
 WORKDIR /src
-COPY betterdesk-server/go.mod betterdesk-server/go.sum ./
+COPY yomie-server/go.mod yomie-server/go.sum ./
 RUN go mod download
 
-COPY betterdesk-server/ .
+COPY yomie-server/ .
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w" \
     -tags "netgo osusergo" \
-    -o /betterdesk-server .
+    -o /yomie-server .
 
 # ============= Stage 2: Build Node.js console =============
 FROM node:20-alpine AS node-builder
@@ -47,12 +47,12 @@ RUN npm install --production
 
 # ============= Stage 3: Production runtime =============
 # Note: supervisord requires root to manage child processes with user= directive.
-# Both betterdesk-server and betterdesk-console run as non-root 'betterdesk' user
-# via supervisord configuration (user=betterdesk).
+# Both yomie-server and yomie-console run as non-root 'yomie' user
+# via supervisord configuration (user=yomie).
 FROM node:20-alpine
 
 LABEL maintainer="shamstabraiz"
-LABEL description="BetterDesk — All-in-One (Go Server + Node.js Console)"
+LABEL description="Yomie — All-in-One (Go Server + Node.js Console)"
 LABEL version="2.4.0"
 
 # Install runtime packages (retry for transient DNS failures)
@@ -71,15 +71,15 @@ RUN apk add --no-cache \
     supervisor \
     && mkdir -p /var/log/supervisor; }
 
-# Create betterdesk user and directories
-RUN addgroup -g 10001 -S betterdesk && \
-    adduser -u 10001 -S -G betterdesk betterdesk && \
-    mkdir -p /opt/rustdesk /app/data /var/log/betterdesk && \
-    chown -R betterdesk:betterdesk /opt/rustdesk /app/data /var/log/betterdesk
+# Create yomie user and directories
+RUN addgroup -g 10001 -S yomie && \
+    adduser -u 10001 -S -G yomie yomie && \
+    mkdir -p /opt/rustdesk /app/data /var/log/yomie && \
+    chown -R yomie:yomie /opt/rustdesk /app/data /var/log/yomie
 
 # ---- Go server binary ----
-COPY --from=go-builder /betterdesk-server /usr/local/bin/betterdesk-server
-RUN chmod +x /usr/local/bin/betterdesk-server
+COPY --from=go-builder /yomie-server /usr/local/bin/yomie-server
+RUN chmod +x /usr/local/bin/yomie-server
 
 # ---- Node.js console ----
 WORKDIR /app
@@ -90,7 +90,7 @@ COPY web-nodejs/ .
 COPY --from=node-builder /app/node_modules ./node_modules/
 
 # ---- Supervisord config ----
-COPY docker/supervisord.conf /etc/supervisor/conf.d/betterdesk.conf
+COPY docker/supervisord.conf /etc/supervisor/conf.d/yomie.conf
 
 # ---- Entrypoint ----
 COPY docker/entrypoint.sh /entrypoint.sh
@@ -107,7 +107,7 @@ ENV RUSTDESK_PATH=/opt/rustdesk
 ENV DB_PATH=/opt/rustdesk/db_v2.sqlite3
 ENV PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
 ENV API_KEY_PATH=/opt/rustdesk/.api_key
-ENV SERVER_BACKEND=betterdesk
+ENV SERVER_BACKEND=yomie
 ENV HBBS_API_URL=http://127.0.0.1:21114/api
 ENV BETTERDESK_API_URL=http://127.0.0.1:21114/api
 ENV DOCKER=true

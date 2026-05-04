@@ -1,8 +1,8 @@
-# 🚀 BetterDesk v3 — Ultimate Remote Desktop & CDAP Solution
+# 🚀 Yomie v3 — Ultimate Remote Desktop & CDAP Solution
 
 <div align="center">
 
-<img src="betterdesk.png" alt="BetterDesk Logo" width="320">
+<img src="yomie.png" alt="Yomie Logo" width="320">
 
 <br><br>
 
@@ -35,7 +35,7 @@
 
 - [Overview](#-overview)
 - [Architecture](#-architecture)
-- [BetterDesk Go Server](#-betterdesk-go-server)
+- [Yomie Go Server](#-yomie-go-server)
   - [Protocol Implementation](#protocol-implementation)
   - [Cryptography](#cryptography)
   - [Database Backends](#database-backends)
@@ -68,15 +68,15 @@
 
 ## 🌟 Overview
 
-**BetterDesk** is a complete RustDesk infrastructure solution consisting of two main components:
+**Yomie** is a complete RustDesk infrastructure solution consisting of two main components:
 
-1. **BetterDesk Server** — A clean-room Go implementation that replaces both `hbbs` (signal) and `hbbr` (relay) with a **single binary**. It implements the full RustDesk wire protocol, including UDP/TCP/WebSocket signal, TCP/WebSocket relay, NaCl secure handshake, and a comprehensive HTTP REST API.
+1. **Yomie Server** — A clean-room Go implementation that replaces both `hbbs` (signal) and `hbbr` (relay) with a **single binary**. It implements the full RustDesk wire protocol, including UDP/TCP/WebSocket signal, TCP/WebSocket relay, NaCl secure handshake, and a comprehensive HTTP REST API.
 
-2. **BetterDesk Console** — A Node.js (Express.js) web management panel with device monitoring, TOTP 2FA, RBAC, address book sync, and RustDesk Client API.
+2. **Yomie Console** — A Node.js (Express.js) web management panel with device monitoring, TOTP 2FA, RBAC, address book sync, and RustDesk Client API.
 
-### Why BetterDesk?
+### Why Yomie?
 
-| Feature | Original RustDesk Server | BetterDesk Server |
+| Feature | Original RustDesk Server | Yomie Server |
 |---------|------------------------|-------------------|
 | **Binaries** | 2 (hbbs + hbbr) | **1 single binary** |
 | **Language** | Rust | Go (pure Go, no CGO) |
@@ -148,21 +148,21 @@ Database Layer
 
 ---
 
-## 🔧 BetterDesk Go Server
+## 🔧 Yomie Go Server
 
-The Go server (`betterdesk-server/`) is a ~20,000 LOC clean-room implementation of the RustDesk signal and relay protocol. It compiles to a **single static binary** with no external dependencies (pure Go, no CGO required).
+The Go server (`yomie-server/`) is a ~20,000 LOC clean-room implementation of the RustDesk signal and relay protocol. It compiles to a **single static binary** with no external dependencies (pure Go, no CGO required).
 
 ### Server Modes
 
 ```bash
 # Default: run everything (signal + relay + API + admin)
-./betterdesk-server -mode all
+./yomie-server -mode all
 
 # Signal only (no relay)
-./betterdesk-server -mode signal
+./yomie-server -mode signal
 
 # Relay only
-./betterdesk-server -mode relay
+./yomie-server -mode relay
 ```
 
 ### Protocol Implementation
@@ -248,7 +248,7 @@ Server                                          Client
 #### SQLite (Default)
 
 ```bash
-./betterdesk-server -db ./db_v2.sqlite3
+./yomie-server -db ./db_v2.sqlite3
 ```
 
 - **Driver**: `modernc.org/sqlite` — pure Go, no CGO required
@@ -261,7 +261,7 @@ Server                                          Client
 #### PostgreSQL
 
 ```bash
-./betterdesk-server -db "postgres://user:password@localhost:5432/betterdesk?sslmode=disable"
+./yomie-server -db "postgres://user:password@localhost:5432/yomie?sslmode=disable"
 ```
 
 - **Driver**: `pgx/v5` with `pgxpool` connection pooling
@@ -286,20 +286,20 @@ device_tokens      -- Enrollment tokens (Dual Key System)
 
 ### TLS Support
 
-BetterDesk supports TLS on all transport layers with a unique **dual-mode auto-detection** system:
+Yomie supports TLS on all transport layers with a unique **dual-mode auto-detection** system:
 
 ```bash
 # Enable TLS on signal ports (21116 TCP + 21115 + 21118 WSS)
-./betterdesk-server -tls-signal -tls-cert server.crt -tls-key server.key
+./yomie-server -tls-signal -tls-cert server.crt -tls-key server.key
 
 # Enable TLS on relay ports (21117 TCP + 21119 WSS)
-./betterdesk-server -tls-relay -tls-cert server.crt -tls-key server.key
+./yomie-server -tls-relay -tls-cert server.crt -tls-key server.key
 
 # Enable TLS on everything
-./betterdesk-server -tls-signal -tls-relay -tls-cert server.crt -tls-key server.key
+./yomie-server -tls-signal -tls-relay -tls-cert server.crt -tls-key server.key
 
 # HTTPS on API
-./betterdesk-server -tls-cert server.crt -tls-key server.key -force-https
+./yomie-server -tls-cert server.crt -tls-key server.key -force-https
 ```
 
 #### DualModeListener (config/tls.go)
@@ -337,7 +337,7 @@ The **Dual Key System** controls which devices can register with the server:
 
 ```bash
 # Set enrollment mode
-./betterdesk-server -mode all
+./yomie-server -mode all
 # Then via API: PUT /api/enrollment/mode {"mode": "managed"}
 ```
 
@@ -361,7 +361,7 @@ OFFLINE   → Beyond RegTimeout (30s) with no heartbeat
 A lightweight management interface accessible via `telnet` or `netcat`:
 
 ```bash
-./betterdesk-server -admin-port 9090 -admin-password "secret"
+./yomie-server -admin-port 9090 -admin-password "secret"
 # Then: telnet 127.0.0.1 9090
 ```
 
@@ -497,26 +497,26 @@ Allows RustDesk desktop clients to:
 ```bash
 git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
 cd Rustdesk-FreeConsole
-chmod +x betterdesk.sh
+chmod +x yomie.sh
 
 # Interactive mode (recommended for first install)
-sudo ./betterdesk.sh
+sudo ./yomie.sh
 
 # Automatic mode (non-interactive)
-sudo ./betterdesk.sh --auto
+sudo ./yomie.sh --auto
 
 # Skip Go binary SHA256 verification
-sudo ./betterdesk.sh --skip-verify
+sudo ./yomie.sh --skip-verify
 
 # Custom API port
-API_PORT=21120 sudo ./betterdesk.sh --auto
+API_PORT=21120 sudo ./yomie.sh --auto
 ```
 
 The script will:
 1. Install Go toolchain if not present
-2. Compile `betterdesk-server` from source (single binary)
+2. Compile `yomie-server` from source (single binary)
 3. Install Node.js and the web console
-4. Create systemd services (`betterdesk-server.service` + `betterdesk-console.service`)
+4. Create systemd services (`yomie-server.service` + `yomie-console.service`)
 5. Generate Ed25519 keys (or preserve existing ones)
 6. Create initial admin user (credentials saved to `.admin_credentials`)
 7. Start all services
@@ -575,8 +575,8 @@ docker compose -f docker-compose.single.yml --profile postgres up -d
 **Legacy multi-container** (via interactive script):
 
 ```bash
-chmod +x betterdesk-docker.sh
-./betterdesk-docker.sh
+chmod +x yomie-docker.sh
+./yomie-docker.sh
 ```
 
 ### Menu Options
@@ -602,8 +602,8 @@ All scripts provide an interactive menu:
 ### What Gets Installed
 
 ```
-/opt/rustdesk/                    # (Linux) or C:\BetterDesk\ (Windows)
-├── betterdesk-server             # Single Go binary (signal + relay + API)
+/opt/rustdesk/                    # (Linux) or C:\Yomie\ (Windows)
+├── yomie-server             # Single Go binary (signal + relay + API)
 ├── id_ed25519                    # Ed25519 private key (mode 0600)
 ├── id_ed25519.pub                # Ed25519 public key (base64)
 ├── db_v2.sqlite3                 # SQLite database (if using SQLite)
@@ -620,7 +620,7 @@ All scripts provide an interactive menu:
 
 ## 🖥️ RustDesk Client Configuration
 
-After installing BetterDesk server, configure your RustDesk desktop clients to connect to it.
+After installing Yomie server, configure your RustDesk desktop clients to connect to it.
 
 ### Basic Setup
 
@@ -630,12 +630,12 @@ After installing BetterDesk server, configure your RustDesk desktop clients to c
 
 | Field | Value | Example |
 |-------|-------|---------|
-| **ID Server** | Your server IP or domain | `betterdesk.example.com` |
-| **Relay Server** | Same as ID Server (or leave empty) | `betterdesk.example.com` |
-| **API Server** | `http(s)://<server>:21121` | `http://betterdesk.example.com:21121` |
+| **ID Server** | Your server IP or domain | `yomie.example.com` |
+| **Relay Server** | Same as ID Server (or leave empty) | `yomie.example.com` |
+| **API Server** | `http(s)://<server>:21121` | `http://yomie.example.com:21121` |
 | **Key** | Contents of `id_ed25519.pub` on the server | (base64 public key string) |
 
-> **Tip:** The public key can be found in the Web Console under **Dashboard → Server Keys**, or by reading the file `/opt/rustdesk/id_ed25519.pub` (Linux) / `C:\BetterDesk\id_ed25519.pub` (Windows) on the server.
+> **Tip:** The public key can be found in the Web Console under **Dashboard → Server Keys**, or by reading the file `/opt/rustdesk/id_ed25519.pub` (Linux) / `C:\Yomie\id_ed25519.pub` (Windows) on the server.
 
 ### Mass Deployment
 
@@ -648,21 +648,21 @@ rustdesk://config/<base64-encoded-json>
 JSON structure:
 ```json
 {
-  "host": "betterdesk.example.com",
-  "relay": "betterdesk.example.com",
-  "api": "http://betterdesk.example.com:21121",
+  "host": "yomie.example.com",
+  "relay": "yomie.example.com",
+  "api": "http://yomie.example.com:21121",
   "key": "<contents-of-id_ed25519.pub>"
 }
 ```
 
 You can also use the `--config` command-line flag when starting RustDesk:
 ```bash
-rustdesk --config '{"host":"betterdesk.example.com","key":"<pubkey>"}'
+rustdesk --config '{"host":"yomie.example.com","key":"<pubkey>"}'
 ```
 
 ### Desktop Client Login
 
-RustDesk desktop clients can **log in** to the BetterDesk server using their user account. This enables address book synchronization, device grouping, and audit trail per user.
+RustDesk desktop clients can **log in** to the Yomie server using their user account. This enables address book synchronization, device grouping, and audit trail per user.
 
 #### How to Log In
 
@@ -704,7 +704,7 @@ RustDesk desktop clients can **log in** to the BetterDesk server using their use
 
 ### Enabling Pro Features
 
-Connecting the RustDesk desktop client to a BetterDesk server with the API Server field configured **automatically activates Pro-level features** — no license key required. These features are built into the standard RustDesk client but remain dormant until a compatible API server is detected.
+Connecting the RustDesk desktop client to a Yomie server with the API Server field configured **automatically activates Pro-level features** — no license key required. These features are built into the standard RustDesk client but remain dormant until a compatible API server is detected.
 
 #### How to Activate
 
@@ -714,12 +714,12 @@ Connecting the RustDesk desktop client to a BetterDesk server with the API Serve
 
 | Field | Value |
 |-------|-------|
-| **ID Server** | `betterdesk.example.com` |
-| **Relay Server** | `betterdesk.example.com` (or leave empty to auto-detect) |
-| **API Server** | `http://betterdesk.example.com:21121` |
+| **ID Server** | `yomie.example.com` |
+| **Relay Server** | `yomie.example.com` (or leave empty to auto-detect) |
+| **API Server** | `http://yomie.example.com:21121` |
 | **Key** | Contents of `id_ed25519.pub` from the server |
 
-4. Click the **account icon** (bottom-left) and **log in** with your BetterDesk credentials
+4. Click the **account icon** (bottom-left) and **log in** with your Yomie credentials
 5. Pro features activate immediately upon successful login
 
 > **Important:** The **API Server** field is the key trigger. Without it, the client operates in basic mode. The field must point to port **21121** (the RustDesk Client API), not to port 21114 (server management API).
@@ -760,7 +760,7 @@ rustdesk://config/eyJob3N0IjoiYmV0dGVyZGVzay5leGFtcGxlLmNvbSIsInJlbGF5IjoiYmV0dG
 
 Or via command line:
 ```bash
-rustdesk --config '{"host":"betterdesk.example.com","relay":"betterdesk.example.com","api":"http://betterdesk.example.com:21121","key":"<pubkey>"}'
+rustdesk --config '{"host":"yomie.example.com","relay":"yomie.example.com","api":"http://yomie.example.com:21121","key":"<pubkey>"}'
 ```
 
 > **Note:** Users still need to log in individually after initial configuration to activate per-user features (address book sync, audit trail, etc.).
@@ -784,7 +784,7 @@ Ensure the following **outbound** ports are accessible from clients to the serve
 
 ## 🔒 TLS / SSL Certificates
 
-BetterDesk supports TLS on all layers: Go server transport (signal + relay), Go server HTTPS API, and the Node.js web console.
+Yomie supports TLS on all layers: Go server transport (signal + relay), Go server HTTPS API, and the Node.js web console.
 
 ### Self-Signed Certificate (Quick Start)
 
@@ -796,22 +796,22 @@ mkdir -p /opt/rustdesk/ssl
 
 # Generate a self-signed certificate (valid for 3 years)
 openssl req -x509 -nodes -days 1095 -newkey rsa:2048 \
-  -keyout /opt/rustdesk/ssl/betterdesk.key \
-  -out /opt/rustdesk/ssl/betterdesk.crt \
-  -subj "/CN=$(hostname -f)/O=BetterDesk/C=US" \
+  -keyout /opt/rustdesk/ssl/yomie.key \
+  -out /opt/rustdesk/ssl/yomie.crt \
+  -subj "/CN=$(hostname -f)/O=Yomie/C=US" \
   -addext "subjectAltName=DNS:$(hostname -f),DNS:localhost,IP:$(curl -s ifconfig.me),IP:127.0.0.1"
 
 # Secure the private key
-chmod 600 /opt/rustdesk/ssl/betterdesk.key
+chmod 600 /opt/rustdesk/ssl/yomie.key
 ```
 
 > **Windows (PowerShell)**:
 > ```powershell
-> New-Item -ItemType Directory -Path "C:\BetterDesk\ssl" -Force
+> New-Item -ItemType Directory -Path "C:\Yomie\ssl" -Force
 > openssl req -x509 -nodes -days 1095 -newkey rsa:2048 `
->   -keyout "C:\BetterDesk\ssl\betterdesk.key" `
->   -out "C:\BetterDesk\ssl\betterdesk.crt" `
->   -subj "/CN=localhost/O=BetterDesk"
+>   -keyout "C:\Yomie\ssl\yomie.key" `
+>   -out "C:\Yomie\ssl\yomie.crt" `
+>   -subj "/CN=localhost/O=Yomie"
 > ```
 
 ### Applying TLS to Go Server
@@ -820,26 +820,26 @@ Once you have certificate files, configure the Go server:
 
 ```bash
 # TLS on signal ports (21116 TCP + 21115 + 21118 WSS)
-./betterdesk-server -tls-signal -tls-cert /opt/rustdesk/ssl/betterdesk.crt -tls-key /opt/rustdesk/ssl/betterdesk.key
+./yomie-server -tls-signal -tls-cert /opt/rustdesk/ssl/yomie.crt -tls-key /opt/rustdesk/ssl/yomie.key
 
 # TLS on relay ports (21117 TCP + 21119 WSS)
-./betterdesk-server -tls-relay -tls-cert /opt/rustdesk/ssl/betterdesk.crt -tls-key /opt/rustdesk/ssl/betterdesk.key
+./yomie-server -tls-relay -tls-cert /opt/rustdesk/ssl/yomie.crt -tls-key /opt/rustdesk/ssl/yomie.key
 
 # TLS everywhere + force HTTPS on API
-./betterdesk-server -tls-signal -tls-relay -force-https \
-  -tls-cert /opt/rustdesk/ssl/betterdesk.crt \
-  -tls-key /opt/rustdesk/ssl/betterdesk.key
+./yomie-server -tls-signal -tls-relay -force-https \
+  -tls-cert /opt/rustdesk/ssl/yomie.crt \
+  -tls-key /opt/rustdesk/ssl/yomie.key
 ```
 
-For systemd, add the flags to `ExecStart` in `/etc/systemd/system/betterdesk-server.service`:
+For systemd, add the flags to `ExecStart` in `/etc/systemd/system/yomie-server.service`:
 ```ini
-ExecStart=/opt/rustdesk/betterdesk-server -mode all ... \
+ExecStart=/opt/rustdesk/yomie-server -mode all ... \
   -tls-signal -tls-relay \
-  -tls-cert /opt/rustdesk/ssl/betterdesk.crt \
-  -tls-key /opt/rustdesk/ssl/betterdesk.key
+  -tls-cert /opt/rustdesk/ssl/yomie.crt \
+  -tls-key /opt/rustdesk/ssl/yomie.key
 ```
 
-> **Dual-mode**: BetterDesk auto-detects plain vs TLS on the **same port** (first-byte `0x16` detection). Existing non-TLS clients continue to work without changes.
+> **Dual-mode**: Yomie auto-detects plain vs TLS on the **same port** (first-byte `0x16` detection). Existing non-TLS clients continue to work without changes.
 
 ### Applying TLS to Web Console (Node.js)
 
@@ -847,8 +847,8 @@ Edit the console `.env` file:
 
 ```bash
 HTTPS_ENABLED=true
-SSL_CERT_PATH=/opt/rustdesk/ssl/betterdesk.crt
-SSL_KEY_PATH=/opt/rustdesk/ssl/betterdesk.key
+SSL_CERT_PATH=/opt/rustdesk/ssl/yomie.crt
+SSL_KEY_PATH=/opt/rustdesk/ssl/yomie.key
 HTTP_REDIRECT_HTTPS=true
 ```
 
@@ -866,11 +866,11 @@ For production servers with a public domain:
 sudo apt install certbot  # Debian/Ubuntu
 
 # Obtain certificate (standalone mode, port 80 must be open)
-sudo certbot certonly --standalone -d betterdesk.example.com
+sudo certbot certonly --standalone -d yomie.example.com
 
 # Certificate files:
-# /etc/letsencrypt/live/betterdesk.example.com/fullchain.pem
-# /etc/letsencrypt/live/betterdesk.example.com/privkey.pem
+# /etc/letsencrypt/live/yomie.example.com/fullchain.pem
+# /etc/letsencrypt/live/yomie.example.com/privkey.pem
 ```
 
 Then configure both the Go server and Node.js console to use these paths.
@@ -879,9 +879,9 @@ Then configure both the Go server and Node.js console to use these paths.
 
 ### Automatic TLS During Installation
 
-The ALL-IN-ONE scripts (`betterdesk.sh` / `betterdesk.ps1`) **automatically generate a self-signed certificate** during every fresh installation:
+The ALL-IN-ONE scripts (`yomie.sh` / `yomie.ps1`) **automatically generate a self-signed certificate** during every fresh installation:
 
-1. **Certificate location**: `<RUSTDESK_PATH>/ssl/betterdesk.crt` + `betterdesk.key`
+1. **Certificate location**: `<RUSTDESK_PATH>/ssl/yomie.crt` + `yomie.key`
 2. **Validity**: 3 years, RSA 2048-bit, with SAN (server IP + localhost)
 3. **Go server flags**: `-tls-cert`, `-tls-key`, `-tls-signal`, `-tls-relay`, `-force-https` added automatically
 4. **Node.js console**: `.env` pre-populated with `SSL_CERT_PATH` / `SSL_KEY_PATH` and `BETTERDESK_API_URL` set to `https://`
@@ -1086,61 +1086,61 @@ ws.onmessage = (event) => {
 
 ## 🔄 Migration Guide
 
-### From Original RustDesk (Rust) to BetterDesk (Go)
+### From Original RustDesk (Rust) to Yomie (Go)
 
-The migration tool (`betterdesk-server/tools/migrate/`) supports multiple migration paths:
+The migration tool (`yomie-server/tools/migrate/`) supports multiple migration paths:
 
 **Linux/macOS:**
 ```bash
 # Compile migration tool
-cd betterdesk-server/tools/migrate
+cd yomie-server/tools/migrate
 go build -o migrate .
 
-# Mode 1: Rust hbbs → BetterDesk Go (preserves peer table → peers)
-./migrate -mode rust2go -src /opt/rustdesk/db_v2.sqlite3 -dst /opt/betterdesk/db_v2.sqlite3
+# Mode 1: Rust hbbs → Yomie Go (preserves peer table → peers)
+./migrate -mode rust2go -src /opt/rustdesk/db_v2.sqlite3 -dst /opt/yomie/db_v2.sqlite3
 
 # Mode 2: SQLite → PostgreSQL
-./migrate -mode sqlite2pg -src /opt/betterdesk/db_v2.sqlite3   -dst "postgres://user:pass@localhost:5432/betterdesk"
+./migrate -mode sqlite2pg -src /opt/yomie/db_v2.sqlite3   -dst "postgres://user:pass@localhost:5432/yomie"
 
 # Mode 3: PostgreSQL → SQLite (reverse)
 ./migrate -mode pg2sqlite -src "postgres://..." -dst ./backup.sqlite3
 
 # Mode 4: Node.js console → Go server
-./migrate -mode nodejs2go -src /opt/betterdesk/web-console/betterdesk.db   -dst /opt/betterdesk/db_v2.sqlite3
+./migrate -mode nodejs2go -src /opt/yomie/web-console/yomie.db   -dst /opt/yomie/db_v2.sqlite3
 
 # Mode 5: Backup
-./migrate -mode backup -src /opt/betterdesk/db_v2.sqlite3
+./migrate -mode backup -src /opt/yomie/db_v2.sqlite3
 ```
 
 **Windows (PowerShell):**
 ```powershell
 # Compile migration tool (requires Go installed)
-cd betterdesk-server\tools\migrate
+cd yomie-server\tools\migrate
 go build -o migrate.exe .
 
 # Usage (same modes as Linux)
-.\migrate.exe -mode rust2go -src C:\BetterDesk\db_v2.sqlite3 -dst C:\BetterDesk\db_v2_new.sqlite3
-.\migrate.exe -mode sqlite2pg -src C:\BetterDesk\db_v2.sqlite3 -dst "postgres://user:pass@localhost:5432/betterdesk"
+.\migrate.exe -mode rust2go -src C:\Yomie\db_v2.sqlite3 -dst C:\Yomie\db_v2_new.sqlite3
+.\migrate.exe -mode sqlite2pg -src C:\Yomie\db_v2.sqlite3 -dst "postgres://user:pass@localhost:5432/yomie"
 ```
 
-> **Note:** Windows users need [Go](https://go.dev/dl/) installed to compile the migration tool. Pre-built binaries are available in [GitHub Releases](https://github.com/shamstabraiz/BetterDesk/releases) (when available).
+> **Note:** Windows users need [Go](https://go.dev/dl/) installed to compile the migration tool. Pre-built binaries are available in [GitHub Releases](https://github.com/shamstabraiz/Yomie/releases) (when available).
 
-The migration tool auto-detects the source schema (original RustDesk `peer` table vs BetterDesk `peers` table) and maps columns accordingly. Ed25519 keys, UUIDs, ID history, bans, and tags are fully preserved.
+The migration tool auto-detects the source schema (original RustDesk `peer` table vs Yomie `peers` table) and maps columns accordingly. Ed25519 keys, UUIDs, ID history, bans, and tags are fully preserved.
 
 ### Using ALL-IN-ONE Scripts
 
-Both `betterdesk.sh` and `betterdesk.ps1` include built-in migration options:
+Both `yomie.sh` and `yomie.ps1` include built-in migration options:
 - **Option M** — Migrate from existing RustDesk Docker installation
 - **Option P** — Database migration (SQLite ↔ PostgreSQL)
 
 ### From Existing Docker RustDesk
 
 ```bash
-./betterdesk-docker.sh
+./yomie-docker.sh
 # Select: M (Migrate from existing RustDesk)
 ```
 
-The wizard auto-detects existing containers, creates a backup, and migrates data to BetterDesk.
+The wizard auto-detects existing containers, creates a backup, and migrates data to Yomie.
 
 ---
 
@@ -1186,7 +1186,7 @@ Point a Prometheus scraper at `http://your-server:21114/metrics` and import the 
 
 ```bash
 # Enable file-based audit log
-./betterdesk-server -audit-log /var/log/betterdesk/audit.jsonl
+./yomie-server -audit-log /var/log/yomie/audit.jsonl
 ```
 
 Events logged: login, failed auth, peer banned/unbanned, config changes, ID changes, blocklist modifications. Each event includes timestamp, action, actor, target, IP, and details.
@@ -1200,7 +1200,7 @@ Events logged: login, failed auth, peer banned/unbanned, config changes, ID chan
 | Symptom | Cause | Solution |
 |---------|-------|----------|
 | **Key mismatch** errors | Keys changed during install | Restore from backup: `cp /opt/rustdesk-backup-*/id_ed25519* /opt/rustdesk/` |
-| **All devices offline** | Database missing `last_online` column | Run repair: `sudo ./betterdesk.sh` → option 3 |
+| **All devices offline** | Database missing `last_online` column | Run repair: `sudo ./yomie.sh` → option 3 |
 | **API not responding** | Wrong binary or port | Check: `curl http://localhost:21114/api/health` |
 | **E2E encryption** | Not showing green lock | Verify server is v2.4.0+; enable `--tls-relay` for extra layer |
 | **Docker: "pull access denied"** | Images not on Docker Hub | Build locally: `docker compose build` |
@@ -1214,15 +1214,15 @@ Events logged: login, failed auth, peer banned/unbanned, config changes, ID chan
 
 ```bash
 # Linux — run built-in diagnostics
-sudo ./betterdesk.sh  # Select option 8
+sudo ./yomie.sh  # Select option 8
 
 # Check service status
-sudo systemctl status betterdesk-server
-sudo systemctl status betterdesk-console
+sudo systemctl status yomie-server
+sudo systemctl status yomie-console
 
 # Check logs
-sudo journalctl -u betterdesk-server -n 100 --no-pager
-sudo journalctl -u betterdesk-console -n 100 --no-pager
+sudo journalctl -u yomie-server -n 100 --no-pager
+sudo journalctl -u yomie-console -n 100 --no-pager
 
 # Test API
 curl http://localhost:21114/api/health
@@ -1247,7 +1247,7 @@ cp /opt/rustdesk/id_ed25519.pub /opt/rustdesk/id_ed25519.pub.backup
 BACKUP=$(ls -d /opt/rustdesk-backup-* | sort | tail -1)
 sudo cp $BACKUP/id_ed25519* /opt/rustdesk/
 sudo chmod 600 /opt/rustdesk/id_ed25519
-sudo systemctl restart betterdesk-server
+sudo systemctl restart yomie-server
 ```
 
 ### Firewall Configuration
@@ -1271,7 +1271,7 @@ sudo ufw allow from 192.168.0.0/16 to any port 5000 proto tcp   # Web Console
 
 ### Overview
 
-RustDesk clients support end-to-end encryption for remote desktop sessions. BetterDesk Server fully supports this — both P2P (hole-punch) and relay-mode connections establish an encrypted E2E channel with NaCl key exchange.
+RustDesk clients support end-to-end encryption for remote desktop sessions. Yomie Server fully supports this — both P2P (hole-punch) and relay-mode connections establish an encrypted E2E channel with NaCl key exchange.
 
 ### How It Works
 
@@ -1299,7 +1299,7 @@ RustDesk clients support end-to-end encryption for remote desktop sessions. Bett
 
 ## � Chat E2E Encryption
 
-BetterDesk includes a built-in chat system between operators and end-user devices with full end-to-end encryption.
+Yomie includes a built-in chat system between operators and end-user devices with full end-to-end encryption.
 
 ### Protocol
 
@@ -1383,7 +1383,7 @@ The Go server sends a UDP broadcast magic packet (6× `0xFF` + 16× MAC address)
 
 ## �🛠️ Technology Stack
 
-### BetterDesk Go Server
+### Yomie Go Server
 
 | Component | Technology |
 |-----------|-----------|
@@ -1420,10 +1420,10 @@ The Go server sends a UDP broadcast magic packet (6× `0xFF` + 16× MAC address)
 
 | Component | Technology |
 |-----------|-----------|
-| **Linux services** | systemd (`betterdesk-server.service` + `betterdesk-console.service`) |
+| **Linux services** | systemd (`yomie-server.service` + `yomie-console.service`) |
 | **Windows services** | NSSM (`BetterDeskServer` + `BetterDeskConsole`) |
 | **Docker** | Docker Compose with local image builds |
-| **Installation** | Bash (`betterdesk.sh`) + PowerShell (`betterdesk.ps1`) ALL-IN-ONE |
+| **Installation** | Bash (`yomie.sh`) + PowerShell (`yomie.ps1`) ALL-IN-ONE |
 | **CI/CD** | GitHub Actions (multi-platform build) |
 
 ---
@@ -1433,22 +1433,22 @@ The Go server sends a UDP broadcast magic packet (6× `0xFF` + 16× MAC address)
 ### Go Server
 
 ```bash
-cd betterdesk-server
+cd yomie-server
 
 # Linux (amd64)
-CGO_ENABLED=0 go build -ldflags="-s -w" -o betterdesk-server .
+CGO_ENABLED=0 go build -ldflags="-s -w" -o yomie-server .
 
 # Linux (arm64)
-CGO_ENABLED=0 GOARCH=arm64 go build -ldflags="-s -w" -o betterdesk-server-arm64 .
+CGO_ENABLED=0 GOARCH=arm64 go build -ldflags="-s -w" -o yomie-server-arm64 .
 
 # Windows
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o betterdesk-server.exe .
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o yomie-server.exe .
 ```
 
 ### Migration Tool
 
 ```bash
-cd betterdesk-server/tools/migrate
+cd yomie-server/tools/migrate
 go build -o migrate .
 ```
 
@@ -1464,7 +1464,7 @@ npm start
 
 ## 🌍 Internationalization (i18n)
 
-BetterDesk Console supports 25+ languages through JSON-based translations with auto-discovery.
+Yomie Console supports 25+ languages through JSON-based translations with auto-discovery.
 
 **Included languages**: 🇬🇧 English, 🇵🇱 Polish, 🇩🇪 German, 🇫🇷 French, 🇪🇸 Spanish, 🇮🇹 Italian, 🇵🇹 Portuguese, 🇳🇱 Dutch, 🇨🇳 Chinese (Simplified), 🇯🇵 Japanese, 🇰🇷 Korean, 🇸🇦 Arabic, 🇮🇱 Hebrew, 🇺🇦 Ukrainian, 🇹🇷 Turkish, 🇮🇳 Hindi, 🇸🇪 Swedish, 🇳🇴 Norwegian, 🇩🇰 Danish, 🇫🇮 Finnish, 🇨🇿 Czech, 🇭🇺 Hungarian, 🇷🇴 Romanian, 🇹🇭 Thai, 🇻🇳 Vietnamese, 🇮🇩 Indonesian
 
@@ -1524,7 +1524,7 @@ See [CDAP Documentation](docs/cdap/OVERVIEW.md) and [SDK Documentation](docs/sdk
 
 ## 🖥️ Desktop Clients
 
-### BetterDesk MGMT Client (Operator/Admin)
+### Yomie MGMT Client (Operator/Admin)
 
 A Tauri v2 + SolidJS desktop application for operators and administrators.
 
@@ -1544,9 +1544,9 @@ A Tauri v2 + SolidJS desktop application for operators and administrators.
 - Single-instance enforcement (Windows mutex)
 - Full i18n (English + Polish, ~60 keys)
 
-**Build**: `cd betterdesk-mgmt && pnpm install && pnpm tauri build`
+**Build**: `cd yomie-mgmt && pnpm install && pnpm tauri build`
 
-### BetterDesk Agent Client (Endpoint Device)
+### Yomie Agent Client (Endpoint Device)
 
 A lightweight Tauri v2 agent installed on end-user devices.
 
@@ -1560,7 +1560,7 @@ A lightweight Tauri v2 agent installed on end-user devices.
 - Minimal UI (480×520 single window)
 - Full i18n (English + Polish, ~120 keys)
 
-**Build**: `cd betterdesk-agent-client && pnpm install && pnpm tauri build`
+**Build**: `cd yomie-agent-client && pnpm install && pnpm tauri build`
 
 ### Native CDAP Agent (Go)
 
@@ -1570,13 +1570,13 @@ A headless Go binary for servers and IoT devices.
 - Terminal, file browser, clipboard, screenshot capabilities
 - Systemd / NSSM service installers
 
-**Build**: `cd betterdesk-agent && go build -o betterdesk-agent .`
+**Build**: `cd yomie-agent && go build -o yomie-agent .`
 
 ---
 
 ## 🌐 Web Remote Desktop
 
-BetterDesk includes a browser-based remote desktop client accessible from the Web Console.
+Yomie includes a browser-based remote desktop client accessible from the Web Console.
 
 ### Features
 
@@ -1619,7 +1619,7 @@ client.stopRecording();   // Produces .webm file download
 
 ```
 Rustdesk-FreeConsole/
-├── betterdesk-server/           # Go server (~20K LOC)
+├── yomie-server/           # Go server (~20K LOC)
 │   ├── main.go                  # Entry point, flags, boot sequence
 │   ├── signal/                  # Signal server (UDP/TCP/WS)
 │   ├── relay/                   # Relay server (TCP/WS)
@@ -1648,14 +1648,14 @@ Rustdesk-FreeConsole/
 │   ├── views/                   # EJS templates
 │   ├── public/                  # Static assets (CSS, JS)
 │   └── lang/                    # i18n translations (EN, PL)
-├── betterdesk-mgmt/             # MGMT Desktop Client (Tauri v2 + SolidJS)
-├── betterdesk-agent-client/     # Agent Client (Tauri v2 + SolidJS)
-├── betterdesk-agent/            # Native CDAP Agent (Go)
+├── yomie-mgmt/             # MGMT Desktop Client (Tauri v2 + SolidJS)
+├── yomie-agent-client/     # Agent Client (Tauri v2 + SolidJS)
+├── yomie-agent/            # Native CDAP Agent (Go)
 ├── sdks/                        # CDAP Bridge SDKs (Python + Node.js)
 ├── bridges/                     # Reference CDAP Bridges (Modbus, SNMP, REST)
-├── betterdesk.sh                # Linux ALL-IN-ONE installer (v2.4.0)
-├── betterdesk.ps1               # Windows ALL-IN-ONE installer (v2.4.0)
-├── betterdesk-docker.sh         # Docker installer (v2.4.0)
+├── yomie.sh                # Linux ALL-IN-ONE installer (v2.4.0)
+├── yomie.ps1               # Windows ALL-IN-ONE installer (v2.4.0)
+├── yomie-docker.sh         # Docker installer (v2.4.0)
 ├── docker-compose.yml           # Docker orchestration
 ├── docs/                        # Documentation (architecture, CDAP, SDK, security)
 ├── dev_modules/                 # Development & testing utilities
@@ -1670,8 +1670,8 @@ Contributions are welcome! See [CONTRIBUTING.md](docs/development/CONTRIBUTING.m
 
 ### Reporting Issues
 
-1. Run diagnostics: `sudo ./betterdesk.sh` → option 8
-2. Collect logs: `journalctl -u betterdesk-server -n 100`
+1. Run diagnostics: `sudo ./yomie.sh` → option 8
+2. Collect logs: `journalctl -u yomie-server -n 100`
 3. Open a [GitHub Issue](https://github.com/shamstabraiz/Rustdesk-FreeConsole/issues) with system info, logs, and reproduction steps
 
 ### Pull Requests
@@ -1689,13 +1689,13 @@ This project is licensed under the **Apache License 2.0** — see [LICENSE](LICE
 
 ### Clean-Room Implementation
 
-BetterDesk Server (`betterdesk-server/`) is a **clean-room implementation** of the RustDesk rendezvous and relay protocol. Like how any HTTP server implements the HTTP protocol without being "derived from" Apache or Nginx, BetterDesk implements published protocol specifications for compatibility with RustDesk clients — but contains **no RustDesk source code**.
+Yomie Server (`yomie-server/`) is a **clean-room implementation** of the RustDesk rendezvous and relay protocol. Like how any HTTP server implements the HTTP protocol without being "derived from" Apache or Nginx, Yomie implements published protocol specifications for compatibility with RustDesk clients — but contains **no RustDesk source code**.
 
 - **Go imports**: No `github.com/rustdesk/*` dependencies
 - **Code review**: No RustDesk copyright headers or attribution
 - **Protocol**: Uses independently authored `.proto` specifications with Apache 2.0 headers
 
-BetterDesk Console (`web-nodejs/`) is an entirely original Node.js/Express application.
+Yomie Console (`web-nodejs/`) is an entirely original Node.js/Express application.
 
 ### Archive Directory
 
@@ -1703,7 +1703,7 @@ The `archive/` directory (excluded from distribution via `.gitignore`) contains 
 
 ### Trademark Notice
 
-"RustDesk" is a trademark of the RustDesk Team. BetterDesk is an independent project that implements the RustDesk protocol for client compatibility. Use of the name "RustDesk" in this project is purely descriptive (indicating protocol compatibility) and does not imply affiliation with or endorsement by the RustDesk Team.
+"RustDesk" is a trademark of the RustDesk Team. Yomie is an independent project that implements the RustDesk protocol for client compatibility. Use of the name "RustDesk" in this project is purely descriptive (indicating protocol compatibility) and does not imply affiliation with or endorsement by the RustDesk Team.
 
 ### Commercial License
 
@@ -1736,6 +1736,6 @@ Commercial licensing is available for organizations requiring extended support, 
 
 If you find this project useful, please consider giving it a ⭐ on GitHub!
 
-[⬆ Back to Top](#-betterdesk--rustdesk-compatible-server--web-console)
+[⬆ Back to Top](#-yomie--rustdesk-compatible-server--web-console)
 
 </div>

@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Organization Policy Management Routes (v3.0.0)
+ * Yomie Console — Organization Policy Management Routes (v3.0.0)
  *
  * Provides policy CRUD for organizations + device-facing policy fetch
  * + device attestation management.

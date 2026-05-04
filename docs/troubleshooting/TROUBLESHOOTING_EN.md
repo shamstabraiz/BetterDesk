@@ -251,14 +251,14 @@ Thank you for reporting the problems! 🙏
 ## 🔴 Problem 3: All Devices Show as "Offline"
 
 ### Symptoms
-- All devices in BetterDesk Console are shown as "Offline"
+- All devices in Yomie Console are shown as "Offline"
 - RustDesk clients can connect to each other normally
 - `status` column in database is always 0 or NULL
 
 ### Cause
-You are using the **original RustDesk hbbs binary** instead of the **BetterDesk enhanced binary**.
+You are using the **original RustDesk hbbs binary** instead of the **Yomie enhanced binary**.
 
-The original hbbs does NOT update the `status` field in the database - this is a BetterDesk-specific feature.
+The original hbbs does NOT update the `status` field in the database - this is a Yomie-specific feature.
 
 ### How to Check
 
@@ -267,11 +267,11 @@ Run this command to see which binary you have:
 /opt/rustdesk/hbbs --help | head -5
 ```
 
-**BetterDesk binary shows:**
+**Yomie binary shows:**
 ```
 hbbs 1.1.14
 Purslane Ltd. <info@rustdesk.com>
-BetterDesk Enhanced Server v2.0.0
+Yomie Enhanced Server v2.0.0
 ```
 
 **Original binary shows:**
@@ -302,7 +302,7 @@ sudo pkill -f hbbs
 sudo cp /opt/rustdesk/hbbs /opt/rustdesk/hbbs.backup-original
 ```
 
-3. **Install BetterDesk binary:**
+3. **Install Yomie binary:**
 ```bash
 # Download if you don't have it
 git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
@@ -323,8 +323,8 @@ sudo ./hbbr &
 
 5. **Verify:**
 ```bash
-/opt/rustdesk/hbbs --help | grep -i betterdesk
-# Should show: BetterDesk Enhanced Server v2.0.0
+/opt/rustdesk/hbbs --help | grep -i yomie
+# Should show: Yomie Enhanced Server v2.0.0
 ```
 
 ### For Manual (non-systemd) Installations
@@ -345,7 +345,7 @@ echo "RustDesk servers started"
 # Signal server service
 sudo tee /etc/systemd/system/rustdesksignal.service << 'EOF'
 [Unit]
-Description=RustDesk Signal Server (BetterDesk)
+Description=RustDesk Signal Server (Yomie)
 After=network.target
 
 [Service]
@@ -386,19 +386,19 @@ sudo systemctl start rustdesksignal rustdeskrelay
 
 ```
 ┌─────────────┐     register      ┌──────────────┐     updates      ┌──────────────┐
-│  RustDesk   │ ───────────────► │  BetterDesk  │ ───────────────► │   SQLite     │
+│  RustDesk   │ ───────────────► │  Yomie  │ ───────────────► │   SQLite     │
 │   Client    │                  │    hbbs      │   status=1       │  db_v2.sqlite│
 └─────────────┘                  └──────────────┘   last_online    └──────────────┘
                                                                            │
                                                                            │ reads
                                                                            ▼
                                  ┌──────────────┐                   ┌──────────────┐
-                                 │  BetterDesk  │ ◄──────────────── │   Web UI     │
+                                 │  Yomie  │ ◄──────────────── │   Web UI     │
                                  │   Console    │    status=1?     │   Browser    │
                                  └──────────────┘    → Online       └──────────────┘
 ```
 
-**Key point:** Only the **BetterDesk enhanced hbbs** updates the database with online status. The original RustDesk hbbs does not have this feature.
+**Key point:** Only the **Yomie enhanced hbbs** updates the database with online status. The original RustDesk hbbs does not have this feature.
 
 ---
 
@@ -412,7 +412,7 @@ Relay connection failed: Connection to relay server failed. Please try again lat
 ```
 (German: "Verbindungsfehler — Verbindung über Relay-Server ist fehlgeschlagen")
 
-This happens across **all** client platforms (Windows, Linux, macOS, Android). No errors appear in BetterDesk server or console logs.
+This happens across **all** client platforms (Windows, Linux, macOS, Android). No errors appear in Yomie server or console logs.
 
 ### Root Cause
 
@@ -422,7 +422,7 @@ The server resolved an **IPv6-only** address for `RELAY_SERVERS`. Many RustDesk 
 
 ```bash
 # Linux: check the systemd service for relay-servers parameter
-sudo systemctl cat betterdesk-server | grep relay-servers
+sudo systemctl cat yomie-server | grep relay-servers
 
 # If you see something like:
 #   -relay-servers 2a01:4f8:xxxx::1
@@ -432,7 +432,7 @@ sudo systemctl cat betterdesk-server | grep relay-servers
 ```powershell
 # Windows: check the scheduled task or NSSM service arguments
 nssm get BetterDeskServer AppParameters
-# Or check the task in Task Scheduler → BetterDesk → BetterDeskServer → Arguments
+# Or check the task in Task Scheduler → Yomie → BetterDeskServer → Arguments
 ```
 
 ### Solution
@@ -442,7 +442,7 @@ Change `RELAY_SERVERS` to use an **IPv4 address** (or both IPv4 and IPv6):
 **Linux:**
 ```bash
 # Edit the service file
-sudo nano /etc/systemd/system/betterdesk-server.service
+sudo nano /etc/systemd/system/yomie-server.service
 
 # Change -relay-servers from IPv6 to IPv4:
 # Before: -relay-servers 2a01:4f8:xxxx::1
@@ -450,7 +450,7 @@ sudo nano /etc/systemd/system/betterdesk-server.service
 
 # Reload and restart
 sudo systemctl daemon-reload
-sudo systemctl restart betterdesk-server
+sudo systemctl restart yomie-server
 ```
 
 **Windows:**
@@ -466,7 +466,7 @@ Restart-Service BetterDeskServer
 ```yaml
 # docker-compose.yml
 services:
-  betterdesk-server:
+  yomie-server:
     command: >-
       -mode all
       -relay-servers YOUR_IPV4_ADDRESS
@@ -475,4 +475,4 @@ services:
 
 ### Prevention
 
-As of v2.4.0, the ALL-IN-ONE installation scripts (`betterdesk.sh` / `betterdesk.ps1`) automatically detect IPv6-only addresses and attempt to resolve an IPv4 address instead, preventing this issue from occurring during installation.
+As of v2.4.0, the ALL-IN-ONE installation scripts (`yomie.sh` / `yomie.ps1`) automatically detect IPv6-only addresses and attempt to resolve an IPv4 address instead, preventing this issue from occurring during installation.

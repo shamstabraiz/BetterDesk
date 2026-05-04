@@ -1,5 +1,5 @@
 /**
- * BetterDesk Web Remote Client - Main Client Orchestrator
+ * Yomie Web Remote Client - Main Client Orchestrator
  * Ties together all rdclient modules: connection, protocol, crypto,
  * video, audio, renderer, and input.
  *
@@ -250,8 +250,8 @@ class RDClient {
             // username must be set to target device ID (RustDesk validates: is_ip || is_domain_port || == Config::get_id())
             const loginReq = this.proto.buildLoginRequest(hash, {
                 username: this.deviceId,
-                myId: 'betterdesk-web-' + Date.now().toString(36),
-                myName: this.opts.myName || this.opts.myName || 'BetterDesk Web',
+                myId: 'yomie-web-' + Date.now().toString(36),
+                myName: this.opts.myName || this.opts.myName || 'Yomie Web',
                 disableAudio: this.opts.disableAudio || false,
                 fps: this.opts.fps || 60,
                 imageQuality: this.opts.imageQuality || 'Best'

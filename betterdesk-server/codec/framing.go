@@ -1,4 +1,4 @@
-// Package codec provides wire protocol encoding/decoding for the BetterDesk server.
+// Package codec provides wire protocol encoding/decoding for the Yomie server.
 //
 // RustDesk wire protocol framing (hbb_common::bytes_codec::BytesCodec):
 //   - TCP: variable-length header (1-4 bytes) + protobuf payload
@@ -15,7 +15,7 @@ import (
 	"net"
 	"time"
 
-	pb "github.com/unitronix/betterdesk-server/proto"
+	pb "github.com/unitronix/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

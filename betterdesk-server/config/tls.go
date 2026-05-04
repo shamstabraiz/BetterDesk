@@ -1,4 +1,4 @@
-// Package config — TLS utilities for BetterDesk server.
+// Package config — TLS utilities for Yomie server.
 // Provides a shared TLS configuration loader and a dual-mode listener that
 // accepts both plain TCP and TLS on the same port (first-byte detection).
 package config

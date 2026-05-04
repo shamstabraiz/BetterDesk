@@ -1,7 +1,7 @@
 #!/bin/bash
 #===============================================================================
 #
-#   BetterDesk Console Manager v3.0.0
+#   Yomie Console Manager v3.0.0
 #   All-in-One Interactive Tool for Linux
 #
 #   Features:
@@ -27,9 +27,9 @@
 #     - CDAP (Custom Device API Protocol) support
 #
 #   Usage: 
-#     Interactive: sudo ./betterdesk.sh
-#     Auto mode:   sudo ./betterdesk.sh --auto
-#     PostgreSQL:  sudo ./betterdesk.sh --auto --postgresql
+#     Interactive: sudo ./yomie.sh
+#     Auto mode:   sudo ./yomie.sh --auto
+#     PostgreSQL:  sudo ./yomie.sh --auto --postgresql
 #
 #===============================================================================
 
@@ -80,9 +80,9 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help|-h)
-            echo "BetterDesk Console Manager v$VERSION"
+            echo "Yomie Console Manager v$VERSION"
             echo ""
-            echo "Usage: sudo ./betterdesk.sh [OPTIONS]"
+            echo "Usage: sudo ./yomie.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --auto, -a       Run in automatic mode (non-interactive)"
@@ -96,9 +96,9 @@ while [[ $# -gt 0 ]]; do
             echo "Environment variables:"
             echo "  USE_POSTGRESQL=true     Use PostgreSQL"
             echo "  POSTGRESQL_URI=...      PostgreSQL connection URI"
-            echo "  POSTGRESQL_USER=...     PostgreSQL username (default: betterdesk)"
+            echo "  POSTGRESQL_USER=...     PostgreSQL username (default: yomie)"
             echo "  POSTGRESQL_PASS=...     PostgreSQL password (auto-generated if empty)"
-            echo "  POSTGRESQL_DB=...       PostgreSQL database (default: betterdesk)"
+            echo "  POSTGRESQL_DB=...       PostgreSQL database (default: yomie)"
             echo "  POSTGRESQL_HOST=...     PostgreSQL host (default: localhost)"
             echo "  POSTGRESQL_PORT=...     PostgreSQL port (default: 5432)"
             echo "  STORE_ADMIN_CREDENTIALS=true  Persist admin password to .admin_credentials (not recommended)"
@@ -112,7 +112,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Go server source directory
-GO_SERVER_SOURCE="$SCRIPT_DIR/betterdesk-server"
+GO_SERVER_SOURCE="$SCRIPT_DIR/yomie-server"
 
 # Minimum Go version required for compilation
 GO_MIN_VERSION="1.25"
@@ -130,15 +130,15 @@ STORE_ADMIN_CREDENTIALS="${STORE_ADMIN_CREDENTIALS:-false}"
 # Database configuration
 USE_POSTGRESQL="${USE_POSTGRESQL:-false}"  # true = PostgreSQL, false = SQLite
 POSTGRESQL_URI="${POSTGRESQL_URI:-}"       # postgres://user:pass@host:5432/dbname
-POSTGRESQL_USER="${POSTGRESQL_USER:-betterdesk}"
+POSTGRESQL_USER="${POSTGRESQL_USER:-yomie}"
 POSTGRESQL_PASS="${POSTGRESQL_PASS:-}"
-POSTGRESQL_DB="${POSTGRESQL_DB:-betterdesk}"
+POSTGRESQL_DB="${POSTGRESQL_DB:-yomie}"
 POSTGRESQL_HOST="${POSTGRESQL_HOST:-localhost}"
 POSTGRESQL_PORT="${POSTGRESQL_PORT:-5432}"
 
 # Common installation paths to search
 COMMON_RUSTDESK_PATHS=(
-    "/opt/betterdesk"
+    "/opt/yomie"
     "/opt/rustdesk"
     "/usr/local/rustdesk"
     "/var/lib/rustdesk"
@@ -148,8 +148,8 @@ COMMON_RUSTDESK_PATHS=(
 
 COMMON_CONSOLE_PATHS=(
     "/opt/BetterDeskConsole"
-    "/opt/betterdesk"
-    "/var/lib/betterdesk"
+    "/opt/yomie"
+    "/var/lib/yomie"
     "$HOME/BetterDeskConsole"
 )
 
@@ -352,14 +352,14 @@ show_service_logs() {
     echo ""
 }
 
-# Gracefully stop all BetterDesk services with proper cleanup
+# Gracefully stop all Yomie services with proper cleanup
 graceful_stop_services() {
     print_step "Stopping services gracefully..."
     
     # New Go services (primary)
-    local services=("betterdesk-console" "betterdesk-server")
+    local services=("yomie-console" "yomie-server")
     # Legacy services (for migration)
-    local legacy_services=("betterdesk" "rustdesksignal" "rustdeskrelay" "betterdesk-api" "betterdesk-go")
+    local legacy_services=("yomie" "rustdesksignal" "rustdeskrelay" "yomie-api" "yomie-go")
     
     # Stop current services
     for service in "${services[@]}"; do
@@ -383,7 +383,7 @@ graceful_stop_services() {
     done
     
     # Kill any stale processes (Go and legacy Rust)
-    kill_stale_processes "betterdesk-server"
+    kill_stale_processes "yomie-server"
     kill_stale_processes "hbbs"
     kill_stale_processes "hbbr"
     
@@ -417,20 +417,20 @@ start_services_with_verification() {
     fi
     
     # Enable services
-    systemctl enable betterdesk-server betterdesk-console 2>/dev/null || true
+    systemctl enable yomie-server yomie-console 2>/dev/null || true
     
     # Start Go server (signal + relay + API in one binary)
-    print_info "Starting betterdesk-server (Go)..."
-    systemctl start betterdesk-server
+    print_info "Starting yomie-server (Go)..."
+    systemctl start yomie-server
     sleep 3
     
-    if ! verify_service_health "betterdesk-server" "21116" 10; then
-        print_error "Failed to start betterdesk-server"
-        print_info "Service state: $(systemctl show betterdesk-server --property=ActiveState --value 2>/dev/null)"
-        print_info "Run: journalctl -u betterdesk-server -n 50 --no-pager"
+    if ! verify_service_health "yomie-server" "21116" 10; then
+        print_error "Failed to start yomie-server"
+        print_info "Service state: $(systemctl show yomie-server --property=ActiveState --value 2>/dev/null)"
+        print_info "Run: journalctl -u yomie-server -n 50 --no-pager"
         return 1
     fi
-    print_success "betterdesk-server started and healthy"
+    print_success "yomie-server started and healthy"
     
     # Inject shared API key into Go server database for Node.js ↔ Go communication
     local api_key_file="$RUSTDESK_PATH/.api_key"
@@ -449,29 +449,29 @@ start_services_with_verification() {
     fi
     
     # Verify relay port is also listening
-    if ! verify_service_health "betterdesk-server" "21117" 5; then
+    if ! verify_service_health "yomie-server" "21117" 5; then
         print_warning "Relay port 21117 may not be ready yet"
     fi
     
     # Start Node.js console
-    print_info "Starting betterdesk-console (Node.js)..."
-    systemctl start betterdesk-console
+    print_info "Starting yomie-console (Node.js)..."
+    systemctl start yomie-console
     sleep 2
     
-    if ! verify_service_health "betterdesk-console" "5000" 10; then
+    if ! verify_service_health "yomie-console" "5000" 10; then
         print_warning "Web console may not be running correctly"
         local console_state
-        console_state=$(systemctl show betterdesk-console --property=ActiveState --value 2>/dev/null)
+        console_state=$(systemctl show yomie-console --property=ActiveState --value 2>/dev/null)
         if [ "$console_state" = "failed" ]; then
             print_error "Console service FAILED. Possible causes:"
             print_info "  - Missing npm modules (npm install failed)"
             print_info "  - TLS certificate issue (self-signed cert rejected)"
             print_info "  - Port 5000 conflict"
-            print_info "Run: journalctl -u betterdesk-console -n 50 --no-pager"
+            print_info "Run: journalctl -u yomie-console -n 50 --no-pager"
         fi
         # Don't fail for console - it's not critical
     else
-        print_success "betterdesk-console started and healthy"
+        print_success "yomie-console started and healthy"
     fi
     
     print_success "All services started and verified"
@@ -496,7 +496,7 @@ detect_installation() {
         INSTALL_STATUS="partial"
         
         # Check Go server binary (primary) or legacy Rust binaries
-        if [ -f "$RUSTDESK_PATH/betterdesk-server" ]; then
+        if [ -f "$RUSTDESK_PATH/yomie-server" ]; then
             BINARIES_OK=true
             SERVER_TYPE="go"
         elif [ -f "$RUSTDESK_PATH/hbbs" ] || [ -f "$RUSTDESK_PATH/hbbs-v8-api" ]; then
@@ -544,7 +544,7 @@ detect_installation() {
     fi
     
     # Check services (Go server or legacy Rust)
-    if systemctl is-active --quiet betterdesk-server 2>/dev/null; then
+    if systemctl is-active --quiet yomie-server 2>/dev/null; then
         HBBS_RUNNING=true
         HBBR_RUNNING=true  # Go server handles both
     elif systemctl is-active --quiet rustdesksignal 2>/dev/null || \
@@ -559,8 +559,8 @@ detect_installation() {
         fi
     fi
     
-    if systemctl is-active --quiet betterdesk-console 2>/dev/null || \
-       systemctl is-active --quiet betterdesk 2>/dev/null; then
+    if systemctl is-active --quiet yomie-console 2>/dev/null || \
+       systemctl is-active --quiet yomie 2>/dev/null; then
         CONSOLE_RUNNING=true
     fi
 }
@@ -613,7 +613,7 @@ auto_detect_paths() {
     
     # If RUSTDESK_PATH is already set (via env var), validate it
     if [ -n "$RUSTDESK_PATH" ]; then
-        if [ -d "$RUSTDESK_PATH" ] && { [ -f "$RUSTDESK_PATH/betterdesk-server" ] || [ -f "$RUSTDESK_PATH/hbbs" ] || [ -f "$RUSTDESK_PATH/hbbs-v8-api" ]; }; then
+        if [ -d "$RUSTDESK_PATH" ] && { [ -f "$RUSTDESK_PATH/yomie-server" ] || [ -f "$RUSTDESK_PATH/hbbs" ] || [ -f "$RUSTDESK_PATH/hbbs-v8-api" ]; }; then
             print_info "Using configured RustDesk path: $RUSTDESK_PATH"
             found=true
         else
@@ -625,7 +625,7 @@ auto_detect_paths() {
     # Auto-detect if not found
     if [ -z "$RUSTDESK_PATH" ]; then
         for path in "${COMMON_RUSTDESK_PATHS[@]}"; do
-            if [ -d "$path" ] && { [ -f "$path/betterdesk-server" ] || [ -f "$path/hbbs" ] || [ -f "$path/hbbs-v8-api" ]; }; then
+            if [ -d "$path" ] && { [ -f "$path/yomie-server" ] || [ -f "$path/hbbs" ] || [ -f "$path/hbbs-v8-api" ]; }; then
                 RUSTDESK_PATH="$path"
                 print_success "Detected RustDesk installation: $RUSTDESK_PATH"
                 found=true
@@ -636,7 +636,7 @@ auto_detect_paths() {
     
     # If still not found, use default for new installations
     if [ -z "$RUSTDESK_PATH" ]; then
-        RUSTDESK_PATH="/opt/betterdesk"
+        RUSTDESK_PATH="/opt/yomie"
         print_info "No installation detected. Default path: $RUSTDESK_PATH"
     fi
     
@@ -760,7 +760,7 @@ configure_paths() {
             configure_paths
             ;;
         4)
-            RUSTDESK_PATH="/opt/betterdesk"
+            RUSTDESK_PATH="/opt/yomie"
             CONSOLE_PATH="/opt/BetterDeskConsole"
             DB_PATH="$RUSTDESK_PATH/db_v2.sqlite3"
             print_success "Paths reset to defaults"
@@ -856,21 +856,21 @@ print_status() {
     echo ""
     
     # Check if using Go server (single binary) or legacy Rust (two binaries)
-    if [ "${SERVER_TYPE:-}" = "go" ] || systemctl is-active --quiet betterdesk-server 2>/dev/null; then
+    if [ "${SERVER_TYPE:-}" = "go" ] || systemctl is-active --quiet yomie-server 2>/dev/null; then
         local go_state
-        go_state=$(systemctl show betterdesk-server --property=ActiveState --value 2>/dev/null || echo "unknown")
+        go_state=$(systemctl show yomie-server --property=ActiveState --value 2>/dev/null || echo "unknown")
         case "$go_state" in
             active)
-                echo -e "  BetterDesk Server (Go): ${GREEN}● Active${NC} (Signal + Relay + API)"
+                echo -e "  Yomie Server (Go): ${GREEN}● Active${NC} (Signal + Relay + API)"
                 ;;
             failed)
-                echo -e "  BetterDesk Server (Go): ${RED}✗ Failed${NC} (check: journalctl -u betterdesk-server -n 30)"
+                echo -e "  Yomie Server (Go): ${RED}✗ Failed${NC} (check: journalctl -u yomie-server -n 30)"
                 ;;
             activating)
-                echo -e "  BetterDesk Server (Go): ${YELLOW}◌ Starting...${NC}"
+                echo -e "  Yomie Server (Go): ${YELLOW}◌ Starting...${NC}"
                 ;;
             *)
-                echo -e "  BetterDesk Server (Go): ${RED}○ Inactive${NC} ($go_state)"
+                echo -e "  Yomie Server (Go): ${RED}○ Inactive${NC} ($go_state)"
                 ;;
         esac
     else
@@ -890,13 +890,13 @@ print_status() {
     
     # Console status with state details
     local console_state
-    console_state=$(systemctl show betterdesk-console --property=ActiveState --value 2>/dev/null || echo "unknown")
+    console_state=$(systemctl show yomie-console --property=ActiveState --value 2>/dev/null || echo "unknown")
     case "$console_state" in
         active)
             echo -e "  Web Console:   ${GREEN}● Active${NC}"
             ;;
         failed)
-            echo -e "  Web Console:   ${RED}✗ Failed${NC} (check: journalctl -u betterdesk-console -n 30)"
+            echo -e "  Web Console:   ${RED}✗ Failed${NC} (check: journalctl -u yomie-console -n 30)"
             ;;
         activating)
             echo -e "  Web Console:   ${YELLOW}◌ Starting...${NC}"
@@ -1004,7 +1004,7 @@ install_golang() {
 }
 
 compile_go_server() {
-    print_step "Compiling BetterDesk Go server..."
+    print_step "Compiling Yomie Go server..."
     
     if [ ! -d "$GO_SERVER_SOURCE" ]; then
         print_error "Go server source not found: $GO_SERVER_SOURCE"
@@ -1024,11 +1024,11 @@ compile_go_server() {
     cd "$GO_SERVER_SOURCE"
     
     # Clean previous builds
-    rm -f betterdesk-server betterdesk-server-linux-*
+    rm -f yomie-server yomie-server-linux-*
     
     # Build
-    print_info "Building BetterDesk server for $ARCH_NAME..."
-    local output_name="betterdesk-server"
+    print_info "Building Yomie server for $ARCH_NAME..."
+    local output_name="yomie-server"
     
     # Download dependencies
     print_info "Downloading Go modules..."
@@ -1056,12 +1056,12 @@ verify_go_binary() {
     local binary_path="$1"
     
     if [ -z "$binary_path" ]; then
-        binary_path="$GO_SERVER_SOURCE/betterdesk-server"
+        binary_path="$GO_SERVER_SOURCE/yomie-server"
     fi
     
     if [ ! -f "$binary_path" ]; then
         # Check installed location
-        binary_path="$RUSTDESK_PATH/betterdesk-server"
+        binary_path="$RUSTDESK_PATH/yomie-server"
     fi
     
     if [ ! -f "$binary_path" ]; then
@@ -1077,7 +1077,7 @@ verify_go_binary() {
 }
 
 verify_binaries() {
-    print_step "Verifying BetterDesk server..."
+    print_step "Verifying Yomie server..."
     
     if [ "$SKIP_VERIFY" = true ]; then
         print_warning "Verification skipped (--skip-verify)"
@@ -1087,24 +1087,24 @@ verify_binaries() {
     # Check for precompiled binary
     local found=false
     
-    if [ -f "$GO_SERVER_SOURCE/betterdesk-server" ]; then
-        if verify_go_binary "$GO_SERVER_SOURCE/betterdesk-server"; then
-            local size=$(du -h "$GO_SERVER_SOURCE/betterdesk-server" | cut -f1)
+    if [ -f "$GO_SERVER_SOURCE/yomie-server" ]; then
+        if verify_go_binary "$GO_SERVER_SOURCE/yomie-server"; then
+            local size=$(du -h "$GO_SERVER_SOURCE/yomie-server" | cut -f1)
             print_success "Found compiled binary in source directory ($size)"
             found=true
         fi
     fi
     
-    if [ -f "$RUSTDESK_PATH/betterdesk-server" ]; then
-        if verify_go_binary "$RUSTDESK_PATH/betterdesk-server"; then
-            local size=$(du -h "$RUSTDESK_PATH/betterdesk-server" | cut -f1)
+    if [ -f "$RUSTDESK_PATH/yomie-server" ]; then
+        if verify_go_binary "$RUSTDESK_PATH/yomie-server"; then
+            local size=$(du -h "$RUSTDESK_PATH/yomie-server" | cut -f1)
             print_success "Found installed binary ($size)"
             found=true
         fi
     fi
     
     if [ "$found" = false ]; then
-        print_warning "No BetterDesk server binary found"
+        print_warning "No Yomie server binary found"
         print_info "Binary will be compiled during installation"
     fi
     
@@ -1180,7 +1180,7 @@ install_postgresql() {
 }
 
 setup_postgresql_database() {
-    print_step "Setting up PostgreSQL database for BetterDesk..."
+    print_step "Setting up PostgreSQL database for Yomie..."
 
     if ! is_valid_pg_identifier "$POSTGRESQL_USER"; then
         print_error "Invalid PostgreSQL username: $POSTGRESQL_USER"
@@ -1308,20 +1308,20 @@ migrate_sqlite_to_postgresql() {
     
     # Find migration binary
     local migrate_bin=""
-    if [ -f "$SCRIPT_DIR/betterdesk-server/tools/migrate/migrate-linux-amd64" ]; then
-        migrate_bin="$SCRIPT_DIR/betterdesk-server/tools/migrate/migrate-linux-amd64"
+    if [ -f "$SCRIPT_DIR/yomie-server/tools/migrate/migrate-linux-amd64" ]; then
+        migrate_bin="$SCRIPT_DIR/yomie-server/tools/migrate/migrate-linux-amd64"
     elif [ -f "$SCRIPT_DIR/tools/migrate/migrate-linux-amd64" ]; then
         migrate_bin="$SCRIPT_DIR/tools/migrate/migrate-linux-amd64"
-    elif [ -f "/opt/betterdesk-go/migrate" ]; then
-        migrate_bin="/opt/betterdesk-go/migrate"
+    elif [ -f "/opt/yomie-go/migrate" ]; then
+        migrate_bin="/opt/yomie-go/migrate"
     fi
     
     # Try to compile migration tool from source if not found or outdated
     if [ -z "$migrate_bin" ] && command -v go &>/dev/null; then
-        local migrate_src="$SCRIPT_DIR/betterdesk-server/tools/migrate"
+        local migrate_src="$SCRIPT_DIR/yomie-server/tools/migrate"
         if [ -d "$migrate_src" ]; then
             print_info "Compiling migration tool from source..."
-            if (cd "$SCRIPT_DIR/betterdesk-server" && go build -o "tools/migrate/migrate-linux-amd64" ./tools/migrate/) 2>&1; then
+            if (cd "$SCRIPT_DIR/yomie-server" && go build -o "tools/migrate/migrate-linux-amd64" ./tools/migrate/) 2>&1; then
                 migrate_bin="$migrate_src/migrate-linux-amd64"
                 print_success "Migration tool compiled successfully"
             else
@@ -1342,7 +1342,7 @@ migrate_sqlite_to_postgresql() {
     if ! "$migrate_bin" -mode backup -src /dev/null 2>&1 | grep -qv "flag provided but not defined"; then
         if "$migrate_bin" -mode backup -src /dev/null 2>&1 | grep -q "flag provided but not defined"; then
             print_warning "Migration binary is outdated (missing -mode flag)"
-            print_info "Rebuild with: cd betterdesk-server && go build -o tools/migrate/migrate-linux-amd64 ./tools/migrate/"
+            print_info "Rebuild with: cd yomie-server && go build -o tools/migrate/migrate-linux-amd64 ./tools/migrate/"
             return 0
         fi
     fi
@@ -1522,7 +1522,7 @@ DB_PATH=$RUSTDESK_PATH/db_v2.sqlite3"
     
     # Create .env file (always update to ensure correct paths)
     cat > "$CONSOLE_PATH/.env" << EOF
-# BetterDesk Node.js Console Configuration
+# Yomie Node.js Console Configuration
 PORT=5000
 HOST=0.0.0.0
 NODE_ENV=production
@@ -1544,8 +1544,8 @@ HBBS_API_URL=http://localhost:$API_PORT/api
 # RustDesk Client API listener
 API_HOST=0.0.0.0
 
-# Server backend (betterdesk = Go server, rustdesk = legacy Rust)
-SERVER_BACKEND=betterdesk
+# Server backend (yomie = Go server, rustdesk = legacy Rust)
+SERVER_BACKEND=yomie
 
 # Default admin credentials (used only on first startup)
 DEFAULT_ADMIN_USERNAME=admin
@@ -1557,8 +1557,8 @@ SESSION_SECRET=$session_secret
 # HTTPS (set to true and provide certificate paths to enable)
 HTTPS_ENABLED=false
 HTTPS_PORT=5443
-SSL_CERT_PATH=$RUSTDESK_PATH/ssl/betterdesk.crt
-SSL_KEY_PATH=$RUSTDESK_PATH/ssl/betterdesk.key
+SSL_CERT_PATH=$RUSTDESK_PATH/ssl/yomie.crt
+SSL_KEY_PATH=$RUSTDESK_PATH/ssl/yomie.key
 SSL_CA_PATH=
 HTTP_REDIRECT_HTTPS=true
 
@@ -1585,7 +1585,7 @@ EOF
 install_binaries() {
     local force_recompile="${1:-false}"
     
-    print_step "Installing BetterDesk Go Server..."
+    print_step "Installing Yomie Go Server..."
     
     # Ensure architecture is detected
     if [ -z "$ARCH_NAME" ]; then
@@ -1593,14 +1593,14 @@ install_binaries() {
     fi
     
     # Safety: stop services before copying (prevents "Text file busy")
-    if systemctl is-active --quiet betterdesk-server 2>/dev/null; then
+    if systemctl is-active --quiet yomie-server 2>/dev/null; then
         print_info "Stopping running services before binary installation..."
         graceful_stop_services
     fi
     
     mkdir -p "$RUSTDESK_PATH"
     
-    local go_binary="$GO_SERVER_SOURCE/betterdesk-server"
+    local go_binary="$GO_SERVER_SOURCE/yomie-server"
     local need_compile=false
     
     if [ ! -f "$go_binary" ]; then
@@ -1644,10 +1644,10 @@ install_binaries() {
     fi
     
     # Copy binary
-    cp "$go_binary" "$RUSTDESK_PATH/betterdesk-server"
-    chmod +x "$RUSTDESK_PATH/betterdesk-server"
+    cp "$go_binary" "$RUSTDESK_PATH/yomie-server"
+    chmod +x "$RUSTDESK_PATH/yomie-server"
     
-    print_success "BetterDesk Go Server v$VERSION installed"
+    print_success "Yomie Go Server v$VERSION installed"
     print_info "Single binary replaces both hbbs (signal) and hbbr (relay)"
 }
 
@@ -1701,7 +1701,7 @@ migrate_console() {
     fi
     
     # Stop old console service
-    systemctl stop betterdesk 2>/dev/null || true
+    systemctl stop yomie 2>/dev/null || true
     
     # Remove old console files but preserve data
     rm -rf "$CONSOLE_PATH/venv" 2>/dev/null || true
@@ -1717,7 +1717,7 @@ generate_ssl_certificates() {
     local ssl_dir="$RUSTDESK_PATH/ssl"
     
     # Skip if certificates already exist
-    if [ -f "$ssl_dir/betterdesk.crt" ] && [ -f "$ssl_dir/betterdesk.key" ]; then
+    if [ -f "$ssl_dir/yomie.crt" ] && [ -f "$ssl_dir/yomie.key" ]; then
         print_info "TLS certificates already exist at $ssl_dir"
         print_info "Skipping certificate generation (use SSL config menu to regenerate)"
         return 0
@@ -1760,17 +1760,17 @@ generate_ssl_certificates() {
     
     # Generate certificate with SAN extension (valid for 10 years for self-signed)
     openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-        -keyout "$ssl_dir/betterdesk.key" \
-        -out "$ssl_dir/betterdesk.crt" \
-        -subj "/CN=$cn/O=BetterDesk/C=PL" \
+        -keyout "$ssl_dir/yomie.key" \
+        -out "$ssl_dir/yomie.crt" \
+        -subj "/CN=$cn/O=Yomie/C=PL" \
         -addext "subjectAltName=$san_list" \
         2>&1 || {
         print_warning "Certificate generation failed (openssl too old for -addext?)"
         # Fallback without SAN for older openssl
         openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-            -keyout "$ssl_dir/betterdesk.key" \
-            -out "$ssl_dir/betterdesk.crt" \
-            -subj "/CN=$cn/O=BetterDesk/C=PL" \
+            -keyout "$ssl_dir/yomie.key" \
+            -out "$ssl_dir/yomie.crt" \
+            -subj "/CN=$cn/O=Yomie/C=PL" \
             2>&1 || {
             print_error "Failed to generate self-signed certificate"
             return 1
@@ -1778,31 +1778,31 @@ generate_ssl_certificates() {
     }
     
     # Secure private key permissions
-    chmod 600 "$ssl_dir/betterdesk.key"
-    chmod 644 "$ssl_dir/betterdesk.crt"
+    chmod 600 "$ssl_dir/yomie.key"
+    chmod 644 "$ssl_dir/yomie.crt"
     
     # Also symlink to console SSL directory for Node.js
     if [ -d "$CONSOLE_PATH" ]; then
         local console_ssl="$CONSOLE_PATH/ssl"
         mkdir -p "$console_ssl"
-        ln -sf "$ssl_dir/betterdesk.crt" "$console_ssl/betterdesk.crt" 2>/dev/null || \
-            cp -f "$ssl_dir/betterdesk.crt" "$console_ssl/betterdesk.crt"
-        ln -sf "$ssl_dir/betterdesk.key" "$console_ssl/betterdesk.key" 2>/dev/null || \
-            cp -f "$ssl_dir/betterdesk.key" "$console_ssl/betterdesk.key"
+        ln -sf "$ssl_dir/yomie.crt" "$console_ssl/yomie.crt" 2>/dev/null || \
+            cp -f "$ssl_dir/yomie.crt" "$console_ssl/yomie.crt"
+        ln -sf "$ssl_dir/yomie.key" "$console_ssl/yomie.key" 2>/dev/null || \
+            cp -f "$ssl_dir/yomie.key" "$console_ssl/yomie.key"
         
         # Enable HTTPS in .env so Node.js console (port 5000 + 21121) uses TLS
         local env_file="$CONSOLE_PATH/.env"
         if [ -f "$env_file" ]; then
             sed -i "s|^HTTPS_ENABLED=.*|HTTPS_ENABLED=true|" "$env_file"
-            sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/betterdesk.crt|" "$env_file"
-            sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/betterdesk.key|" "$env_file"
+            sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/yomie.crt|" "$env_file"
+            sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/yomie.key|" "$env_file"
             # Note: Do NOT change API URLs to https:// here for self-signed certs
             # API TLS is only enabled with --tls-api (proper certs or ENTERPRISE_TLS=true)
             # Self-signed: Node.js needs to trust the CA
             if grep -q '^NODE_EXTRA_CA_CERTS=' "$env_file" 2>/dev/null; then
-                sed -i "s|^NODE_EXTRA_CA_CERTS=.*|NODE_EXTRA_CA_CERTS=$ssl_dir/betterdesk.crt|" "$env_file"
+                sed -i "s|^NODE_EXTRA_CA_CERTS=.*|NODE_EXTRA_CA_CERTS=$ssl_dir/yomie.crt|" "$env_file"
             else
-                echo "NODE_EXTRA_CA_CERTS=$ssl_dir/betterdesk.crt" >> "$env_file"
+                echo "NODE_EXTRA_CA_CERTS=$ssl_dir/yomie.crt" >> "$env_file"
             fi
             
             # Enterprise TLS: Enable HTTPS for Go API communication
@@ -1822,8 +1822,8 @@ generate_ssl_certificates() {
     fi
     
     print_success "Self-signed TLS certificate generated (valid 10 years)"
-    print_info "Certificate: $ssl_dir/betterdesk.crt"
-    print_info "Private key: $ssl_dir/betterdesk.key"
+    print_info "Certificate: $ssl_dir/yomie.crt"
+    print_info "Private key: $ssl_dir/yomie.key"
     print_info "SANs: $san_list"
     [ -n "$lan_ip" ] && [ "$lan_ip" != "$server_ip" ] && print_info "LAN IP included: $lan_ip"
     return 0
@@ -1857,7 +1857,7 @@ setup_services() {
         print_warning "Remote clients will NOT be able to connect via relay!"
         print_warning "If this is a public-facing server, set RELAY_SERVERS env var to your public IP."
         echo ""
-        echo -e "  ${YELLOW}Example: RELAY_SERVERS=YOUR.PUBLIC.IP sudo ./betterdesk.sh${NC}"
+        echo -e "  ${YELLOW}Example: RELAY_SERVERS=YOUR.PUBLIC.IP sudo ./yomie.sh${NC}"
         echo ""
     fi
     
@@ -1884,14 +1884,14 @@ setup_services() {
     local tls_arg=""
     local ssl_dir="$RUSTDESK_PATH/ssl"
     local tls_is_selfsigned=false
-    if [ -f "$ssl_dir/betterdesk.crt" ] && [ -f "$ssl_dir/betterdesk.key" ]; then
+    if [ -f "$ssl_dir/yomie.crt" ] && [ -f "$ssl_dir/yomie.key" ]; then
         # Check if certificate is self-signed (issuer == subject after stripping prefix)
         local cert_issuer cert_subject
-        cert_issuer=$(openssl x509 -in "$ssl_dir/betterdesk.crt" -noout -issuer 2>/dev/null | sed 's/^issuer[= ]*//' || echo "")
-        cert_subject=$(openssl x509 -in "$ssl_dir/betterdesk.crt" -noout -subject 2>/dev/null | sed 's/^subject[= ]*//' || echo "")
+        cert_issuer=$(openssl x509 -in "$ssl_dir/yomie.crt" -noout -issuer 2>/dev/null | sed 's/^issuer[= ]*//' || echo "")
+        cert_subject=$(openssl x509 -in "$ssl_dir/yomie.crt" -noout -subject 2>/dev/null | sed 's/^subject[= ]*//' || echo "")
         if [ -n "$cert_issuer" ] && [ "$cert_issuer" = "$cert_subject" ]; then
             tls_is_selfsigned=true
-        elif echo "$cert_subject" | grep -qi "BetterDesk"; then
+        elif echo "$cert_subject" | grep -qi "Yomie"; then
             tls_is_selfsigned=true
         fi
         
@@ -1899,7 +1899,7 @@ setup_services() {
         # API port (21114) MUST stay HTTP — RustDesk desktop clients always send
         # plain HTTP to signal_port-2 and do not support HTTPS for API endpoints
         # (heartbeat, sysinfo, login, ab). Enabling -tls-api breaks all clients.
-        tls_arg="-tls-cert $ssl_dir/betterdesk.crt -tls-key $ssl_dir/betterdesk.key -tls-signal -tls-relay"
+        tls_arg="-tls-cert $ssl_dir/yomie.crt -tls-key $ssl_dir/yomie.key -tls-signal -tls-relay"
         
         if [ "$tls_is_selfsigned" = false ]; then
             print_info "TLS: Enabled for signal/relay (proper certificate found, API stays HTTP)"
@@ -1910,7 +1910,7 @@ setup_services() {
         print_info "TLS: Disabled (no certificate found)"
     fi
     
-    # BetterDesk Go Server (single binary replacing hbbs+hbbr)
+    # Yomie Go Server (single binary replacing hbbs+hbbr)
     # Generate shared API key for Node.js ↔ Go server communication (preserve existing)
     local api_key
     if [ -f "$RUSTDESK_PATH/.api_key" ] && [ -s "$RUSTDESK_PATH/.api_key" ]; then
@@ -1937,9 +1937,9 @@ setup_services() {
     local systemd_db_arg="$db_arg"
     systemd_db_arg=$(printf '%s' "$systemd_db_arg" | sed 's/\$/\$\$/g; s/%/%%/g')
     
-    cat > /etc/systemd/system/betterdesk-server.service << EOF
+    cat > /etc/systemd/system/yomie-server.service << EOF
 [Unit]
-Description=BetterDesk Go Server v$VERSION (Signal + Relay + API)
+Description=Yomie Go Server v$VERSION (Signal + Relay + API)
 Documentation=https://github.com/shamstabraiz/Rustdesk-FreeConsole
 After=network.target postgresql.service
 
@@ -1947,7 +1947,7 @@ After=network.target postgresql.service
 Type=simple
 User=root
 WorkingDirectory=$RUSTDESK_PATH
-ExecStart=$RUSTDESK_PATH/betterdesk-server -mode all -relay-servers $server_ip $systemd_db_arg -key-file $RUSTDESK_PATH/id_ed25519 -api-port $API_PORT $init_admin_arg $tls_arg
+ExecStart=$RUSTDESK_PATH/yomie-server -mode all -relay-servers $server_ip $systemd_db_arg -key-file $RUSTDESK_PATH/id_ed25519 -api-port $API_PORT $init_admin_arg $tls_arg
 Restart=always
 RestartSec=5
 LimitNOFILE=1000000
@@ -1956,7 +1956,7 @@ LimitNOFILE=1000000
 WantedBy=multi-user.target
 EOF
 
-    print_success "Created betterdesk-server.service (Go)"
+    print_success "Created yomie-server.service (Go)"
     
     # Remove legacy Rust services if they exist
     if [ -f /etc/systemd/system/rustdesksignal.service ]; then
@@ -1973,20 +1973,20 @@ EOF
         print_info "Removed legacy rustdeskrelay.service"
     fi
     
-    # Remove legacy Flask betterdesk-api.service (deprecated in v2.3.0)
-    if [ -f /etc/systemd/system/betterdesk-api.service ]; then
-        systemctl stop betterdesk-api 2>/dev/null || true
-        systemctl disable betterdesk-api 2>/dev/null || true
-        rm -f /etc/systemd/system/betterdesk-api.service
-        print_info "Removed legacy betterdesk-api.service (Flask)"
+    # Remove legacy Flask yomie-api.service (deprecated in v2.3.0)
+    if [ -f /etc/systemd/system/yomie-api.service ]; then
+        systemctl stop yomie-api 2>/dev/null || true
+        systemctl disable yomie-api 2>/dev/null || true
+        rm -f /etc/systemd/system/yomie-api.service
+        print_info "Removed legacy yomie-api.service (Flask)"
     fi
     
-    # Remove stale betterdesk-go.service (manual installs, wrong credentials)
-    if [ -f /etc/systemd/system/betterdesk-go.service ]; then
-        systemctl stop betterdesk-go 2>/dev/null || true
-        systemctl disable betterdesk-go 2>/dev/null || true
-        rm -f /etc/systemd/system/betterdesk-go.service
-        print_info "Removed stale betterdesk-go.service"
+    # Remove stale yomie-go.service (manual installs, wrong credentials)
+    if [ -f /etc/systemd/system/yomie-go.service ]; then
+        systemctl stop yomie-go 2>/dev/null || true
+        systemctl disable yomie-go 2>/dev/null || true
+        rm -f /etc/systemd/system/yomie-go.service
+        print_info "Removed stale yomie-go.service"
     fi
 
     # Console service (Web Interface) - Node.js only
@@ -2011,8 +2011,8 @@ Environment=DB_PATH=$RUSTDESK_PATH/db_v2.sqlite3"
             # Enable HTTPS on Node.js console (admin panel port 5443 + Client API port 21121)
             # so that RustDesk desktop clients can connect via HTTPS to port 21121.
             tls_env="Environment=HTTPS_ENABLED=true
-Environment=SSL_CERT_PATH=$ssl_dir/betterdesk.crt
-Environment=SSL_KEY_PATH=$ssl_dir/betterdesk.key"
+Environment=SSL_CERT_PATH=$ssl_dir/yomie.crt
+Environment=SSL_KEY_PATH=$ssl_dir/yomie.key"
         fi
         
         # Detect node binary path dynamically (NodeSource, nvm, system, etc.)
@@ -2022,11 +2022,11 @@ Environment=SSL_KEY_PATH=$ssl_dir/betterdesk.key"
             print_warning "Node.js binary not found at $node_path — service may fail to start"
         fi
         
-        cat > /etc/systemd/system/betterdesk-console.service << EOF
+        cat > /etc/systemd/system/yomie-console.service << EOF
 [Unit]
-Description=BetterDesk Web Console (Node.js)
+Description=Yomie Web Console (Node.js)
 Documentation=https://github.com/shamstabraiz/Rustdesk-FreeConsole
-After=network.target betterdesk-server.service postgresql.service
+After=network.target yomie-server.service postgresql.service
 
 [Service]
 Type=simple
@@ -2036,7 +2036,7 @@ EnvironmentFile=-$CONSOLE_PATH/.env
 ExecStart=$node_path server.js
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=betterdesk-console
+SyslogIdentifier=yomie-console
 Environment=NODE_ENV=production
 Environment=RUSTDESK_DIR=$RUSTDESK_PATH
 Environment=KEYS_PATH=$RUSTDESK_PATH
@@ -2044,33 +2044,33 @@ Environment=DATA_DIR=$CONSOLE_PATH/data
 $db_env
 Environment=HBBS_API_URL=$api_scheme://localhost:$API_PORT/api
 Environment=BETTERDESK_API_URL=$api_scheme://localhost:$API_PORT/api
-Environment=SERVER_BACKEND=betterdesk
+Environment=SERVER_BACKEND=yomie
 Environment=PORT=5000
 Environment=HOST=0.0.0.0
 Environment=API_HOST=0.0.0.0
 $tls_env
-$([ "$tls_is_selfsigned" = true ] && echo "Environment=NODE_EXTRA_CA_CERTS=$ssl_dir/betterdesk.crt" || true)
+$([ "$tls_is_selfsigned" = true ] && echo "Environment=NODE_EXTRA_CA_CERTS=$ssl_dir/yomie.crt" || true)
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
-        print_success "Created betterdesk-console.service (Node.js)"
+        print_success "Created yomie-console.service (Node.js)"
         
-        # Remove legacy betterdesk.service if exists
-        if [ -f /etc/systemd/system/betterdesk.service ]; then
-            systemctl stop betterdesk 2>/dev/null || true
-            systemctl disable betterdesk 2>/dev/null || true
-            rm -f /etc/systemd/system/betterdesk.service
-            print_info "Removed legacy betterdesk.service"
+        # Remove legacy yomie.service if exists
+        if [ -f /etc/systemd/system/yomie.service ]; then
+            systemctl stop yomie 2>/dev/null || true
+            systemctl disable yomie 2>/dev/null || true
+            rm -f /etc/systemd/system/yomie.service
+            print_info "Removed legacy yomie.service"
         fi
     fi
 
     systemctl daemon-reload
     
     print_success "Systemd services configured"
-    print_info "Services: betterdesk-server, betterdesk-console"
+    print_info "Services: yomie-server, yomie-console"
 }
 
 run_migrations() {
@@ -2146,7 +2146,7 @@ start_services() {
 }
 
 #===============================================================================
-# BetterDesk Minimal Installation (Go server only, no web console)
+# Yomie Minimal Installation (Go server only, no web console)
 #===============================================================================
 
 do_install_minimal() {
@@ -2154,7 +2154,7 @@ do_install_minimal() {
     echo -e "${WHITE}${BOLD}══════════ MINIMAL INSTALLATION (Server Only) ══════════${NC}"
     echo ""
     
-    print_info "BetterDesk Minimal installs the Go server binary only."
+    print_info "Yomie Minimal installs the Go server binary only."
     print_info "No web console, no Node.js, no npm dependencies."
     print_info "Manage via REST API on port 21114 or TCP admin console."
     echo ""
@@ -2162,7 +2162,7 @@ do_install_minimal() {
     detect_installation
     
     if [ "$INSTALL_STATUS" = "complete" ]; then
-        print_warning "BetterDesk is already installed!"
+        print_warning "Yomie is already installed!"
         if [ "$AUTO_MODE" = false ]; then
             if ! confirm "Do you want to reinstall in Minimal mode?"; then
                 return
@@ -2207,29 +2207,29 @@ do_install_minimal() {
     # Configure firewall rules (signal + relay + API only, no console ports)
     print_step "Configuring firewall rules..."
     if command -v ufw >/dev/null 2>&1; then
-        ufw allow 21114/tcp comment "BetterDesk API" 2>/dev/null || true
-        ufw allow 21115/tcp comment "BetterDesk NAT" 2>/dev/null || true
-        ufw allow 21116/tcp comment "BetterDesk Signal TCP" 2>/dev/null || true
-        ufw allow 21116/udp comment "BetterDesk Signal UDP" 2>/dev/null || true
-        ufw allow 21117/tcp comment "BetterDesk Relay" 2>/dev/null || true
-        ufw allow 21118/tcp comment "BetterDesk WS Signal" 2>/dev/null || true
-        ufw allow 21119/tcp comment "BetterDesk WS Relay" 2>/dev/null || true
+        ufw allow 21114/tcp comment "Yomie API" 2>/dev/null || true
+        ufw allow 21115/tcp comment "Yomie NAT" 2>/dev/null || true
+        ufw allow 21116/tcp comment "Yomie Signal TCP" 2>/dev/null || true
+        ufw allow 21116/udp comment "Yomie Signal UDP" 2>/dev/null || true
+        ufw allow 21117/tcp comment "Yomie Relay" 2>/dev/null || true
+        ufw allow 21118/tcp comment "Yomie WS Signal" 2>/dev/null || true
+        ufw allow 21119/tcp comment "Yomie WS Relay" 2>/dev/null || true
     fi
     
     # Start server
-    print_step "Starting BetterDesk server..."
+    print_step "Starting Yomie server..."
     systemctl daemon-reload
-    systemctl start betterdesk-server.service 2>/dev/null || true
-    systemctl enable betterdesk-server.service 2>/dev/null || true
+    systemctl start yomie-server.service 2>/dev/null || true
+    systemctl enable yomie-server.service 2>/dev/null || true
     
     sleep 3
     
     # Verify
-    if systemctl is-active --quiet betterdesk-server.service; then
-        print_success "BetterDesk server is running"
+    if systemctl is-active --quiet yomie-server.service; then
+        print_success "Yomie server is running"
     else
-        print_error "BetterDesk server failed to start"
-        journalctl -u betterdesk-server.service --no-pager -n 20
+        print_error "Yomie server failed to start"
+        journalctl -u yomie-server.service --no-pager -n 20
         return 1
     fi
     
@@ -2251,9 +2251,9 @@ do_install_minimal() {
 }
 
 setup_services_minimal() {
-    print_step "Setting up BetterDesk server service (Minimal mode)..."
+    print_step "Setting up Yomie server service (Minimal mode)..."
     
-    local GO_BINARY_PATH="$INSTALL_DIR/betterdesk-server"
+    local GO_BINARY_PATH="$INSTALL_DIR/yomie-server"
     local KEY_DIR="$INSTALL_DIR"
     local DB_DIR="$INSTALL_DIR"
     
@@ -2279,8 +2279,8 @@ setup_services_minimal() {
     
     # TLS configuration — look for certificates in standard ssl/ directory
     local SSL_DIR="$INSTALL_DIR/ssl"
-    local TLS_CERT_PATH="$SSL_DIR/betterdesk.crt"
-    local TLS_KEY_PATH="$SSL_DIR/betterdesk.key"
+    local TLS_CERT_PATH="$SSL_DIR/yomie.crt"
+    local TLS_KEY_PATH="$SSL_DIR/yomie.key"
     
     # Also check legacy paths for backwards compatibility
     if [ ! -f "$TLS_CERT_PATH" ] && [ -f "$INSTALL_DIR/cert.pem" ]; then
@@ -2300,7 +2300,7 @@ setup_services_minimal() {
     fi
     
     # Remove old services (cleanup)
-    for old_svc in rustdesksignal rustdeskrelay betterdesk-api betterdesk-go betterdesk-console; do
+    for old_svc in rustdesksignal rustdeskrelay yomie-api yomie-go yomie-console; do
         if systemctl is-active --quiet "$old_svc.service" 2>/dev/null; then
             systemctl stop "$old_svc.service" 2>/dev/null || true
         fi
@@ -2310,9 +2310,9 @@ setup_services_minimal() {
         fi
     done
     
-    cat > /etc/systemd/system/betterdesk-server.service <<EOF
+    cat > /etc/systemd/system/yomie-server.service <<EOF
 [Unit]
-Description=BetterDesk Server (Minimal)
+Description=Yomie Server (Minimal)
 After=network.target
 Wants=network-online.target
 
@@ -2335,14 +2335,14 @@ PrivateTmp=true
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=betterdesk-server
+SyslogIdentifier=yomie-server
 
 [Install]
 WantedBy=multi-user.target
 EOF
     
     systemctl daemon-reload
-    print_success "BetterDesk server service created (Minimal mode)"
+    print_success "Yomie server service created (Minimal mode)"
 }
 
 do_install() {
@@ -2353,7 +2353,7 @@ do_install() {
     detect_installation
     
     if [ "$INSTALL_STATUS" = "complete" ]; then
-        print_warning "BetterDesk is already installed!"
+        print_warning "Yomie is already installed!"
         if [ "$AUTO_MODE" = false ]; then
             if ! confirm "Do you want to reinstall?"; then
                 return
@@ -2363,7 +2363,7 @@ do_install() {
     fi
     
     echo ""
-    print_info "Starting BetterDesk Console v$VERSION installation..."
+    print_info "Starting Yomie Console v$VERSION installation..."
     echo ""
     
     # Choose database type (SQLite or PostgreSQL)
@@ -2407,18 +2407,18 @@ do_install() {
     sleep 2
     
     local go_state
-    go_state=$(systemctl show betterdesk-server --property=ActiveState --value 2>/dev/null || echo "unknown")
+    go_state=$(systemctl show yomie-server --property=ActiveState --value 2>/dev/null || echo "unknown")
     if [ "$go_state" != "active" ]; then
-        print_error "betterdesk-server is $go_state (expected: active)"
-        print_info "Debug: journalctl -u betterdesk-server -n 30 --no-pager"
+        print_error "yomie-server is $go_state (expected: active)"
+        print_info "Debug: journalctl -u yomie-server -n 30 --no-pager"
         install_ok=false
     fi
     
     local console_state
-    console_state=$(systemctl show betterdesk-console --property=ActiveState --value 2>/dev/null || echo "unknown")
+    console_state=$(systemctl show yomie-console --property=ActiveState --value 2>/dev/null || echo "unknown")
     if [ "$console_state" != "active" ]; then
-        print_warning "betterdesk-console is $console_state (expected: active)"
-        print_info "Debug: journalctl -u betterdesk-console -n 30 --no-pager"
+        print_warning "yomie-console is $console_state (expected: active)"
+        print_info "Debug: journalctl -u yomie-console -n 30 --no-pager"
         install_ok=false
     fi
     
@@ -2444,7 +2444,7 @@ do_install() {
     fi
     
     local tls_status="Disabled"
-    if [ -f "$RUSTDESK_PATH/ssl/betterdesk.crt" ] && [ -f "$RUSTDESK_PATH/ssl/betterdesk.key" ]; then
+    if [ -f "$RUSTDESK_PATH/ssl/yomie.crt" ] && [ -f "$RUSTDESK_PATH/ssl/yomie.key" ]; then
         tls_status="Self-signed (auto-generated)"
     fi
     
@@ -2487,7 +2487,7 @@ do_update() {
     detect_installation
     
     if [ "$INSTALL_STATUS" = "none" ]; then
-        print_error "BetterDesk is not installed!"
+        print_error "Yomie is not installed!"
         print_info "Use 'FRESH INSTALLATION' option"
         press_enter
         return
@@ -2563,7 +2563,7 @@ do_repair() {
     echo ""
     echo -e "${WHITE}What do you want to repair?${NC}"
     echo ""
-    echo "  1. 🔧 Repair binaries (replace with BetterDesk)"
+    echo "  1. 🔧 Repair binaries (replace with Yomie)"
     echo "  2. 🗃️  Repair database (add missing columns)"
     echo "  3. ⚙️  Repair systemd services"
     echo "  4. 🔐 Repair file permissions"
@@ -2592,11 +2592,11 @@ do_repair() {
 }
 
 repair_binaries() {
-    print_step "Repairing BetterDesk Go Server..."
+    print_step "Repairing Yomie Go Server..."
     
     detect_architecture
     
-    local go_binary="$GO_SERVER_SOURCE/betterdesk-server"
+    local go_binary="$GO_SERVER_SOURCE/yomie-server"
     
     # Check if Go binary exists, or compile it
     if [ ! -f "$go_binary" ]; then
@@ -2617,8 +2617,8 @@ repair_binaries() {
     fi
     
     # Create backup before repair
-    if [ -f "$RUSTDESK_PATH/betterdesk-server" ]; then
-        cp "$RUSTDESK_PATH/betterdesk-server" "$RUSTDESK_PATH/betterdesk-server.backup.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+    if [ -f "$RUSTDESK_PATH/yomie-server" ]; then
+        cp "$RUSTDESK_PATH/yomie-server" "$RUSTDESK_PATH/yomie-server.backup.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
     fi
     
     # Gracefully stop all services
@@ -2628,9 +2628,9 @@ repair_binaries() {
     sleep 2
     
     # Check if binary is still locked (Text file busy prevention)
-    if lsof "$RUSTDESK_PATH/betterdesk-server" 2>/dev/null | grep -q .; then
-        print_error "betterdesk-server binary is still in use!"
-        kill_stale_processes "betterdesk-server"
+    if lsof "$RUSTDESK_PATH/yomie-server" 2>/dev/null | grep -q .; then
+        print_error "yomie-server binary is still in use!"
+        kill_stale_processes "yomie-server"
         sleep 2
     fi
     
@@ -2703,15 +2703,15 @@ repair_services() {
     graceful_stop_services
     
     # Backup existing service files
-    for svc in betterdesk-server betterdesk-console rustdesksignal rustdeskrelay betterdesk; do
+    for svc in yomie-server yomie-console rustdesksignal rustdeskrelay yomie; do
         if [ -f "/etc/systemd/system/${svc}.service" ]; then
             cp "/etc/systemd/system/${svc}.service" "/etc/systemd/system/${svc}.service.backup.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
         fi
     done
     
     # Verify Go server binary exists
-    if [ ! -f "$RUSTDESK_PATH/betterdesk-server" ]; then
-        print_error "betterdesk-server binary not found at $RUSTDESK_PATH/betterdesk-server"
+    if [ ! -f "$RUSTDESK_PATH/yomie-server" ]; then
+        print_error "yomie-server binary not found at $RUSTDESK_PATH/yomie-server"
         print_info "Run 'Repair binaries' first"
         return 1
     fi
@@ -2724,7 +2724,7 @@ repair_services() {
         print_error "Services failed to start after repair"
         print_info "Restoring backup service files..."
         
-        for svc in betterdesk-server betterdesk-console; do
+        for svc in yomie-server yomie-console; do
             backup_file=$(ls -t /etc/systemd/system/${svc}.service.backup.* 2>/dev/null | head -1)
             if [ -n "$backup_file" ]; then
                 cp "$backup_file" "/etc/systemd/system/${svc}.service"
@@ -2743,7 +2743,7 @@ repair_permissions() {
     
     chown -R root:root "$RUSTDESK_PATH" 2>/dev/null || true
     chmod 755 "$RUSTDESK_PATH"
-    chmod +x "$RUSTDESK_PATH/betterdesk-server" 2>/dev/null || true
+    chmod +x "$RUSTDESK_PATH/yomie-server" 2>/dev/null || true
     chmod 644 "$DB_PATH" 2>/dev/null || true
     
     print_success "Permissions repaired"
@@ -2785,8 +2785,8 @@ do_validate() {
     fi
     
     # Check Go server binary
-    echo -n "  BetterDesk Server (Go): "
-    if [ -x "$RUSTDESK_PATH/betterdesk-server" ]; then
+    echo -n "  Yomie Server (Go): "
+    if [ -x "$RUSTDESK_PATH/yomie-server" ]; then
         echo -e "${GREEN}✓ Single binary (signal + relay + API)${NC}"
     elif [ -x "$RUSTDESK_PATH/hbbs" ] && [ -x "$RUSTDESK_PATH/hbbr" ]; then
         echo -e "${YELLOW}! Legacy Rust binaries (consider upgrading to Go)${NC}"
@@ -2852,7 +2852,7 @@ do_validate() {
         fi
     else
         # Check if Go server is running — it creates the DB on start
-        if systemctl is-active --quiet betterdesk-server 2>/dev/null; then
+        if systemctl is-active --quiet yomie-server 2>/dev/null; then
             echo -e "${YELLOW}! SQLite file not yet created (server running, will create on first connection)${NC}"
             warnings=$((warnings + 1))
         else
@@ -2876,13 +2876,13 @@ do_validate() {
     echo ""
     
     # Check Go server service first
-    echo -n "  betterdesk-server (Go): "
-    if systemctl is-active --quiet betterdesk-server 2>/dev/null; then
+    echo -n "  yomie-server (Go): "
+    if systemctl is-active --quiet yomie-server 2>/dev/null; then
         echo -e "${GREEN}● Active (signal + relay + API)${NC}"
-    elif systemctl is-enabled --quiet betterdesk-server 2>/dev/null; then
+    elif systemctl is-enabled --quiet yomie-server 2>/dev/null; then
         echo -e "${YELLOW}○ Enabled but inactive${NC}"
         warnings=$((warnings + 1))
-    elif systemctl list-unit-files betterdesk-server.service &>/dev/null 2>&1; then
+    elif systemctl list-unit-files yomie-server.service &>/dev/null 2>&1; then
         echo -e "${RED}○ Disabled${NC}"
         errors=$((errors + 1))
     else
@@ -2903,12 +2903,12 @@ do_validate() {
         done
     fi
     
-    echo -n "  betterdesk-console (Node.js): "
-    if systemctl is-active --quiet betterdesk-console 2>/dev/null; then
+    echo -n "  yomie-console (Node.js): "
+    if systemctl is-active --quiet yomie-console 2>/dev/null; then
         echo -e "${GREEN}● Active${NC}"
-    elif systemctl is-active --quiet betterdesk 2>/dev/null; then
+    elif systemctl is-active --quiet yomie 2>/dev/null; then
         echo -e "${GREEN}● Active (legacy name)${NC}"
-    elif systemctl is-enabled --quiet betterdesk-console 2>/dev/null; then
+    elif systemctl is-enabled --quiet yomie-console 2>/dev/null; then
         echo -e "${YELLOW}○ Enabled but inactive${NC}"
         warnings=$((warnings + 1))
     else
@@ -3198,9 +3198,9 @@ PYEOF
         fi
         
         # Restart console so it picks up the new .env value
-        if systemctl is-active betterdesk-console &>/dev/null; then
-            print_info "Restarting betterdesk-console..."
-            systemctl restart betterdesk-console 2>/dev/null || true
+        if systemctl is-active yomie-console &>/dev/null; then
+            print_info "Restarting yomie-console..."
+            systemctl restart yomie-console 2>/dev/null || true
             sleep 2
         fi
         
@@ -3258,7 +3258,7 @@ do_rebuild_go_server() {
     detect_installation
 
     if [ "$INSTALL_STATUS" = "none" ]; then
-        print_warning "BetterDesk is not installed. Binary will be compiled but not deployed."
+        print_warning "Yomie is not installed. Binary will be compiled but not deployed."
         if ! confirm "Continue with compilation only?"; then
             press_enter
             return
@@ -3277,7 +3277,7 @@ do_rebuild_go_server() {
         return
     fi
 
-    local new_binary="$GO_SERVER_SOURCE/betterdesk-server"
+    local new_binary="$GO_SERVER_SOURCE/yomie-server"
     if [ ! -f "$new_binary" ]; then
         print_error "Compiled binary not found at $new_binary"
         press_enter
@@ -3286,7 +3286,7 @@ do_rebuild_go_server() {
 
     # Step 2: Backup current binary
     print_step "[2/5] Backing up current binary..."
-    local installed_binary="$RUSTDESK_PATH/betterdesk-server"
+    local installed_binary="$RUSTDESK_PATH/yomie-server"
     local ts
     ts=$(date +%Y%m%d_%H%M%S)
     if [ -f "$installed_binary" ]; then
@@ -3313,12 +3313,12 @@ do_rebuild_go_server() {
     print_step "[5/5] Starting services..."
     start_services_with_verification
 
-    if systemctl is-active --quiet betterdesk-server 2>/dev/null; then
+    if systemctl is-active --quiet yomie-server 2>/dev/null; then
         echo ""
         print_success "Go server rebuilt and deployed successfully!"
         echo ""
         echo -e "${WHITE}Recent logs:${NC}"
-        journalctl -u betterdesk-server -n 5 --no-pager 2>/dev/null || true
+        journalctl -u yomie-server -n 5 --no-pager 2>/dev/null || true
     else
         print_error "Service failed to start after rebuild!"
         echo ""
@@ -3326,15 +3326,15 @@ do_rebuild_go_server() {
         if [ -f "${installed_binary}.backup.${ts}" ]; then
             cp "${installed_binary}.backup.${ts}" "$installed_binary"
             chmod +x "$installed_binary"
-            systemctl start betterdesk-server 2>/dev/null || true
+            systemctl start yomie-server 2>/dev/null || true
             sleep 2
-            if systemctl is-active --quiet betterdesk-server 2>/dev/null; then
+            if systemctl is-active --quiet yomie-server 2>/dev/null; then
                 print_success "Rollback successful — previous binary restored"
             else
-                print_error "Rollback also failed. Check: journalctl -u betterdesk-server -n 50"
+                print_error "Rollback also failed. Check: journalctl -u yomie-server -n 50"
             fi
         else
-            print_error "No backup to rollback to. Check: journalctl -u betterdesk-server -n 50"
+            print_error "No backup to rollback to. Check: journalctl -u yomie-server -n 50"
         fi
     fi
 
@@ -3355,7 +3355,7 @@ do_compile_go_only() {
         return
     fi
 
-    local new_binary="$GO_SERVER_SOURCE/betterdesk-server"
+    local new_binary="$GO_SERVER_SOURCE/yomie-server"
     local size
     size=$(du -h "$new_binary" | cut -f1)
     print_success "Binary compiled: $new_binary ($size)"
@@ -3401,7 +3401,7 @@ do_build_legacy_rust() {
     cd rustdesk-server
     git submodule update --init --recursive
 
-    print_step "Applying BetterDesk modifications..."
+    print_step "Applying Yomie modifications..."
 
     # Copy modified sources
     if [ -d "$SCRIPT_DIR/hbbs-patch-v2/src" ]; then
@@ -3453,11 +3453,11 @@ configure_firewall_rules() {
             total=$((total + 1))
             if ! ufw status 2>/dev/null | grep -qE "^${port}[/ ]"; then
                 if [ "$port" = "21116" ]; then
-                    ufw allow 21116/tcp comment "BetterDesk ID Server TCP" 2>/dev/null && created=$((created + 1))
-                    ufw allow 21116/udp comment "BetterDesk ID Server UDP" 2>/dev/null && created=$((created + 1))
+                    ufw allow 21116/tcp comment "Yomie ID Server TCP" 2>/dev/null && created=$((created + 1))
+                    ufw allow 21116/udp comment "Yomie ID Server UDP" 2>/dev/null && created=$((created + 1))
                     total=$((total + 1))
                 else
-                    ufw allow "${port}/tcp" comment "BetterDesk port ${port}" 2>/dev/null && created=$((created + 1))
+                    ufw allow "${port}/tcp" comment "Yomie port ${port}" 2>/dev/null && created=$((created + 1))
                 fi
             fi
         done
@@ -3534,9 +3534,9 @@ do_diagnostics() {
     echo ""
     
     # Check for Go server first, then legacy Rust services
-    if systemctl list-unit-files betterdesk-server.service &>/dev/null 2>&1; then
-        echo -e "${CYAN}--- betterdesk-server (Go) ---${NC}"
-        journalctl -u betterdesk-server -n 10 --no-pager 2>/dev/null || echo "No logs found"
+    if systemctl list-unit-files yomie-server.service &>/dev/null 2>&1; then
+        echo -e "${CYAN}--- yomie-server (Go) ---${NC}"
+        journalctl -u yomie-server -n 10 --no-pager 2>/dev/null || echo "No logs found"
     else
         echo -e "${CYAN}--- rustdesksignal (Legacy Rust) ---${NC}"
         journalctl -u rustdesksignal -n 10 --no-pager 2>/dev/null || echo "No logs found"
@@ -3547,9 +3547,9 @@ do_diagnostics() {
     fi
     
     echo ""
-    echo -e "${CYAN}--- betterdesk-console (Node.js) ---${NC}"
-    journalctl -u betterdesk-console -n 10 --no-pager 2>/dev/null || \
-        journalctl -u betterdesk -n 10 --no-pager 2>/dev/null || echo "No logs found"
+    echo -e "${CYAN}--- yomie-console (Node.js) ---${NC}"
+    journalctl -u yomie-console -n 10 --no-pager 2>/dev/null || \
+        journalctl -u yomie -n 10 --no-pager 2>/dev/null || echo "No logs found"
     
     echo ""
     echo -e "${WHITE}${BOLD}═══ Database statistics ═══${NC}"
@@ -3600,11 +3600,11 @@ do_diagnostics() {
     
     local port_issues=0
     local port_defs=(
-        "21114:TCP:betterdesk-serv|betterdesk-server|hbbs:API Server"
-        "21115:TCP:betterdesk-serv|betterdesk-server|hbbs:NAT Test"
-        "21116:TCP:betterdesk-serv|betterdesk-server|hbbs:ID Server (TCP)"
-        "21116:UDP:betterdesk-serv|betterdesk-server|hbbs:ID Server (UDP)"
-        "21117:TCP:betterdesk-serv|betterdesk-server|hbbr:Relay Server"
+        "21114:TCP:yomie-serv|yomie-server|hbbs:API Server"
+        "21115:TCP:yomie-serv|yomie-server|hbbs:NAT Test"
+        "21116:TCP:yomie-serv|yomie-server|hbbs:ID Server (TCP)"
+        "21116:UDP:yomie-serv|yomie-server|hbbs:ID Server (UDP)"
+        "21117:TCP:yomie-serv|yomie-server|hbbr:Relay Server"
         "5000:TCP:node|MainThread:Web Console"
         "21121:TCP:node|MainThread:Client API (WAN)"
     )
@@ -3726,7 +3726,7 @@ do_diagnostics() {
     # Detect if Go server API uses TLS (only if explicit --tls-api in service args)
     local api_use_tls=false
     local api_scheme="http"
-    if systemctl cat betterdesk-server.service 2>/dev/null | grep -qE '\-tls-api'; then
+    if systemctl cat yomie-server.service 2>/dev/null | grep -qE '\-tls-api'; then
         api_use_tls=true
         api_scheme="https"
     fi
@@ -3742,7 +3742,7 @@ do_diagnostics() {
                 echo -e "  ${YELLOW}⚠ Note: Go server has TLS cert but API responds on HTTP${NC}"
             else
                 echo -e "${RED}UNREACHABLE${NC}"
-                echo -e "  ${YELLOW}Tip: Check betterdesk-server logs: journalctl -u betterdesk-server -n 20${NC}"
+                echo -e "  ${YELLOW}Tip: Check yomie-server logs: journalctl -u yomie-server -n 20${NC}"
             fi
         fi
     else
@@ -3764,8 +3764,8 @@ do_diagnostics() {
     if [ "$api_use_tls" = true ]; then
         local console_api_url=""
         # Check what URL the console is configured to use
-        if [ -f /etc/systemd/system/betterdesk-console.service ]; then
-            console_api_url=$(grep 'BETTERDESK_API_URL=' /etc/systemd/system/betterdesk-console.service 2>/dev/null | tail -1 | sed 's/.*BETTERDESK_API_URL=//')
+        if [ -f /etc/systemd/system/yomie-console.service ]; then
+            console_api_url=$(grep 'BETTERDESK_API_URL=' /etc/systemd/system/yomie-console.service 2>/dev/null | tail -1 | sed 's/.*BETTERDESK_API_URL=//')
         fi
         if [ -z "$console_api_url" ] && [ -f "$CONSOLE_PATH/.env" ]; then
             console_api_url=$(grep -m1 '^BETTERDESK_API_URL=' "$CONSOLE_PATH/.env" 2>/dev/null | cut -d= -f2-)
@@ -3832,7 +3832,7 @@ do_uninstall() {
     echo -e "${RED}${BOLD}══════════ UNINSTALL ══════════${NC}"
     echo ""
     
-    print_warning "This operation will remove BetterDesk Console!"
+    print_warning "This operation will remove Yomie Console!"
     echo ""
     
     if ! confirm "Are you sure you want to continue?"; then
@@ -3845,22 +3845,22 @@ do_uninstall() {
     
     print_step "Stopping services..."
     # Stop Go server (primary)
-    systemctl stop betterdesk-server betterdesk-console 2>/dev/null || true
-    systemctl disable betterdesk-server betterdesk-console 2>/dev/null || true
+    systemctl stop yomie-server yomie-console 2>/dev/null || true
+    systemctl disable yomie-server yomie-console 2>/dev/null || true
     # Stop legacy Rust services if they exist
-    systemctl stop rustdesksignal rustdeskrelay betterdesk betterdesk-api betterdesk-go 2>/dev/null || true
-    systemctl disable rustdesksignal rustdeskrelay betterdesk betterdesk-api betterdesk-go 2>/dev/null || true
+    systemctl stop rustdesksignal rustdeskrelay yomie yomie-api yomie-go 2>/dev/null || true
+    systemctl disable rustdesksignal rustdeskrelay yomie yomie-api yomie-go 2>/dev/null || true
     
     print_step "Removing service files..."
     # Remove Go services
-    rm -f /etc/systemd/system/betterdesk-server.service
-    rm -f /etc/systemd/system/betterdesk-console.service
+    rm -f /etc/systemd/system/yomie-server.service
+    rm -f /etc/systemd/system/yomie-console.service
     # Remove legacy services
     rm -f /etc/systemd/system/rustdesksignal.service
     rm -f /etc/systemd/system/rustdeskrelay.service
-    rm -f /etc/systemd/system/betterdesk.service
-    rm -f /etc/systemd/system/betterdesk-api.service
-    rm -f /etc/systemd/system/betterdesk-go.service
+    rm -f /etc/systemd/system/yomie.service
+    rm -f /etc/systemd/system/yomie-api.service
+    rm -f /etc/systemd/system/yomie-go.service
     systemctl daemon-reload
     
     if confirm "Remove installation files ($RUSTDESK_PATH)?"; then
@@ -3873,7 +3873,7 @@ do_uninstall() {
         print_info "Removed: $CONSOLE_PATH"
     fi
     
-    print_success "BetterDesk has been uninstalled"
+    print_success "Yomie has been uninstalled"
     press_enter
 }
 
@@ -3888,12 +3888,12 @@ do_configure_ssl() {
     
     if [ ! -f "$CONSOLE_PATH/.env" ]; then
         print_error "Node.js console .env not found at $CONSOLE_PATH/.env"
-        print_info "Please install BetterDesk first (option 1)"
+        print_info "Please install Yomie first (option 1)"
         press_enter
         return
     fi
     
-    echo -e "  ${WHITE}Configure SSL/TLS certificates for BetterDesk Console.${NC}"
+    echo -e "  ${WHITE}Configure SSL/TLS certificates for Yomie Console.${NC}"
     echo -e "  ${WHITE}This enables HTTPS for both the admin panel and the RustDesk Client API.${NC}"
     echo ""
     echo -e "  ${YELLOW}Standard Options:${NC}"
@@ -3913,7 +3913,7 @@ do_configure_ssl() {
         1)
             # Let's Encrypt
             echo ""
-            read -p "Enter your domain name (e.g., betterdesk.example.com): " domain
+            read -p "Enter your domain name (e.g., yomie.example.com): " domain
             if [ -z "$domain" ]; then
                 print_error "Domain name required for Let's Encrypt"
                 press_enter
@@ -3960,7 +3960,7 @@ do_configure_ssl() {
             
             # Setup auto-renewal
             if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-                (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl restart betterdesk-console betterdesk-server'") | crontab -
+                (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl restart yomie-console yomie-server'") | crontab -
                 print_info "Auto-renewal cron job added (daily at 3:00 AM)"
             fi
             
@@ -4020,34 +4020,34 @@ do_configure_ssl() {
             print_info "SANs: $san_list"
             
             openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-                -keyout "$ssl_dir/betterdesk.key" \
-                -out "$ssl_dir/betterdesk.crt" \
-                -subj "/CN=$cn/O=BetterDesk/C=PL" \
+                -keyout "$ssl_dir/yomie.key" \
+                -out "$ssl_dir/yomie.crt" \
+                -subj "/CN=$cn/O=Yomie/C=PL" \
                 -addext "subjectAltName=$san_list" 2>&1 || {
                 # Fallback for older openssl
                 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-                    -keyout "$ssl_dir/betterdesk.key" \
-                    -out "$ssl_dir/betterdesk.crt" \
-                    -subj "/CN=$cn/O=BetterDesk/C=PL" 2>&1
+                    -keyout "$ssl_dir/yomie.key" \
+                    -out "$ssl_dir/yomie.crt" \
+                    -subj "/CN=$cn/O=Yomie/C=PL" 2>&1
             }
             
-            chmod 600 "$ssl_dir/betterdesk.key"
-            chmod 644 "$ssl_dir/betterdesk.crt"
+            chmod 600 "$ssl_dir/yomie.key"
+            chmod 644 "$ssl_dir/yomie.crt"
             
             sed -i "s|^HTTPS_ENABLED=.*|HTTPS_ENABLED=true|" "$CONSOLE_PATH/.env"
-            sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/betterdesk.crt|" "$CONSOLE_PATH/.env"
-            sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/betterdesk.key|" "$CONSOLE_PATH/.env"
+            sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/yomie.crt|" "$CONSOLE_PATH/.env"
+            sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/yomie.key|" "$CONSOLE_PATH/.env"
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=true|" "$CONSOLE_PATH/.env"
             
             # Configure NODE_EXTRA_CA_CERTS for self-signed
             if grep -q '^NODE_EXTRA_CA_CERTS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
-                sed -i "s|^NODE_EXTRA_CA_CERTS=.*|NODE_EXTRA_CA_CERTS=$ssl_dir/betterdesk.crt|" "$CONSOLE_PATH/.env"
+                sed -i "s|^NODE_EXTRA_CA_CERTS=.*|NODE_EXTRA_CA_CERTS=$ssl_dir/yomie.crt|" "$CONSOLE_PATH/.env"
             else
-                echo "NODE_EXTRA_CA_CERTS=$ssl_dir/betterdesk.crt" >> "$CONSOLE_PATH/.env"
+                echo "NODE_EXTRA_CA_CERTS=$ssl_dir/yomie.crt" >> "$CONSOLE_PATH/.env"
             fi
             
             # Configure Go server with TLS for signal/relay
-            local go_svc_file="/etc/systemd/system/betterdesk-server.service"
+            local go_svc_file="/etc/systemd/system/yomie-server.service"
             if [ -f "$go_svc_file" ]; then
                 # Remove old TLS args and add new ones
                 sed -i 's/ -tls-cert [^ ]*//g' "$go_svc_file"
@@ -4056,11 +4056,11 @@ do_configure_ssl() {
                 sed -i 's/ -tls-relay//g' "$go_svc_file"
                 sed -i 's/ -tls-api//g' "$go_svc_file"
                 # Add TLS args to ExecStart
-                sed -i "s|\(ExecStart=.*betterdesk-server[^$]*\)|\1 -tls-cert $ssl_dir/betterdesk.crt -tls-key $ssl_dir/betterdesk.key -tls-signal -tls-relay|" "$go_svc_file"
+                sed -i "s|\(ExecStart=.*yomie-server[^$]*\)|\1 -tls-cert $ssl_dir/yomie.crt -tls-key $ssl_dir/yomie.key -tls-signal -tls-relay|" "$go_svc_file"
             fi
             
             print_success "Self-signed certificate generated (valid 10 years)"
-            print_info "Certificate: $ssl_dir/betterdesk.crt"
+            print_info "Certificate: $ssl_dir/yomie.crt"
             [ -n "$lan_ip" ] && [ "$lan_ip" != "$server_ip" ] && print_info "LAN IP included: $lan_ip"
             print_warning "Browsers will show security warning. Use Let's Encrypt for public servers."
             ;;
@@ -4072,7 +4072,7 @@ do_configure_ssl() {
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=false|" "$CONSOLE_PATH/.env"
             
             # Remove TLS args from Go server
-            local go_svc_file="/etc/systemd/system/betterdesk-server.service"
+            local go_svc_file="/etc/systemd/system/yomie-server.service"
             if [ -f "$go_svc_file" ]; then
                 sed -i 's/ -tls-cert [^ ]*//g' "$go_svc_file"
                 sed -i 's/ -tls-key [^ ]*//g' "$go_svc_file"
@@ -4115,24 +4115,24 @@ do_configure_ssl() {
             print_info "SANs: $san_list"
             
             openssl req -x509 -nodes -days 3650 -newkey rsa:4096 \
-                -keyout "$ssl_dir/betterdesk.key" \
-                -out "$ssl_dir/betterdesk.crt" \
-                -subj "/CN=$cn/O=BetterDesk Enterprise/C=PL" \
+                -keyout "$ssl_dir/yomie.key" \
+                -out "$ssl_dir/yomie.crt" \
+                -subj "/CN=$cn/O=Yomie Enterprise/C=PL" \
                 -addext "subjectAltName=$san_list" 2>&1 || {
                 # Fallback for older openssl
                 openssl req -x509 -nodes -days 3650 -newkey rsa:4096 \
-                    -keyout "$ssl_dir/betterdesk.key" \
-                    -out "$ssl_dir/betterdesk.crt" \
-                    -subj "/CN=$cn/O=BetterDesk Enterprise/C=PL" 2>&1
+                    -keyout "$ssl_dir/yomie.key" \
+                    -out "$ssl_dir/yomie.crt" \
+                    -subj "/CN=$cn/O=Yomie Enterprise/C=PL" 2>&1
             }
             
-            chmod 600 "$ssl_dir/betterdesk.key"
-            chmod 644 "$ssl_dir/betterdesk.crt"
+            chmod 600 "$ssl_dir/yomie.key"
+            chmod 644 "$ssl_dir/yomie.crt"
             
             # === Configure Node.js Console for HTTPS ===
             sed -i "s|^HTTPS_ENABLED=.*|HTTPS_ENABLED=true|" "$CONSOLE_PATH/.env"
-            sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/betterdesk.crt|" "$CONSOLE_PATH/.env"
-            sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/betterdesk.key|" "$CONSOLE_PATH/.env"
+            sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/yomie.crt|" "$CONSOLE_PATH/.env"
+            sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/yomie.key|" "$CONSOLE_PATH/.env"
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=true|" "$CONSOLE_PATH/.env"
             
             # Set ALLOW_SELF_SIGNED_CERTS for internal API calls
@@ -4144,9 +4144,9 @@ do_configure_ssl() {
             
             # Configure NODE_EXTRA_CA_CERTS for self-signed
             if grep -q '^NODE_EXTRA_CA_CERTS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
-                sed -i "s|^NODE_EXTRA_CA_CERTS=.*|NODE_EXTRA_CA_CERTS=$ssl_dir/betterdesk.crt|" "$CONSOLE_PATH/.env"
+                sed -i "s|^NODE_EXTRA_CA_CERTS=.*|NODE_EXTRA_CA_CERTS=$ssl_dir/yomie.crt|" "$CONSOLE_PATH/.env"
             else
-                echo "NODE_EXTRA_CA_CERTS=$ssl_dir/betterdesk.crt" >> "$CONSOLE_PATH/.env"
+                echo "NODE_EXTRA_CA_CERTS=$ssl_dir/yomie.crt" >> "$CONSOLE_PATH/.env"
             fi
             
             # Update API URLs to HTTPS for Enterprise mode
@@ -4156,7 +4156,7 @@ do_configure_ssl() {
             sed -i "s|^BETTERDESK_API_URL=http://|BETTERDESK_API_URL=https://|" "$CONSOLE_PATH/.env"
             
             # === Configure Go server with FULL TLS (signal + relay + API) ===
-            local go_svc_file="/etc/systemd/system/betterdesk-server.service"
+            local go_svc_file="/etc/systemd/system/yomie-server.service"
             if [ -f "$go_svc_file" ]; then
                 # Remove old TLS args
                 sed -i 's/ -tls-cert [^ ]*//g' "$go_svc_file"
@@ -4165,7 +4165,7 @@ do_configure_ssl() {
                 sed -i 's/ -tls-relay//g' "$go_svc_file"
                 sed -i 's/ -tls-api//g' "$go_svc_file"
                 # Add FULL TLS args including -tls-api
-                sed -i "s|\(ExecStart=.*betterdesk-server[^$]*\)|\1 -tls-cert $ssl_dir/betterdesk.crt -tls-key $ssl_dir/betterdesk.key -tls-signal -tls-relay -tls-api|" "$go_svc_file"
+                sed -i "s|\(ExecStart=.*yomie-server[^$]*\)|\1 -tls-cert $ssl_dir/yomie.crt -tls-key $ssl_dir/yomie.key -tls-signal -tls-relay -tls-api|" "$go_svc_file"
             fi
             
             # Set ENTERPRISE_TLS marker
@@ -4177,8 +4177,8 @@ do_configure_ssl() {
             
             print_success "Enterprise TLS configured successfully!"
             echo ""
-            print_info "Certificate: $ssl_dir/betterdesk.crt"
-            print_info "Private key: $ssl_dir/betterdesk.key"
+            print_info "Certificate: $ssl_dir/yomie.crt"
+            print_info "Private key: $ssl_dir/yomie.key"
             print_info "Valid: 10 years (RSA 4096-bit)"
             [ -n "$lan_ip" ] && [ "$lan_ip" != "$server_ip" ] && print_info "LAN IP: $lan_ip"
             echo ""
@@ -4189,7 +4189,7 @@ do_configure_ssl() {
             print_info "  • API HTTPS: :21114"
             echo ""
             print_warning "For browsers/clients accessing this server, you may need to:"
-            print_info "  1. Import $ssl_dir/betterdesk.crt as trusted CA"
+            print_info "  1. Import $ssl_dir/yomie.crt as trusted CA"
             print_info "  2. Or use a proper certificate from Let's Encrypt"
             ;;
         *)
@@ -4212,7 +4212,7 @@ do_configure_ssl() {
         print_info "Enterprise TLS mode: ALL connections use HTTPS/TLS"
         
         # Ensure systemd service has ALLOW_SELF_SIGNED_CERTS
-        local svc_file="/etc/systemd/system/betterdesk-console.service"
+        local svc_file="/etc/systemd/system/yomie-console.service"
         if [ -f "$svc_file" ]; then
             if grep -q 'Environment=ALLOW_SELF_SIGNED_CERTS=' "$svc_file"; then
                 sed -i "s|Environment=ALLOW_SELF_SIGNED_CERTS=.*|Environment=ALLOW_SELF_SIGNED_CERTS=true|" "$svc_file"
@@ -4241,7 +4241,7 @@ do_configure_ssl() {
         fi
         
         # Also update systemd service environment if it exists
-        local svc_file="/etc/systemd/system/betterdesk-console.service"
+        local svc_file="/etc/systemd/system/yomie-console.service"
         if [ -f "$svc_file" ]; then
             # Ensure API URLs stay HTTP in systemd service too
             sed -i "s|Environment=HBBS_API_URL=https://localhost|Environment=HBBS_API_URL=http://localhost|" "$svc_file"
@@ -4265,7 +4265,7 @@ do_configure_ssl() {
         fi
         
         # Update Go server service — remove -tls-api if present (standard SSL doesn't use API TLS)
-        local go_svc_file="/etc/systemd/system/betterdesk-server.service"
+        local go_svc_file="/etc/systemd/system/yomie-server.service"
         if [ -f "$go_svc_file" ]; then
             sed -i 's/ -tls-api//' "$go_svc_file"
             sed -i 's/ -force-https//' "$go_svc_file"
@@ -4282,7 +4282,7 @@ do_configure_ssl() {
         sed -i "s|^ALLOW_SELF_SIGNED_CERTS=.*|ALLOW_SELF_SIGNED_CERTS=false|" "$env_file"
         
         # Also update systemd service
-        local svc_file="/etc/systemd/system/betterdesk-console.service"
+        local svc_file="/etc/systemd/system/yomie-console.service"
         if [ -f "$svc_file" ]; then
             sed -i "s|Environment=HBBS_API_URL=https://localhost|Environment=HBBS_API_URL=http://localhost|" "$svc_file"
             sed -i "s|Environment=BETTERDESK_API_URL=https://localhost|Environment=BETTERDESK_API_URL=http://localhost|" "$svc_file"
@@ -4297,7 +4297,7 @@ do_configure_ssl() {
         fi
         
         # Remove ALL TLS args from Go server service
-        local go_svc_file="/etc/systemd/system/betterdesk-server.service"
+        local go_svc_file="/etc/systemd/system/yomie-server.service"
         if [ -f "$go_svc_file" ]; then
             sed -i 's/ -tls-cert [^ ]*//g' "$go_svc_file"
             sed -i 's/ -tls-key [^ ]*//g' "$go_svc_file"
@@ -4312,9 +4312,9 @@ do_configure_ssl() {
     fi
     
     echo ""
-    if confirm "Restart BetterDesk to apply changes?"; then
-        systemctl restart betterdesk-server betterdesk-console 2>/dev/null || true
-        print_success "BetterDesk services restarted"
+    if confirm "Restart Yomie to apply changes?"; then
+        systemctl restart yomie-server yomie-console 2>/dev/null || true
+        print_success "Yomie services restarted"
     fi
     
     press_enter
@@ -4333,10 +4333,10 @@ do_migrate_database() {
     local migrate_bin=""
     local arch=$(uname -m)
     local search_paths=(
-        "$SCRIPT_DIR/betterdesk-server/tools/migrate/migrate-linux-amd64"
+        "$SCRIPT_DIR/yomie-server/tools/migrate/migrate-linux-amd64"
         "$SCRIPT_DIR/tools/migrate/migrate-linux-amd64"
         "$RUSTDESK_PATH/migrate"
-        "/usr/local/bin/betterdesk-migrate"
+        "/usr/local/bin/yomie-migrate"
     )
 
     for p in "${search_paths[@]}"; do
@@ -4359,20 +4359,20 @@ do_migrate_database() {
 
     if [ -z "$migrate_bin" ]; then
         print_error "Migration binary not found!"
-        print_info "Expected at: $SCRIPT_DIR/betterdesk-server/tools/migrate/migrate-linux-amd64"
-        print_info "Build it with: cd betterdesk-server && go build -o tools/migrate/migrate-linux-amd64 ./tools/migrate/"
+        print_info "Expected at: $SCRIPT_DIR/yomie-server/tools/migrate/migrate-linux-amd64"
+        print_info "Build it with: cd yomie-server && go build -o tools/migrate/migrate-linux-amd64 ./tools/migrate/"
         press_enter
         return
     fi
 
     print_info "Migration binary: $migrate_bin"
     echo ""
-    echo -e "  ${WHITE}Migrate databases between different BetterDesk components.${NC}"
+    echo -e "  ${WHITE}Migrate databases between different Yomie components.${NC}"
     echo ""
     echo -e "  ${YELLOW}Migration Modes:${NC}"
     echo -e "  ${GREEN}1.${NC} Rust → Go        Migrate from legacy Rust hbbs database to Go server"
     echo -e "  ${GREEN}2.${NC} Node.js → Go     Migrate from Node.js web console to Go server"
-    echo -e "  ${GREEN}3.${NC} SQLite → PostgreSQL  Migrate BetterDesk Go SQLite to PostgreSQL"
+    echo -e "  ${GREEN}3.${NC} SQLite → PostgreSQL  Migrate Yomie Go SQLite to PostgreSQL"
     echo -e "  ${GREEN}4.${NC} PostgreSQL → SQLite  Migrate PostgreSQL back to SQLite"
     echo -e "  ${GREEN}5.${NC} Backup           Create timestamped backup of SQLite database"
     echo ""
@@ -4483,7 +4483,7 @@ do_migrate_database() {
 
             if [ $? -eq 0 ]; then
                 print_success "SQLite → PostgreSQL migration completed successfully!"
-                print_info "Update your BetterDesk Go server config: DB_URL=$pg_uri"
+                print_info "Update your Yomie Go server config: DB_URL=$pg_uri"
             else
                 print_error "Migration failed. Check the output above for details."
             fi

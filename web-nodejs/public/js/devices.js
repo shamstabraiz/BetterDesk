@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Devices Page
+ * Yomie Console - Devices Page
  */
 
 (function() {
@@ -15,7 +15,7 @@
     // Map device_type to Material Icons
     function getDeviceTypeIcon(type) {
         switch ((type || '').toLowerCase()) {
-            case 'betterdesk': return 'desktop_windows';
+            case 'yomie': return 'desktop_windows';
             case 'desktop':  return 'desktop_windows';
             case 'scada':    return 'precision_manufacturing';
             case 'iot':      return 'sensors';
@@ -502,7 +502,7 @@
             return;
         }
 
-        const bc = new BroadcastChannel('betterdesk-remote');
+        const bc = new BroadcastChannel('yomie-remote');
         let handled = false;
 
         // Listen for acknowledgment from remote page

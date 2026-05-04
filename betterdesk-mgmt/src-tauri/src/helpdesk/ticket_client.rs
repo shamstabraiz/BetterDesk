@@ -1,7 +1,7 @@
-//! BetterDesk Helpdesk — Agent-side ticket client
+//! Yomie Helpdesk — Agent-side ticket client
 //!
 //! Allows the desktop agent to create, list, and comment on tickets
-//! via the BetterDesk Console REST API.
+//! via the Yomie Console REST API.
 
 use serde::{Deserialize, Serialize};
 
@@ -45,7 +45,7 @@ pub struct ListTicketsResponse {
     pub total: usize,
 }
 
-/// Agent-side ticket client for the BetterDesk Console API.
+/// Agent-side ticket client for the Yomie Console API.
 pub struct TicketClient {
     http: reqwest::Client,
     base_url: String,

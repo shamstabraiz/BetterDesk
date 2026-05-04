@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Dashboard Page
+ * Yomie Console - Dashboard Page
  */
 
 (function() {
@@ -84,7 +84,7 @@
         else greetingKey = 'dashboard.greeting_evening';
         
         // Get username from global config
-        const username = window.BetterDesk?.user?.username || 'Admin';
+        const username = window.Yomie?.user?.username || 'Admin';
         
         const greeting = _(greetingKey);
         el.textContent = greeting.replace('{name}', username);

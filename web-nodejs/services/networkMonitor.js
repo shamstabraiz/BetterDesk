@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Network Monitor Service
+ * Yomie Console — Network Monitor Service
  *
  * Server-side service for monitoring network infrastructure:
  * - ICMP Ping checks (availability)
@@ -193,7 +193,7 @@ function checkHttp(url, timeoutMs = DEFAULT_TIMEOUT_MS, expectedStatus = 200) {
 
 class NetworkMonitor {
     /**
-     * @param {Object} dbAdapter — initialized BetterDesk dbAdapter instance
+     * @param {Object} dbAdapter — initialized Yomie dbAdapter instance
      */
     constructor(dbAdapter) {
         this.db = dbAdapter;

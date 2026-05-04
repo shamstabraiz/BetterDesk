@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Organization Management Routes (v3.0.0)
+ * Yomie Console — Organization Management Routes (v3.0.0)
  *
  * Proxies organization CRUD operations to the Go server REST API.
  * Provides page routes for the web panel and API routes for AJAX calls.

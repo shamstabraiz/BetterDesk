@@ -1,4 +1,4 @@
-//! BetterDesk Activity Uploader — periodic HTTP upload of activity data
+//! Yomie Activity Uploader — periodic HTTP upload of activity data
 //!
 //! Runs in a background async loop, periodically draining the session
 //! aggregator's completed sessions and uploading them to the Console API.

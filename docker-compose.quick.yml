@@ -1,5 +1,5 @@
 # =============================================================================
-# BetterDesk Console - Quick Start (Pre-built Images)
+# Yomie Console - Quick Start (Pre-built Images)
 # =============================================================================
 # NO BUILD REQUIRED - uses pre-built images from GitHub Container Registry
 #
@@ -18,12 +18,12 @@
 # =============================================================================
 
 services:
-  # BetterDesk Server (Go) — handles signal, relay, and API
+  # Yomie Server (Go) — handles signal, relay, and API
   server:
-    image: ghcr.io/unitronix/betterdesk-server:latest
-    container_name: betterdesk-server
-    hostname: betterdesk-server
-    command: ["/usr/local/bin/betterdesk-server", "-mode", "all", "-key-file", "/opt/rustdesk/id_ed25519"]
+    image: ghcr.io/unitronix/yomie-server:latest
+    container_name: yomie-server
+    hostname: yomie-server
+    command: ["/usr/local/bin/yomie-server", "-mode", "all", "-key-file", "/opt/rustdesk/id_ed25519"]
     ports:
       - "21114:21114"           # HTTP API
       - "21115:21115"           # NAT type test
@@ -33,11 +33,11 @@ services:
       - "21118:21118"           # WebSocket Signal
       - "21119:21119"           # WebSocket Relay
     volumes:
-      - betterdesk-data:/opt/rustdesk
+      - yomie-data:/opt/rustdesk
     environment:
       - ENCRYPTED_ONLY=1
     networks:
-      - betterdesk-net
+      - yomie-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:21114/api/health"]
@@ -46,36 +46,36 @@ services:
       retries: 3
       start_period: 15s
 
-  # BetterDesk Console — Web Management Interface
+  # Yomie Console — Web Management Interface
   console:
-    image: ghcr.io/unitronix/betterdesk-console:latest
-    container_name: betterdesk-console
-    hostname: betterdesk-console
+    image: ghcr.io/unitronix/yomie-console:latest
+    container_name: yomie-console
+    hostname: yomie-console
     ports:
       - "5000:5000"             # Web console
       - "21121:21121"           # RustDesk Client API (WAN)
     volumes:
-      - betterdesk-data:/opt/rustdesk
+      - yomie-data:/opt/rustdesk
       - console-data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=5000
       - HOST=0.0.0.0
       - API_HOST=0.0.0.0
-      - SERVER_BACKEND=betterdesk
-      - BETTERDESK_API_URL=http://betterdesk-server:21114/api
+      - SERVER_BACKEND=yomie
+      - BETTERDESK_API_URL=http://yomie-server:21114/api
       - RUSTDESK_PATH=/opt/rustdesk
       - DATA_DIR=/app/data
       - DB_PATH=/app/data/db_v2.sqlite3
       - PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
       - API_KEY_PATH=/opt/rustdesk/.api_key
-      - WS_HBBS_HOST=betterdesk-server
+      - WS_HBBS_HOST=yomie-server
       - WS_HBBS_PORT=21116
-      - WS_HBBR_HOST=betterdesk-server
+      - WS_HBBR_HOST=yomie-server
       - WS_HBBR_PORT=21117
       - DOCKER=true
     networks:
-      - betterdesk-net
+      - yomie-net
     depends_on:
       server:
         condition: service_healthy
@@ -88,11 +88,11 @@ services:
       start_period: 20s
 
 networks:
-  betterdesk-net:
+  yomie-net:
     driver: bridge
 
 volumes:
-  betterdesk-data:
-    name: betterdesk-data
+  yomie-data:
+    name: yomie-data
   console-data:
-    name: betterdesk-console-data
+    name: yomie-console-data

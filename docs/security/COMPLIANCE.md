@@ -1,4 +1,4 @@
-# BetterDesk — Compliance Notes
+# Yomie — Compliance Notes
 
 > **Last Updated:** 2026-04-01
 > **Disclaimer:** This document provides guidance for compliance considerations. It is not legal advice. Consult your compliance officer or legal counsel for authoritative guidance.
@@ -36,7 +36,7 @@
 
 ### Relevant Controls
 
-| Control Area | BetterDesk Feature |
+| Control Area | Yomie Feature |
 |-------------|-------------------|
 | Access controls | Role-based access (owner/admin/operator/user), TOTP 2FA |
 | Audit trail | Comprehensive audit logging (login, sessions, config changes) |
@@ -47,7 +47,7 @@
 
 ### Technical Safeguards
 
-| Requirement | BetterDesk Implementation |
+| Requirement | Yomie Implementation |
 |-------------|--------------------------|
 | Access control | Role-based authentication, per-organization isolation |
 | Audit controls | Audit log with timestamps, user IDs, actions |

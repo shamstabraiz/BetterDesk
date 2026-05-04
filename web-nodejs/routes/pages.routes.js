@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Page Render Routes
+ * Yomie Console — Page Render Routes
  *
  * Serves HTML pages for management modules. API endpoints are in separate route files.
  *

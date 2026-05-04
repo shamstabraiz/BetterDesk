@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Utility Functions
+ * Yomie Console - Utility Functions
  */
 
 const Utils = {
@@ -19,7 +19,7 @@ const Utils = {
             minute: '2-digit'
         };
         
-        return date.toLocaleDateString(window.BetterDesk.lang, { ...defaultOptions, ...options });
+        return date.toLocaleDateString(window.Yomie.lang, { ...defaultOptions, ...options });
     },
     
     /**
@@ -186,8 +186,8 @@ const Utils = {
         };
         
         // Add CSRF token if available
-        if (window.BetterDesk.csrfToken) {
-            defaults.headers['X-CSRF-Token'] = window.BetterDesk.csrfToken;
+        if (window.Yomie.csrfToken) {
+            defaults.headers['X-CSRF-Token'] = window.Yomie.csrfToken;
         }
         
         const config = {

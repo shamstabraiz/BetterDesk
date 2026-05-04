@@ -1,5 +1,5 @@
 /* ===================================================================
-   BetterDesk — Cross-Platform Compatibility  (frontend)
+   Yomie — Cross-Platform Compatibility  (frontend)
    =================================================================== */
 (function () {
     'use strict';

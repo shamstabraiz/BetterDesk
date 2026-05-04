@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Users Routes
+ * Yomie Console - Users Routes
  * User management for admins (CRUD operations)
  */
 

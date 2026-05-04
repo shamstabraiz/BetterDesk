@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - i18n Service
+ * Yomie Console - i18n Service
  * Translation manager with JSON-based language files
  */
 

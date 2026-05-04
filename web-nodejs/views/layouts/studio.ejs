@@ -29,7 +29,7 @@
     
     <!-- Scripts -->
     <script nonce="<%= cspNonce %>">
-        window.BetterDesk = {
+        window.Yomie = {
             lang: '<%= lang || "en" %>',
             translations: <%- JSON.stringify(translations || {}) %>,
             csrfToken: '<%= typeof csrfToken !== "undefined" ? csrfToken : "" %>',

@@ -1,15 +1,15 @@
 # =============================================================================
-# BetterDesk Docker Images - Build & Publish to GitHub Container Registry
+# Yomie Docker Images - Build & Publish to GitHub Container Registry
 # =============================================================================
 # This workflow builds and publishes Docker images to ghcr.io.
 #
 # Images published:
-#   - ghcr.io/unitronix/betterdesk-server:latest  (Go server)
-#   - ghcr.io/unitronix/betterdesk-console:latest (Node.js console)
-#   - ghcr.io/unitronix/betterdesk:latest         (All-in-one)
+#   - ghcr.io/unitronix/yomie-server:latest  (Go server)
+#   - ghcr.io/unitronix/yomie-console:latest (Node.js console)
+#   - ghcr.io/unitronix/yomie:latest         (All-in-one)
 #
 # Triggers:
-#   - Push to 'main' with changes to Dockerfile*, docker-compose*, betterdesk-server/**, web-nodejs/**
+#   - Push to 'main' with changes to Dockerfile*, docker-compose*, yomie-server/**, web-nodejs/**
 #   - Manual dispatch
 #   - Release published
 # =============================================================================
@@ -31,7 +31,7 @@ on:
       - 'Dockerfile*'
       - 'docker-compose*.yml'
       - 'docker/**'
-      - 'betterdesk-server/**'
+      - 'yomie-server/**'
       - 'web-nodejs/**'
       - '.github/workflows/docker-publish.yml'
 
@@ -73,7 +73,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_PREFIX }}/betterdesk-server
+          images: ${{ env.IMAGE_PREFIX }}/yomie-server
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -99,7 +99,7 @@ jobs:
           SYFT_REGISTRY_AUTH_USERNAME: ${{ github.actor }}
           SYFT_REGISTRY_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
-          image: ${{ env.IMAGE_PREFIX }}/betterdesk-server:latest
+          image: ${{ env.IMAGE_PREFIX }}/yomie-server:latest
           format: spdx-json
           output-file: sbom-server.spdx.json
 
@@ -110,7 +110,7 @@ jobs:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
-          image-ref: ${{ env.IMAGE_PREFIX }}/betterdesk-server:latest
+          image-ref: ${{ env.IMAGE_PREFIX }}/yomie-server:latest
           format: table
           exit-code: 0
           severity: CRITICAL,HIGH
@@ -142,7 +142,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_PREFIX }}/betterdesk-console
+          images: ${{ env.IMAGE_PREFIX }}/yomie-console
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -188,7 +188,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_PREFIX }}/betterdesk
+          images: ${{ env.IMAGE_PREFIX }}/yomie
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -225,9 +225,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Image | Tag |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| \`ghcr.io/${{ github.repository_owner }}/betterdesk-server\` | latest |" >> $GITHUB_STEP_SUMMARY
-          echo "| \`ghcr.io/${{ github.repository_owner }}/betterdesk-console\` | latest |" >> $GITHUB_STEP_SUMMARY
-          echo "| \`ghcr.io/${{ github.repository_owner }}/betterdesk\` | latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`ghcr.io/${{ github.repository_owner }}/yomie-server\` | latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`ghcr.io/${{ github.repository_owner }}/yomie-console\` | latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`ghcr.io/${{ github.repository_owner }}/yomie\` | latest |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Quick Start" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY

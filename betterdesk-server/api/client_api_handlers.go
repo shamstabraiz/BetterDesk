@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/audit"
-	"github.com/unitronix/betterdesk-server/auth"
+	"github.com/unitronix/yomie-server/audit"
+	"github.com/unitronix/yomie-server/auth"
 )
 
 // tfaSession holds temporary state for a two-factor auth flow in progress.

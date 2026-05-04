@@ -1,4 +1,4 @@
-# BetterDesk — Simplified Docker Compose (Single Container)
+# Yomie — Simplified Docker Compose (Single Container)
 # ===========================================================
 #
 # All-in-one: Go server + Node.js console in a single container.
@@ -8,12 +8,12 @@
 #
 # With PostgreSQL:
 #   PG_PASSWORD=YourStrongPasswordHere \
-#   DB_TYPE=postgres DATABASE_URL=postgres://betterdesk:YourStrongPasswordHere@postgres:5432/betterdesk \
+#   DB_TYPE=postgres DATABASE_URL=postgres://yomie:YourStrongPasswordHere@postgres:5432/yomie \
 #     docker compose -f docker-compose.single.yml --profile postgres up -d --build
 #
 #   Or create a .env file:
 #     DB_TYPE=postgres
-#     DATABASE_URL=postgres://betterdesk:YourStrongPasswordHere@postgres:5432/betterdesk
+#     DATABASE_URL=postgres://yomie:YourStrongPasswordHere@postgres:5432/yomie
 #     PG_PASSWORD=YourStrongPasswordHere
 #   Then: docker compose -f docker-compose.single.yml --profile postgres up -d --build
 #
@@ -22,15 +22,15 @@
 #   Default login: admin / admin
 
 services:
-  # BetterDesk All-in-One (Go server + Node.js console)
-  betterdesk:
+  # Yomie All-in-One (Go server + Node.js console)
+  yomie:
     build:
       context: .
       dockerfile: Dockerfile
-    image: betterdesk:local
+    image: yomie:local
     pull_policy: never
-    container_name: betterdesk
-    hostname: betterdesk
+    container_name: yomie
+    hostname: yomie
     ports:
       - "5000:5000"             # Web Console (LAN)
       - "21114:21114"           # HTTP API
@@ -42,7 +42,7 @@ services:
       - "21119:21119"           # WebSocket Relay
       - "21121:21121"           # RustDesk Client API (WAN)
     volumes:
-      - betterdesk-data:/opt/rustdesk
+      - yomie-data:/opt/rustdesk
       - console-data:/app/data
     environment:
       - NODE_ENV=production
@@ -50,7 +50,7 @@ services:
       - HOST=0.0.0.0
       - API_HOST=0.0.0.0
       - ENCRYPTED_ONLY=1
-      - SERVER_BACKEND=betterdesk
+      - SERVER_BACKEND=yomie
       - HBBS_API_URL=http://127.0.0.1:21114/api
       - BETTERDESK_API_URL=http://127.0.0.1:21114/api
       - RUSTDESK_PATH=/opt/rustdesk
@@ -82,17 +82,17 @@ services:
   # PostgreSQL (optional — use with --profile postgres)
   postgres:
     image: postgres:16-alpine
-    container_name: betterdesk-postgres
+    container_name: yomie-postgres
     environment:
-      - POSTGRES_USER=betterdesk
+      - POSTGRES_USER=yomie
       # BD-2026-007: PG_PASSWORD MUST be set explicitly — do not use default values in production
       - POSTGRES_PASSWORD=${PG_PASSWORD:?PG_PASSWORD must be set for PostgreSQL}
-      - POSTGRES_DB=betterdesk
+      - POSTGRES_DB=yomie
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U betterdesk"]
+      test: ["CMD-SHELL", "pg_isready -U yomie"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -102,7 +102,7 @@ services:
   # Nginx Reverse Proxy (optional — use with --profile nginx)
   nginx:
     image: nginx:alpine
-    container_name: betterdesk-nginx
+    container_name: yomie-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -111,15 +111,15 @@ services:
       - ./ssl:/etc/nginx/ssl:ro
     restart: unless-stopped
     depends_on:
-      - betterdesk
+      - yomie
     profiles:
       - nginx
 
 volumes:
-  betterdesk-data:
+  yomie-data:
   console-data:
   postgres-data:
 
 networks:
   default:
-    name: betterdesk-net
+    name: yomie-net

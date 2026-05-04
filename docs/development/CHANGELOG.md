@@ -1,4 +1,4 @@
-# BetterDesk Console - Changelog
+# Yomie Console - Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -45,19 +45,19 @@ Critical fixes for issues #68, #70, #71 — API TLS breaking client communicatio
 
 #### API TLS Fix (Issues #70, #71)
 - **Root cause**: Fresh install with proper SSL certificates added `-tls-api -force-https` to Go server, making API port 21114 HTTPS-only. RustDesk clients always send plain HTTP → `HTTP 400` on every request → 0 devices.
-- **betterdesk.sh / betterdesk.ps1**: Removed `-tls-api -force-https` from Go server args for ALL certificate types. Signal/relay TLS unchanged.
+- **yomie.sh / yomie.ps1**: Removed `-tls-api -force-https` from Go server args for ALL certificate types. Signal/relay TLS unchanged.
 - **config.go**: `--force-https` no longer implies API TLS. Only explicit `--tls-api` enables HTTPS on API port.
 - **SSL config menu**: Never adds `-tls-api`. Always removes `-tls-api` and `-force-https` from existing service.
 - **API URLs**: Always `http://localhost:21114/api` in `.env` and systemd — regardless of certificate type.
 
 #### Password `$` Escaping (Issue #68)
 - **Root cause**: systemd interprets `$` as variable substitution in `ExecStart=` and `Environment=` directives. Passwords or PostgreSQL URLs containing `$` get silently corrupted.
-- **betterdesk.sh**: Added `$` → `$$` escaping for admin password and PostgreSQL URL before writing to `.service` files.
+- **yomie.sh**: Added `$` → `$$` escaping for admin password and PostgreSQL URL before writing to `.service` files.
 - **Note**: Auto-generated passwords (alphanumeric only) were never affected. Fix targets user-set passwords.
 
 #### Port Diagnostic False Positive
 - **Root cause**: On some Linux systems (Ubuntu 24.04+), `ss -tlnp` reports Node.js as `MainThread` instead of `node`.
-- **betterdesk.sh**: Added `MainThread` to expected process patterns for ports 5000 and 21121.
+- **yomie.sh**: Added `MainThread` to expected process patterns for ports 5000 and 21121.
 
 ## [2.4.1] - 2026-03-20
 
@@ -113,7 +113,7 @@ Full security audit performed — 3 Critical, 5 High, 8 Medium, 6 Low findings. 
 
 #### Critical Fixes
 - **CSRF Protection** — Double-submit cookie pattern using `csrf-csrf` package (new `middleware/csrf.js`)
-- **Cookie Name Fix** — Logout now correctly clears `betterdesk.sid` (was `connect.sid`)
+- **Cookie Name Fix** — Logout now correctly clears `yomie.sid` (was `connect.sid`)
 - **TOTP Dependency** — Added `otplib` to `package.json` for TOTP 2FA support
 
 #### High Fixes
@@ -152,7 +152,7 @@ Full security audit performed — 3 Critical, 5 High, 8 Medium, 6 Low findings. 
 - Connect to devices directly from browser using RustDesk URI handler (`rustdesk://`)
 
 #### SSL Certificate Configuration
-- New menu option **C** in both `betterdesk.sh` and `betterdesk.ps1`
+- New menu option **C** in both `yomie.sh` and `yomie.ps1`
 - Let's Encrypt (certbot) integration on Linux
 - Custom certificate support (PEM cert + key)
 - Self-signed certificate generation
@@ -162,7 +162,7 @@ Full security audit performed — 3 Critical, 5 High, 8 Medium, 6 Low findings. 
 
 - **Flask console removed** — Node.js is now the only supported web console
 - `--flask` / `-Flask` flags show deprecation warning and install Node.js instead
-- `Install-FlaskConsole` function removed from `betterdesk.ps1`
+- `Install-FlaskConsole` function removed from `yomie.ps1`
 - Flask pip packages removed from dependency installation
 - Flask NSSM/systemd service blocks removed
 
@@ -189,8 +189,8 @@ Major overhaul of the browser-based remote desktop client — fixes critical iss
 ### 📝 Updated
 
 - `README.md` — Comprehensive overhaul for v2.3.0 (new architecture diagram, Client API docs, security section)
-- `betterdesk.sh` — v2.3.0 with Flask removal and SSL wizard
-- `betterdesk.ps1` — v2.3.0 with Flask removal and SSL configuration
+- `yomie.sh` — v2.3.0 with Flask removal and SSL wizard
+- `yomie.ps1` — v2.3.0 with Flask removal and SSL configuration
 - `VERSION` — 2.3.0
 - `package.json` — Version 2.3.0, added `otplib` and `csrf-csrf` dependencies
 - `.github/copilot-instructions.md` — Updated project state documentation
@@ -208,7 +208,7 @@ Major overhaul of the browser-based remote desktop client — fixes critical iss
 #### Pre-Compiled Linux Binaries (hbbs-patch-v2/)
 - **hbbs-linux-x86_64**: Signal server with HTTP API (9.4 MB)
 - **hbbr-linux-x86_64**: Relay server (2.9 MB)
-- Compiled from RustDesk Server 1.1.14 with BetterDesk enhancements
+- Compiled from RustDesk Server 1.1.14 with Yomie enhancements
 
 #### Performance Improvements (v2 binaries)
 - **Port 21120**: Non-conflicting API port (changed from 21114)
@@ -576,7 +576,7 @@ sudo ./install-improved.sh
 **Manual steps if needed:**
 1. Update systemd service: Add `--api-port 21120` to ExecStart
 2. Update web console: Change API URL to `http://localhost:21120/api`
-3. Reload services: `systemctl daemon-reload && systemctl restart rustdesksignal betterdesk`
+3. Reload services: `systemctl daemon-reload && systemctl restart rustdesksignal yomie`
 
 ### Verification
 
@@ -725,7 +725,7 @@ Benefits of v8:
 - **Performance**: Minimal overhead (~1ms per registration)
 - **Reliability**: 100% ban enforcement (vs ~95% with daemon)
 - **Architecture**: Ban check integrated into device registration flow
-- **Compatibility**: Works with existing BetterDesk Console database schema
+- **Compatibility**: Works with existing Yomie Console database schema
 - **Build**: Rust 1.90+ required for compilation
 
 ### Migration Notes

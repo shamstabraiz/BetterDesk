@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Permissions Routes (RBAC Phase 52)
+ * Yomie Console - Permissions Routes (RBAC Phase 52)
  * Role and permission management for admins.
  */
 

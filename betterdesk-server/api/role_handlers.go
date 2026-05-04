@@ -1,4 +1,4 @@
-// Role and Permission management handlers for the BetterDesk API (Phase 52 RBAC).
+// Role and Permission management handlers for the Yomie API (Phase 52 RBAC).
 //
 // Provides endpoints:
 //
@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/unitronix/betterdesk-server/auth"
+	"github.com/unitronix/yomie-server/auth"
 )
 
 // roleInfo describes a single role for the /api/roles response.

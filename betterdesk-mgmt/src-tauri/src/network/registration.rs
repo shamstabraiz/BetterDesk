@@ -493,7 +493,7 @@ async fn handle_server_message_udp(
 ///
 /// Stored alongside the device ID in the config directory.
 fn get_or_create_identity() -> Result<(Vec<u8>, Vec<u8>)> {
-    let config_dir = directories::ProjectDirs::from("com", "betterdesk", "BetterDesk")
+    let config_dir = directories::ProjectDirs::from("com", "yomie", "Yomie")
         .context("Failed to determine config directory")?
         .config_dir()
         .to_path_buf();

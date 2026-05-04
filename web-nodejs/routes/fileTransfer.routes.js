@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — File Transfer API Routes
+ * Yomie Console — File Transfer API Routes
  *
  * REST endpoints for file transfer management and WebSocket relay.
  *

@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Test Helper
+ * Yomie Console - Test Helper
  * Creates a minimal Express app with mocked services for unit testing.
  */
 

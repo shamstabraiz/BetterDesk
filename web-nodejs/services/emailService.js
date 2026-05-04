@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Email Notification Service
+ * Yomie Console — Email Notification Service
  *
  * SMTP-based email delivery for alert notifications.
  * Configuration is stored in the database (admin-configurable).
@@ -46,7 +46,7 @@ async function loadSmtpConfig() {
             secure: process.env.SMTP_SECURE === 'true',
             user: process.env.SMTP_USER || '',
             pass: process.env.SMTP_PASS || '',
-            from: process.env.SMTP_FROM || 'betterdesk@localhost',
+            from: process.env.SMTP_FROM || 'yomie@localhost',
         };
     }
     return null;
@@ -95,7 +95,7 @@ async function sendEmail({ to, subject, text, html }) {
     const config = _cachedConfig;
     try {
         await transporter.sendMail({
-            from: config.from || 'betterdesk@localhost',
+            from: config.from || 'yomie@localhost',
             to,
             subject,
             text,
@@ -113,7 +113,7 @@ async function sendEmail({ to, subject, text, html }) {
  * Send an alert notification email.
  */
 async function sendAlertEmail(alert, rule) {
-    const subject = `[BetterDesk Alert] ${rule.name} — ${alert.severity.toUpperCase()}`;
+    const subject = `[Yomie Alert] ${rule.name} — ${alert.severity.toUpperCase()}`;
     const text = [
         `Alert: ${rule.name}`,
         `Severity: ${alert.severity}`,
@@ -126,7 +126,7 @@ async function sendAlertEmail(alert, rule) {
 
     const html = `
         <div style="font-family: sans-serif; max-width: 600px;">
-            <h2 style="color: #e74c3c;">BetterDesk Alert: ${escapeHtml(rule.name)}</h2>
+            <h2 style="color: #e74c3c;">Yomie Alert: ${escapeHtml(rule.name)}</h2>
             <table style="border-collapse: collapse; width: 100%;">
                 <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Severity</td>
                     <td style="padding: 8px; border-bottom: 1px solid #eee;">${alert.severity}</td></tr>

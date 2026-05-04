@@ -1,7 +1,7 @@
-# Prompt: BetterDesk MGMT Client
+# Prompt: Yomie MGMT Client
 
 ## Cel
-Na bazie istniejącego projektu `shamstabraiz/BetterDesk` utwórz nowy, wydzielony typ klienta o nazwie **BetterDesk MGMT Client** (klient administracyjno-operatorski), którego zadaniem jest zapewnienie administratorom i operatorom centrum wsparcia zdalnego pełnego, bezpiecznego i wysokowydajnego dostępu do urządzeń podłączonych do serwera BetterDesk.
+Na bazie istniejącego projektu `shamstabraiz/Yomie` utwórz nowy, wydzielony typ klienta o nazwie **Yomie MGMT Client** (klient administracyjno-operatorski), którego zadaniem jest zapewnienie administratorom i operatorom centrum wsparcia zdalnego pełnego, bezpiecznego i wysokowydajnego dostępu do urządzeń podłączonych do serwera Yomie.
 
 Klient MGMT ma być aplikacją typu **standalone**, zoptymalizowaną pod kątem:
 - maksymalnej jakości obrazu,
@@ -10,21 +10,21 @@ Klient MGMT ma być aplikacją typu **standalone**, zoptymalizowaną pod kątem:
 - stabilności połączeń,
 - zgodności z różnymi systemami operacyjnymi,
 - bezpieczeństwa operacyjnego i kryptograficznego,
-- centralnego zarządzania infrastrukturą BetterDesk.
+- centralnego zarządzania infrastrukturą Yomie.
 
 ## Główna rola klienta MGMT
 Klient MGMT to narzędzie dla administratorów, helpdesku, operatorów i personelu wsparcia technicznego. Ma umożliwiać:
 
 1. zdalne łączenie się do klientów typu Agent,
-2. wyświetlanie listy urządzeń zarejestrowanych nie tylko w BetterDesk, ale również – jeśli architektura projektu na to pozwala – urządzeń pochodzących z integracji z RustDesk,
-3. zarządzanie serwerem BetterDesk z poziomu aplikacji,
+2. wyświetlanie listy urządzeń zarejestrowanych nie tylko w Yomie, ale również – jeśli architektura projektu na to pozwala – urządzeń pochodzących z integracji z RustDesk,
+3. zarządzanie serwerem Yomie z poziomu aplikacji,
 4. prowadzenie czatu z użytkownikami i agentami podłączonymi do serwera,
 5. odbieranie powiadomień o prośbach o pomoc,
 6. nadzorowanie i obsługę scenariuszy CDAP (narzędzie operatora do zdalnej pomocy i zarządzania),
 7. zapewnienie maksymalnej jakości i płynności transmisji obrazu dzięki pełnemu wykorzystaniu dostępnych technologii projektu.
 
 ## Wymagania architektoniczne
-Przeanalizuj aktualną architekturę repozytorium `BetterDesk` i zaprojektuj klienta MGMT tak, aby:
+Przeanalizuj aktualną architekturę repozytorium `Yomie` i zaprojektuj klienta MGMT tak, aby:
 - wykorzystywał maksymalnie istniejące komponenty i protokoły projektu,
 - nie dublował logiki już obecnej w backendzie i usługach serwera,
 - wydzielał warstwę GUI od warstwy komunikacyjnej,
@@ -49,7 +49,7 @@ Klient MGMT ma prezentować zunifikowaną listę urządzeń:
 - status bezpieczeństwa,
 - ostatnie połączenie,
 - tagi, grupy, lokalizacje, właściciel urządzenia,
-- źródło urządzenia: BetterDesk / integracja RustDesk / inne przyszłe źródła.
+- źródło urządzenia: Yomie / integracja RustDesk / inne przyszłe źródła.
 
 Lista ma wspierać:
 - wyszukiwanie,
@@ -87,7 +87,7 @@ Klient MGMT ma umożliwiać:
 - eskalację zgłoszeń,
 - oznaczanie sesji jako wymagającej pilnej pomocy.
 
-### 4. Zarządzanie serwerem BetterDesk
+### 4. Zarządzanie serwerem Yomie
 Klient MGMT ma zawierać panel administracyjny pozwalający – zależnie od uprawnień – na:
 - przegląd stanu serwera,
 - przegląd podłączonych klientów,
@@ -167,7 +167,7 @@ Widoki minimalne:
 - panel audytu/logów.
 
 ## Integracja z RustDesk
-Jeśli repozytorium BetterDesk technicznie umożliwia integrację z RustDesk, zaprojektuj warstwę integracyjną tak, aby:
+Jeśli repozytorium Yomie technicznie umożliwia integrację z RustDesk, zaprojektuj warstwę integracyjną tak, aby:
 - nie łamać obecnej architektury,
 - oddzielać źródła urządzeń logicznie,
 - normalizować metadane urządzeń,
@@ -196,7 +196,7 @@ Na bazie istniejącego projektu:
    - testy kompatybilności systemowej.
 
 ## Oczekiwany rezultat
-Wygeneruj kompletny plan i implementację klienta **BetterDesk MGMT Client**, obejmującą:
+Wygeneruj kompletny plan i implementację klienta **Yomie MGMT Client**, obejmującą:
 - architekturę,
 - strukturę katalogów,
 - komponenty GUI,
@@ -206,6 +206,6 @@ Wygeneruj kompletny plan i implementację klienta **BetterDesk MGMT Client**, ob
 - czat,
 - powiadomienia,
 - model bezpieczeństwa,
-- integrację z istniejącym backendem BetterDesk,
+- integrację z istniejącym backendem Yomie,
 - plan integracji z RustDesk,
 - strategię wdrożenia cross-platform.

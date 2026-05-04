@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Client Generator Routes
+ * Yomie Console - Client Generator Routes
  */
 
 const express = require('express');

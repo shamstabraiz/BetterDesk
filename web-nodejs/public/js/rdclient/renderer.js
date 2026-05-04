@@ -1,5 +1,5 @@
 /**
- * BetterDesk Web Remote Client - Canvas Renderer
+ * Yomie Web Remote Client - Canvas Renderer
  * Renders decoded video frames on canvas with cursor overlay
  */
 

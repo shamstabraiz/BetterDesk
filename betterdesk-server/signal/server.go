@@ -1,4 +1,4 @@
-// Package signal implements the BetterDesk signal server (hbbs equivalent).
+// Package signal implements the Yomie signal server (hbbs equivalent).
 // It handles device registration, hole punching, NAT tests, and online queries
 // over UDP, TCP, and WebSocket transports.
 package signal
@@ -16,15 +16,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/codec"
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/crypto"
-	"github.com/unitronix/betterdesk-server/db"
-	"github.com/unitronix/betterdesk-server/events"
-	"github.com/unitronix/betterdesk-server/peer"
-	pb "github.com/unitronix/betterdesk-server/proto"
-	"github.com/unitronix/betterdesk-server/ratelimit"
-	"github.com/unitronix/betterdesk-server/security"
+	"github.com/unitronix/yomie-server/codec"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/crypto"
+	"github.com/unitronix/yomie-server/db"
+	"github.com/unitronix/yomie-server/events"
+	"github.com/unitronix/yomie-server/peer"
+	pb "github.com/unitronix/yomie-server/proto"
+	"github.com/unitronix/yomie-server/ratelimit"
+	"github.com/unitronix/yomie-server/security"
 	"google.golang.org/protobuf/proto"
 )
 

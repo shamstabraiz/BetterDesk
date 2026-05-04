@@ -1,4 +1,4 @@
-// Package api implements the BetterDesk HTTP REST API server.
+// Package api implements the Yomie HTTP REST API server.
 // Provides endpoints for peer management, server health, statistics,
 // detailed device status, blocklist management, and bandwidth stats.
 package api
@@ -17,18 +17,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/audit"
-	"github.com/unitronix/betterdesk-server/auth"
-	"github.com/unitronix/betterdesk-server/cdap"
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/crypto"
-	"github.com/unitronix/betterdesk-server/db"
-	eventsModule "github.com/unitronix/betterdesk-server/events"
-	"github.com/unitronix/betterdesk-server/metrics"
-	"github.com/unitronix/betterdesk-server/peer"
-	"github.com/unitronix/betterdesk-server/ratelimit"
-	"github.com/unitronix/betterdesk-server/relay"
-	"github.com/unitronix/betterdesk-server/security"
+	"github.com/unitronix/yomie-server/audit"
+	"github.com/unitronix/yomie-server/auth"
+	"github.com/unitronix/yomie-server/cdap"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/crypto"
+	"github.com/unitronix/yomie-server/db"
+	eventsModule "github.com/unitronix/yomie-server/events"
+	"github.com/unitronix/yomie-server/metrics"
+	"github.com/unitronix/yomie-server/peer"
+	"github.com/unitronix/yomie-server/ratelimit"
+	"github.com/unitronix/yomie-server/relay"
+	"github.com/unitronix/yomie-server/security"
 
 	"github.com/coder/websocket"
 	"golang.org/x/crypto/bcrypt"
@@ -319,7 +319,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// CDAP audio stream WebSocket (operator+)
 	mux.HandleFunc("GET /api/cdap/devices/{id}/audio", s.requireRole(auth.RoleOperator, s.handleCDAPAudio))
 
-	// BetterDesk desktop client management WebSocket (no API key — device auth)
+	// Yomie desktop client management WebSocket (no API key — device auth)
 	mux.HandleFunc("GET /ws/bd-mgmt/{device_id}", s.handleBdMgmt)
 	// Management REST endpoints (admin/operator only)
 	mux.HandleFunc("GET /api/bd/mgmt/{device_id}/status", s.handleBdMgmtStatus)

@@ -1,4 +1,4 @@
-/// BetterDesk Agent — File Receiver
+/// Yomie Agent — File Receiver
 ///
 /// Receives binary file chunks from the WebSocket relay and
 /// reassembles them into a local file.  Validates integrity

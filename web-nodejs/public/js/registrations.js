@@ -1,20 +1,20 @@
 /**
- * BetterDesk Console - Registrations Page Script
+ * Yomie Console - Registrations Page Script
  */
 
 (function () {
     'use strict';
 
-    const _ = window.BetterDesk?.translations
+    const _ = window.Yomie?.translations
         ? (key) => {
             const keys = key.split('.');
-            let val = window.BetterDesk.translations;
+            let val = window.Yomie.translations;
             for (const k of keys) { val = val?.[k]; }
             return val || key;
         }
         : (key) => key;
 
-    const csrfToken = window.BetterDesk?.csrfToken || '';
+    const csrfToken = window.Yomie?.csrfToken || '';
 
     // State
     let currentStatus = '';
@@ -237,9 +237,9 @@
     }
 
     function showToast(message, type) {
-        // Use BetterDesk notification system if available
-        if (window.BetterDesk?.notify) {
-            window.BetterDesk.notify(message, type);
+        // Use Yomie notification system if available
+        if (window.Yomie?.notify) {
+            window.Yomie.notify(message, type);
             return;
         }
         // Fallback: use toast container

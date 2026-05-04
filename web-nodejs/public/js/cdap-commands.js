@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - CDAP Command Sender
+ * Yomie Console - CDAP Command Sender
  * Handles sending commands to CDAP devices with confirmation dialogs,
  * cooldown management, and command log tracking.
  */
@@ -24,7 +24,7 @@
         }
         lastCommandTime[key] = now;
 
-        const csrfToken = window.BetterDesk?.csrfToken || '';
+        const csrfToken = window.Yomie?.csrfToken || '';
 
         try {
             const res = await fetch(`/api/cdap/devices/${encodeURIComponent(deviceId)}/command`, {
@@ -73,7 +73,7 @@
     }
 
     function sendWithConfirm(deviceId, widgetId, action, value, confirmMsg) {
-        const __ = window.BetterDesk?.translations || {};
+        const __ = window.Yomie?.translations || {};
         const title = __?.cdap?.confirm_command || 'Confirm Command';
 
         if (!window.BetterDeskModal) {

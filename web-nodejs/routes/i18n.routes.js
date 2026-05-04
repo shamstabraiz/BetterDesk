@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - i18n API Routes
+ * Yomie Console - i18n API Routes
  */
 
 const express = require('express');

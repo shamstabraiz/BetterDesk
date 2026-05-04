@@ -33,7 +33,7 @@
     <!-- Scripts -->
     <script nonce="<%= cspNonce %>">
         // Global config
-        window.BetterDesk = {
+        window.Yomie = {
             lang: '<%= lang || "en" %>',
             translations: <%- JSON.stringify(translations || {}) %>,
             csrfToken: '<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>',

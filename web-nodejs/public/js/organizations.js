@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Organizations List Page JavaScript
+ * Yomie Console — Organizations List Page JavaScript
  *
  * Handles organization CRUD operations on the /organizations page.
  */
@@ -35,7 +35,7 @@
     //  Helpers
     // -----------------------------------------------------------------------
     async function api(method, path, body) {
-        const csrfToken = window.BetterDesk?.csrfToken || '';
+        const csrfToken = window.Yomie?.csrfToken || '';
         const opts = {
             method,
             headers: { 'Content-Type': 'application/json' },

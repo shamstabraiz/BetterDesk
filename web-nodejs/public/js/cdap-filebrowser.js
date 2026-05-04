@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — CDAP File Browser Widget
+ * Yomie Console — CDAP File Browser Widget
  * Provides file browsing, download, upload, and deletion via WebSocket.
  * Uses request-response pattern (file_list, file_read, file_write, file_delete).
  */
@@ -34,7 +34,7 @@
     }
 
     function t(key) {
-        return window.BetterDesk?.t?.(key) || key.split('.').pop();
+        return window.Yomie?.t?.(key) || key.split('.').pop();
     }
 
     // ── File Browser Session Manager ─────────────────────────────────────

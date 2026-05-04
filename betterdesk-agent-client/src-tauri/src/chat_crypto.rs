@@ -1,6 +1,6 @@
 //! E2E chat encryption — X25519 ECDH + XSalsa20-Poly1305 (NaCl box).
 //!
-//! Matches the Go server implementation in `betterdesk-server/cdap/crypto.go`.
+//! Matches the Go server implementation in `yomie-server/cdap/crypto.go`.
 //! Key exchange flow:
 //!   1. Agent generates an X25519 keypair on first start; persisted to keyring.
 //!   2. On CDAP connection agent sends `key_exchange { type:"offer", public_key }`.

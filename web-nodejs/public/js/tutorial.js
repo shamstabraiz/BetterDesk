@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Visual Tutorial System
+ * Yomie Console - Visual Tutorial System
  * Spotlight-based guided tour with i18n support.
  * 
  * Usage:
@@ -38,9 +38,9 @@
             var result = window._(key);
             return result !== key ? result : fallback;
         }
-        if (window.BetterDesk && window.BetterDesk.translations) {
+        if (window.Yomie && window.Yomie.translations) {
             var keys = key.split('.');
-            var val = window.BetterDesk.translations;
+            var val = window.Yomie.translations;
             for (var i = 0; i < keys.length; i++) {
                 if (val && typeof val === 'object' && keys[i] in val) {
                     val = val[keys[i]];

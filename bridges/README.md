@@ -1,9 +1,9 @@
-# BetterDesk CDAP — Reference Bridges
+# Yomie CDAP — Reference Bridges
 
 This directory contains ready-to-use bridge implementations that connect
-external systems to BetterDesk via the CDAP protocol. Each bridge uses
+external systems to Yomie via the CDAP protocol. Each bridge uses
 the **Python SDK** (`sdks/python/`) and can be deployed as a standalone
-service alongside BetterDesk server.
+service alongside Yomie server.
 
 ## Available Bridges
 
@@ -27,7 +27,7 @@ External Device/API
        │ WebSocket (CDAP)
        ▼
 ┌──────────────┐
-│ BetterDesk   │
+│ Yomie   │
 │ CDAP Gateway │
 │ (:21122)     │
 └──────────────┘

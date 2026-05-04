@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/unitronix/betterdesk-server/proto"
+	pb "github.com/unitronix/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -116,7 +116,7 @@ func TestFrameHeaderFormat(t *testing.T) {
 func TestRawFrameRoundTrip(t *testing.T) {
 	conn := newTestConn()
 
-	original := []byte("hello betterdesk relay data")
+	original := []byte("hello yomie relay data")
 	if err := WriteRawFrame(conn, original); err != nil {
 		t.Fatalf("WriteRawFrame error: %v", err)
 	}

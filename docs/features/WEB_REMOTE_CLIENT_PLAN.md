@@ -1,13 +1,13 @@
-# BetterDesk Web Remote Client - Phased Implementation Plan
+# Yomie Web Remote Client - Phased Implementation Plan
 
-> Browser-based remote desktop client integrated into the BetterDesk web panel.  
+> Browser-based remote desktop client integrated into the Yomie web panel.  
 > Users click a device in the device list → connect and control it via the browser.
 
 ---
 
 ## Vision
 
-A user logs into the BetterDesk web console, sees the device list, clicks **"Connect"** on any online device, and a full remote desktop session opens in the browser — with video, keyboard, mouse, clipboard, and audio — without installing any client software on the controller machine.
+A user logs into the Yomie web console, sees the device list, clicks **"Connect"** on any online device, and a full remote desktop session opens in the browser — with video, keyboard, mouse, clipboard, and audio — without installing any client software on the controller machine.
 
 ---
 
@@ -15,7 +15,7 @@ A user logs into the BetterDesk web console, sees the device list, clicks **"Con
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│              BetterDesk Web Console (Node.js)               │
+│              Yomie Web Console (Node.js)               │
 │                                                            │
 │  ┌──────────────────────┐   ┌───────────────────────────┐  │
 │  │   Admin Panel (EJS)  │   │   Remote Viewer (Canvas)  │  │
@@ -73,7 +73,7 @@ A user logs into the BetterDesk web console, sees the device list, clicks **"Con
 | Rendering | `<canvas>` + `OffscreenCanvas` | Low-latency video display + cursor overlay |
 | Input | DOM `KeyboardEvent` + `PointerEvent` | Keyboard/mouse capture with Pointer Lock |
 | Build | `esbuild` or `vite` | Fast bundling of client-side JS modules |
-| Integration | Express.js routes + EJS templates | Embed viewer into BetterDesk panel |
+| Integration | Express.js routes + EJS templates | Embed viewer into Yomie panel |
 
 ---
 
@@ -173,11 +173,11 @@ Decode and render the remote desktop video stream in a `<canvas>` element.
 
 #### 2.4 Password Prompt
 - [ ] Modal dialog for device password entry
-- [ ] Support saving passwords in BetterDesk admin session (optional)
+- [ ] Support saving passwords in Yomie admin session (optional)
 - [ ] Handle authentication errors gracefully
 
 ### Deliverable
-A view-only remote desktop viewer embedded in the BetterDesk panel. User clicks "Connect" on a device, enters password, sees live remote screen.
+A view-only remote desktop viewer embedded in the Yomie panel. User clicks "Connect" on a device, enters password, sees live remote screen.
 
 ### Files (additions)
 ```
@@ -301,7 +301,7 @@ Polish the experience and add power-user features.
 - [ ] Drag-and-drop upload onto remote viewer
 
 #### 5.2 Session Management
-- [ ] Connection history log (saved to BetterDesk DB)
+- [ ] Connection history log (saved to Yomie DB)
 - [ ] Recent connections list on dashboard
 - [ ] Multiple simultaneous sessions (tabbed viewer)
 - [ ] Session recording (optional, save VP9 stream to WebM)
@@ -330,7 +330,7 @@ Polish the experience and add power-user features.
 ## Phase 0 (Prerequisite): hbbr WebSocket Support
 
 ### Problem
-The current BetterDesk hbbr relay server uses **plain TCP** on port 21117. Browsers can only communicate via **WebSocket**. A WebSocket layer is needed on port 21119 for the relay.
+The current Yomie hbbr relay server uses **plain TCP** on port 21117. Browsers can only communicate via **WebSocket**. A WebSocket layer is needed on port 21119 for the relay.
 
 ### Options
 
@@ -477,4 +477,4 @@ web-nodejs/
 ---
 
 *Document version: 1.0 | Created: 2026-02-17*  
-*Project: BetterDesk Console — github.com/shamstabraiz/Rustdesk-FreeConsole*
+*Project: Yomie Console — github.com/shamstabraiz/Rustdesk-FreeConsole*

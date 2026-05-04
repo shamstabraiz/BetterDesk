@@ -1,6 +1,6 @@
 //! Elevated privilege service — run as Windows Service or Linux root daemon.
 //!
-//! When BetterDesk needs to:
+//! When Yomie needs to:
 //! - Change server configuration (writes to protected config directory)
 //! - Capture the secure desktop (UAC prompts, login screen)
 //! - Simulate input on elevated applications
@@ -217,11 +217,11 @@ pub fn add_firewall_rules_impl() {
     use std::process::Command;
 
     let rules = [
-        ("BetterDesk Signal TCP", "21116", "TCP", "in"),
-        ("BetterDesk Signal UDP", "21116", "UDP", "in"),
-        ("BetterDesk Relay",     "21117", "TCP", "in"),
-        ("BetterDesk WS Signal", "21118", "TCP", "in"),
-        ("BetterDesk WS Relay",  "21119", "TCP", "in"),
+        ("Yomie Signal TCP", "21116", "TCP", "in"),
+        ("Yomie Signal UDP", "21116", "UDP", "in"),
+        ("Yomie Relay",     "21117", "TCP", "in"),
+        ("Yomie WS Signal", "21118", "TCP", "in"),
+        ("Yomie WS Relay",  "21119", "TCP", "in"),
     ];
 
     for (name, port, proto, dir) in &rules {
@@ -243,7 +243,7 @@ pub fn add_firewall_rules_impl() {
         let _ = Command::new("netsh")
             .args([
                 "advfirewall", "firewall", "add", "rule",
-                "name=BetterDesk Client",
+                "name=Yomie Client",
                 "dir=out",
                 "action=allow",
                 &format!("program={}", exe.display()),

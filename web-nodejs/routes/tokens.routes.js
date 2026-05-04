@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Device Token Routes
+ * Yomie Console - Device Token Routes
  * Proxy routes for Go server device token management API.
  */
 

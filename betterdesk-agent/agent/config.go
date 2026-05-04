@@ -45,11 +45,11 @@ func DefaultConfig() *Config {
 	hostname, _ := os.Hostname()
 
 	// BD-2026-004: Platform-specific safe default for file browser root
-	fileRoot := "/var/lib/betterdesk-agent/files"
+	fileRoot := "/var/lib/yomie-agent/files"
 	if runtime.GOOS == "windows" {
-		fileRoot = filepath.Join(os.Getenv("ProgramData"), "BetterDesk", "AgentFiles")
-		if fileRoot == filepath.Join("", "BetterDesk", "AgentFiles") {
-			fileRoot = `C:\ProgramData\BetterDesk\AgentFiles`
+		fileRoot = filepath.Join(os.Getenv("ProgramData"), "Yomie", "AgentFiles")
+		if fileRoot == filepath.Join("", "Yomie", "AgentFiles") {
+			fileRoot = `C:\ProgramData\Yomie\AgentFiles`
 		}
 	}
 
@@ -173,7 +173,7 @@ func (c *Config) Validate() error {
 
 func defaultDataDir() string {
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("ProgramData"), "BetterDesk", "Agent")
+		return filepath.Join(os.Getenv("ProgramData"), "Yomie", "Agent")
 	}
-	return "/var/lib/betterdesk-agent"
+	return "/var/lib/yomie-agent"
 }

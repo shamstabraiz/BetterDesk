@@ -1,4 +1,4 @@
-// Package db defines the database interface and models for the BetterDesk server.
+// Package db defines the database interface and models for the Yomie server.
 // Implementations: sqlite.go (default), postgres.go (PostgreSQL via pgx/v5).
 package db
 

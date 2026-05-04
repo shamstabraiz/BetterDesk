@@ -1,4 +1,4 @@
-//! BetterDesk Activity Tracker — foreground app & idle detection
+//! Yomie Activity Tracker — foreground app & idle detection
 //!
 //! Polls the foreground window title and application name every N seconds.
 //! Detects user idle time via system APIs (GetLastInputInfo on Windows,

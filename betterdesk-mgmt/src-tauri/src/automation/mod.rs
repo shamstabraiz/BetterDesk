@@ -1,4 +1,4 @@
-/// BetterDesk Agent — Automation module
+/// Yomie Agent — Automation module
 ///
 /// Handles remote command execution and script running
 /// triggered by the admin console.

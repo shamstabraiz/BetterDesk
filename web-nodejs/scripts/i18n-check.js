@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * BetterDesk Console — i18n Key Completeness Checker
+ * Yomie Console — i18n Key Completeness Checker
  *
  * Compares all language files against en.json (reference) and reports:
  *   - Missing keys (present in en.json but absent in target)
@@ -74,7 +74,7 @@ const refData = JSON.parse(fs.readFileSync(refPath, 'utf8'));
 const refKeys = flattenKeys(refData);
 const refKeySet = new Set(refKeys.keys());
 
-console.log(`\n  BetterDesk i18n Checker`);
+console.log(`\n  Yomie i18n Checker`);
 console.log(`  Reference: ${REFERENCE} (${refKeySet.size} keys)\n`);
 
 const langFiles = fs.readdirSync(LANG_DIR)

@@ -1,13 +1,13 @@
 /**
- * BetterDesk Console - Server Backend Abstraction Layer
+ * Yomie Console - Server Backend Abstraction Layer
  *
  * Provides a unified interface for device/peer operations.
- * Always uses BetterDesk Go server (betterdesk mode).
+ * Always uses Yomie Go server (yomie mode).
  *
  * Legacy 'rustdesk' (hbbs/hbbr) backend has been removed.
  * All operations delegate to betterdeskApi.js (Go server REST API).
  *
- * The active backend is always 'betterdesk'.
+ * The active backend is always 'yomie'.
  */
 
 const config = require('../config/config');
@@ -15,25 +15,25 @@ const db = require('./database');
 const betterdeskApi = require('./betterdeskApi');
 
 /**
- * Return the active backend name: always 'betterdesk'
+ * Return the active backend name: always 'yomie'
  */
 async function getActiveBackend() {
-    return 'betterdesk';
+    return 'yomie';
 }
 
 /**
- * Change the active backend. Only 'betterdesk' is supported.
- * @param {'betterdesk'} name
+ * Change the active backend. Only 'yomie' is supported.
+ * @param {'yomie'} name
  */
 async function setActiveBackend(name) {
-    if (name !== 'betterdesk') {
-        throw new Error(`Invalid backend: ${name}. Only 'betterdesk' is supported.`);
+    if (name !== 'yomie') {
+        throw new Error(`Invalid backend: ${name}. Only 'yomie' is supported.`);
     }
     await db.setSetting('server_backend', name);
 }
 
 /**
- * Returns true — always BetterDesk (Go server).
+ * Returns true — always Yomie (Go server).
  */
 async function isBetterDesk() {
     return true;
@@ -192,11 +192,11 @@ async function changePeerId(oldId, newId) {
 // ========================== Online Status Sync ===============================
 
 async function syncOnlineStatus() {
-    // BetterDesk Go server owns the peer map — no sync needed.
+    // Yomie Go server owns the peer map — no sync needed.
     return betterdeskApi.syncOnlineStatus();
 }
 
-// ========================== BetterDesk Features ==============================
+// ========================== Yomie Features ==============================
 
 async function getStatusSummary() {
     return betterdeskApi.getStatusSummary();
@@ -244,7 +244,7 @@ module.exports = {
     changePeerId,
     // Status sync
     syncOnlineStatus,
-    // BetterDesk-only
+    // Yomie-only
     getStatusSummary,
     getBlocklist,
     addBlocklistEntry,

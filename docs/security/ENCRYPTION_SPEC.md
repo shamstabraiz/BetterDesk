@@ -1,11 +1,11 @@
-# BetterDesk — Encryption Specification
+# Yomie — Encryption Specification
 
 > **Version:** 1.0
 > **Last Updated:** 2026-04-01
 
 ## Overview
 
-BetterDesk uses layered encryption to protect data in transit and at rest across all communication channels.
+Yomie uses layered encryption to protect data in transit and at rest across all communication channels.
 
 ## Algorithms
 

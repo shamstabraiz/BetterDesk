@@ -1,8 +1,8 @@
 {
-  "name": "betterdesk-agent-client",
+  "name": "yomie-agent-client",
   "version": "1.0.0",
   "private": true,
-  "description": "BetterDesk Agent Client — lightweight endpoint agent for remote management",
+  "description": "Yomie Agent Client — lightweight endpoint agent for remote management",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

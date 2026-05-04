@@ -1,6 +1,6 @@
-# BetterDesk Console - Update Scripts
+# Yomie Console - Update Scripts
 
-This directory contains scripts to update BetterDesk Console from v1.0.0 to v1.1.0.
+This directory contains scripts to update Yomie Console from v1.0.0 to v1.1.0.
 
 ## What's New in v1.1.0
 
@@ -27,7 +27,7 @@ With Ban Enforcer:
 ## Prerequisites
 
 ### Linux (update.sh)
-- Existing BetterDesk Console installation
+- Existing Yomie Console installation
 - Root/sudo access
 - Python 3.x installed
 - SQLite3 database at `/opt/rustdesk/db_v2.sqlite3`
@@ -36,7 +36,7 @@ With Ban Enforcer:
 - PowerShell 5.1 or higher
 - SSH client (OpenSSH or similar)
 - SSH key-based authentication configured
-- Access to remote Linux server running BetterDesk
+- Access to remote Linux server running Yomie
 
 ## Usage
 
@@ -53,7 +53,7 @@ sudo ./update.sh
 sudo ./update.sh --rustdesk-dir /custom/path/rustdesk
 
 # Custom console directory
-sudo ./update.sh --console-dir /var/www/betterdesk
+sudo ./update.sh --console-dir /var/www/yomie
 
 # Custom both directories
 sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
@@ -72,7 +72,7 @@ sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
 2. Creates backup of database and files
 3. Executes database migrations
 4. Updates web console files
-5. Restarts BetterDesk service
+5. Restarts Yomie service
 6. Verifies installation
 
 ### Windows (Remote Update via SSH)
@@ -85,13 +85,13 @@ sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
 .\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RustDeskPath "/custom/path/rustdesk"
 
 # With custom console path
-.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/betterdesk"
+.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/yomie"
 
 # With custom database path (overrides auto-detection)
 .\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -DbPath "/custom/db/path.sqlite3"
 
 # All custom paths
-.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/betterdesk" -RustDeskPath "/custom/rustdesk"
+.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/yomie" -RustDeskPath "/custom/rustdesk"
 ```
 
 **Parameters:**
@@ -132,25 +132,25 @@ Adds to `peer` table:
 
 ### Automatic Backup
 Both scripts create automatic backups:
-- **Location**: `/opt/betterdesk-backup-YYYYMMDD-HHMMSS/`
+- **Location**: `/opt/yomie-backup-YYYYMMDD-HHMMSS/`
 - **Contents**: Database, app.py, script.js, index.html
 
 ### Manual Rollback
 
 ```bash
 # 1. Stop service
-sudo systemctl stop betterdesk
+sudo systemctl stop yomie
 
 # 2. Restore database
-sudo cp /opt/betterdesk-backup-YYYYMMDD-HHMMSS/db_v2.sqlite3.backup /opt/rustdesk/db_v2.sqlite3
+sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/db_v2.sqlite3.backup /opt/rustdesk/db_v2.sqlite3
 
 # 3. Restore web files
-sudo cp /opt/betterdesk-backup-YYYYMMDD-HHMMSS/app.py.backup /opt/BetterDeskConsole/app.py
-sudo cp /opt/betterdesk-backup-YYYYMMDD-HHMMSS/script.js.backup /opt/BetterDeskConsole/static/script.js
-sudo cp /opt/betterdesk-backup-YYYYMMDD-HHMMSS/index.html.backup /opt/BetterDeskConsole/templates/index.html
+sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/app.py.backup /opt/BetterDeskConsole/app.py
+sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/script.js.backup /opt/BetterDeskConsole/static/script.js
+sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/index.html.backup /opt/BetterDeskConsole/templates/index.html
 
 # 4. Start service
-sudo systemctl start betterdesk
+sudo systemctl start yomie
 ```
 
 ## Troubleshooting
@@ -165,7 +165,7 @@ sudo ./update.sh
 
 **Service not found:**
 - Script will skip service restart
-- Manually restart: `sudo systemctl restart betterdesk`
+- Manually restart: `sudo systemctl restart yomie`
 
 **Migration fails:**
 - Check database permissions: `ls -l /opt/rustdesk/db_v2.sqlite3`
@@ -209,7 +209,7 @@ After update, verify installation:
 sqlite3 /opt/rustdesk/db_v2.sqlite3 "PRAGMA table_info(peer);" | wc -l
 
 # Check service status
-systemctl status betterdesk
+systemctl status yomie
 
 # Test web console
 curl http://localhost:5000/api/stats
@@ -247,7 +247,7 @@ sudo cp web/static/script.js /opt/BetterDeskConsole/static/
 sudo cp web/templates/index.html /opt/BetterDeskConsole/templates/
 
 # 4. Restart
-sudo systemctl restart betterdesk
+sudo systemctl restart yomie
 ```
 
 ## Support
@@ -255,7 +255,7 @@ sudo systemctl restart betterdesk
 For issues or questions:
 - Check [CHANGELOG.md](CHANGELOG.md) for detailed changes
 - Review [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) for future plans
-- Check server logs: `journalctl -u betterdesk -f`
+- Check server logs: `journalctl -u yomie -f`
 
 ## License
 

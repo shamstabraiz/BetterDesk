@@ -1,6 +1,6 @@
-# BetterDesk Agent
+# Yomie Agent
 
-CDAP (Connected Device Automation Protocol) agent for BetterDesk. Connects to a BetterDesk server's CDAP gateway and provides system monitoring, remote terminal, file browser, clipboard sync, and screenshot capabilities.
+CDAP (Connected Device Automation Protocol) agent for Yomie. Connects to a Yomie server's CDAP gateway and provides system monitoring, remote terminal, file browser, clipboard sync, and screenshot capabilities.
 
 ## Features
 
@@ -16,11 +16,11 @@ CDAP (Connected Device Automation Protocol) agent for BetterDesk. Connects to a 
 
 ```bash
 # Build
-cd betterdesk-agent
-go build -o betterdesk-agent .
+cd yomie-agent
+go build -o yomie-agent .
 
 # Run
-./betterdesk-agent \
+./yomie-agent \
   -server ws://your-server:21122/cdap \
   -auth api_key \
   -key YOUR_API_KEY
@@ -42,7 +42,7 @@ go build -o betterdesk-agent .
 | `-device-name` | Device display name | hostname |
 | `-device-type` | Device type | `os_agent` |
 | `-config` | JSON config file path | |
-| `-data-dir` | Data directory | `/var/lib/betterdesk-agent` |
+| `-data-dir` | Data directory | `/var/lib/yomie-agent` |
 | `-log-level` | Log level: debug, info, warning, error | `info` |
 | `-version` | Print version | |
 
@@ -88,16 +88,16 @@ Priority: CLI flags > Environment variables > Config file > Defaults
 
 ```bash
 # Current platform
-go build -o betterdesk-agent .
+go build -o yomie-agent .
 
 # Linux AMD64
-GOOS=linux GOARCH=amd64 go build -o betterdesk-agent-linux-amd64 .
+GOOS=linux GOARCH=amd64 go build -o yomie-agent-linux-amd64 .
 
 # Linux ARM64
-GOOS=linux GOARCH=arm64 go build -o betterdesk-agent-linux-arm64 .
+GOOS=linux GOARCH=arm64 go build -o yomie-agent-linux-arm64 .
 
 # Windows
-GOOS=windows GOARCH=amd64 go build -o betterdesk-agent.exe .
+GOOS=windows GOARCH=amd64 go build -o yomie-agent.exe .
 ```
 
 ## Installation
@@ -176,4 +176,4 @@ The agent communicates via the CDAP WebSocket protocol (port 21122 by default).
 
 ## License
 
-Same as BetterDesk project — see repository LICENSE.
+Same as Yomie project — see repository LICENSE.

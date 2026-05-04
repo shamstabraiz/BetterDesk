@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - RustDesk Client API Routes
+ * Yomie Console - RustDesk Client API Routes
  * 
  * RustDesk-compatible API endpoints.
  * Runs on a dedicated port (default 21121) for WAN access.

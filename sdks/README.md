@@ -1,7 +1,7 @@
-# BetterDesk CDAP — SDKs & Bridges
+# Yomie CDAP — SDKs & Bridges
 
 Software Development Kits and reference bridge implementations for the
-**Connected Device Automation Protocol (CDAP)** used by BetterDesk server.
+**Connected Device Automation Protocol (CDAP)** used by Yomie server.
 
 ## SDKs
 
@@ -20,13 +20,13 @@ Software Development Kits and reference bridge implementations for the
 
 ## Native Agent
 
-The **BetterDesk Agent** is a standalone Go binary that runs on target devices,
+The **Yomie Agent** is a standalone Go binary that runs on target devices,
 providing system monitoring, terminal access, file browsing, screenshots, and
 clipboard sync through CDAP.
 
 | Component | Directory | Language |
 |-----------|-----------|----------|
-| **Agent** | [`betterdesk-agent/`](betterdesk-agent/) | Go 1.25+ |
+| **Agent** | [`yomie-agent/`](yomie-agent/) | Go 1.25+ |
 
 ## Quick Start
 
@@ -57,9 +57,9 @@ bridge.run();
 ### Go Agent
 
 ```bash
-cd betterdesk-agent
-go build -o betterdesk-agent .
-./betterdesk-agent -server ws://your-server:21122/cdap -auth api_key -key YOUR_KEY
+cd yomie-agent
+go build -o yomie-agent .
+./yomie-agent -server ws://your-server:21122/cdap -auth api_key -key YOUR_KEY
 ```
 
 ## CDAP Protocol Overview

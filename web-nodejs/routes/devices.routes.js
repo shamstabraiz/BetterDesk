@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Devices Routes
+ * Yomie Console - Devices Routes
  */
 
 const express = require('express');
@@ -410,7 +410,7 @@ router.put('/api/devices/:id/tags', requireAuth, requirePermission('device.edit'
             });
         }
 
-        // BetterDesk backend: delegate to Go server
+        // Yomie backend: delegate to Go server
         if (serverBackend.isBetterDesk()) {
             const result = await serverBackend.setPeerTags(id, cleaned);
             if (!result || !result.success) {
@@ -455,7 +455,7 @@ router.post('/api/devices/bulk-delete', requireAuth, requirePermission('device.d
         let deleted = 0;
         for (const id of ids) {
             const result = await serverBackend.deleteDevice(id);
-            // In betterdesk mode, result is {success, data}; in rustdesk, result has .changes
+            // In yomie mode, result is {success, data}; in rustdesk, result has .changes
             if (result && (result.success || result.changes)) deleted++;
         }
         

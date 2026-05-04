@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Generator Page
+ * Yomie Console - Generator Page
  */
 
 (function() {

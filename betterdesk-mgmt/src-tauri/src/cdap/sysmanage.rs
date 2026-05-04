@@ -11,12 +11,12 @@ use sysinfo::{Pid, System};
 // ---------------------------------------------------------------------------
 
 pub fn restart_system() -> Result<()> {
-    run_cmd("shutdown", &["/r", "/t", "5", "/c", "BetterDesk remote restart"])?;
+    run_cmd("shutdown", &["/r", "/t", "5", "/c", "Yomie remote restart"])?;
     Ok(())
 }
 
 pub fn shutdown_system() -> Result<()> {
-    run_cmd("shutdown", &["/s", "/t", "5", "/c", "BetterDesk remote shutdown"])?;
+    run_cmd("shutdown", &["/s", "/t", "5", "/c", "Yomie remote shutdown"])?;
     Ok(())
 }
 

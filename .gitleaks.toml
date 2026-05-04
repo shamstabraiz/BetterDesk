@@ -1,7 +1,7 @@
-# Gitleaks configuration for BetterDesk
+# Gitleaks configuration for Yomie
 # Suppresses false positives from auto-generated lock files
 
-title = "BetterDesk Gitleaks Config"
+title = "Yomie Gitleaks Config"
 
 [allowlist]
   description = "Allowlisted files and patterns"

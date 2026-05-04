@@ -1,7 +1,7 @@
 ﻿#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    BetterDesk Console Manager v3.0.0 - All-in-One Interactive Tool for Windows
+    Yomie Console Manager v3.0.0 - All-in-One Interactive Tool for Windows
 
 .DESCRIPTION
     Features:
@@ -42,19 +42,19 @@
     PostgreSQL connection URI (implies -PostgreSQL)
 
 .EXAMPLE
-    .\betterdesk.ps1
+    .\yomie.ps1
     Interactive mode
 
 .EXAMPLE
-    .\betterdesk.ps1 -Auto
+    .\yomie.ps1 -Auto
     Automatic installation with Node.js console and SQLite
 
 .EXAMPLE
-    .\betterdesk.ps1 -Auto -PostgreSQL
+    .\yomie.ps1 -Auto -PostgreSQL
     Automatic installation with PostgreSQL
 
 .EXAMPLE
-    .\betterdesk.ps1 -SkipVerify
+    .\yomie.ps1 -SkipVerify
     Skip binary verification
 #>
 
@@ -90,23 +90,23 @@ if ($Flask) {
 # Database configuration
 $script:USE_POSTGRESQL = $PostgreSQL -or ($env:USE_POSTGRESQL -eq "true")
 $script:POSTGRESQL_URI = if ($PgUri) { $PgUri } elseif ($env:POSTGRESQL_URI) { $env:POSTGRESQL_URI } else { "" }
-$script:POSTGRESQL_USER = if ($env:POSTGRESQL_USER) { $env:POSTGRESQL_USER } else { "betterdesk" }
+$script:POSTGRESQL_USER = if ($env:POSTGRESQL_USER) { $env:POSTGRESQL_USER } else { "yomie" }
 $script:POSTGRESQL_PASS = if ($env:POSTGRESQL_PASS) { $env:POSTGRESQL_PASS } else { "" }
-$script:POSTGRESQL_DB = if ($env:POSTGRESQL_DB) { $env:POSTGRESQL_DB } else { "betterdesk" }
+$script:POSTGRESQL_DB = if ($env:POSTGRESQL_DB) { $env:POSTGRESQL_DB } else { "yomie" }
 $script:POSTGRESQL_HOST = if ($env:POSTGRESQL_HOST) { $env:POSTGRESQL_HOST } else { "localhost" }
 $script:POSTGRESQL_PORT = if ($env:POSTGRESQL_PORT) { $env:POSTGRESQL_PORT } else { "5432" }
 
 # Go server configuration
-$script:GO_SERVER_SOURCE = Join-Path $script:ScriptDir "betterdesk-server"
+$script:GO_SERVER_SOURCE = Join-Path $script:ScriptDir "yomie-server"
 $script:GO_MIN_VERSION = "1.25"
 # Legacy Rust checksums (deprecated, kept for migration purposes)
 $script:HBBS_WINDOWS_X86_64_SHA256 = "B790FA44CAC7482A057ED322412F6D178FB33F3B05327BFA753416E9879BD62F"
 $script:HBBR_WINDOWS_X86_64_SHA256 = "368C71E8D3AEF4C5C65177FBBBB99EA045661697A89CB7C2A703759C575E8E9F"
 
 # Default paths
-$script:RUSTDESK_PATH = if ($env:RUSTDESK_PATH) { $env:RUSTDESK_PATH } else { "C:\BetterDesk" }
+$script:RUSTDESK_PATH = if ($env:RUSTDESK_PATH) { $env:RUSTDESK_PATH } else { "C:\Yomie" }
 $script:CONSOLE_PATH = if ($env:CONSOLE_PATH) { $env:CONSOLE_PATH } else { "C:\BetterDeskConsole" }
-$script:BACKUP_DIR = if ($env:BACKUP_DIR) { $env:BACKUP_DIR } else { "C:\BetterDesk-Backups" }
+$script:BACKUP_DIR = if ($env:BACKUP_DIR) { $env:BACKUP_DIR } else { "C:\Yomie-Backups" }
 $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
 
 # API configuration
@@ -115,11 +115,11 @@ $script:STORE_ADMIN_CREDENTIALS = ($env:STORE_ADMIN_CREDENTIALS -eq "true")
 
 # Common installation paths to search
 $script:COMMON_RUSTDESK_PATHS = @(
-    "C:\BetterDesk",
+    "C:\Yomie",
     "C:\RustDesk",
-    "C:\Program Files\BetterDesk",
+    "C:\Program Files\Yomie",
     "C:\Program Files\RustDesk",
-    "$env:LOCALAPPDATA\BetterDesk"
+    "$env:LOCALAPPDATA\Yomie"
 )
 
 $script:COMMON_CONSOLE_PATHS = @(
@@ -275,7 +275,7 @@ function Detect-Installation {
     # Check paths and binary type
     if (Test-Path $script:RUSTDESK_PATH) {
         # Check for Go server first
-        if (Test-Path "$script:RUSTDESK_PATH\betterdesk-server.exe") {
+        if (Test-Path "$script:RUSTDESK_PATH\yomie-server.exe") {
             $script:BINARIES_OK = $true
             $script:SERVER_TYPE = "go"
             $script:INSTALL_STATUS = "partial"
@@ -377,7 +377,7 @@ function Auto-DetectPaths {
     
     # Check configured path first - Go server or legacy Rust
     if ($script:RUSTDESK_PATH -and (Test-Path $script:RUSTDESK_PATH)) {
-        if ((Test-Path "$script:RUSTDESK_PATH\betterdesk-server.exe") -or 
+        if ((Test-Path "$script:RUSTDESK_PATH\yomie-server.exe") -or 
             (Test-Path "$script:RUSTDESK_PATH\hbbs.exe") -or 
             (Test-Path "$script:RUSTDESK_PATH\hbbs-v8-api.exe")) {
             Print-Info "Using configured RustDesk path: $script:RUSTDESK_PATH"
@@ -389,7 +389,7 @@ function Auto-DetectPaths {
     if (-not $found) {
         foreach ($path in $script:COMMON_RUSTDESK_PATHS) {
             if ((Test-Path $path) -and 
-                ((Test-Path "$path\betterdesk-server.exe") -or 
+                ((Test-Path "$path\yomie-server.exe") -or 
                  (Test-Path "$path\hbbs.exe") -or 
                  (Test-Path "$path\hbbs-v8-api.exe"))) {
                 $script:RUSTDESK_PATH = $path
@@ -402,7 +402,7 @@ function Auto-DetectPaths {
     
     # Default path for new installations
     if (-not $found) {
-        $script:RUSTDESK_PATH = "C:\BetterDesk"
+        $script:RUSTDESK_PATH = "C:\Yomie"
         Print-Info "No installation detected. Default path: $script:RUSTDESK_PATH"
     }
     
@@ -493,15 +493,15 @@ function Print-Status {
     # Check if using Go server or legacy Rust
     if ($script:SERVER_RUNNING -or $script:SERVER_TYPE -eq "go") {
         if ($script:SERVER_RUNNING) {
-            Write-Host "  BetterDesk Server (Go): " -NoNewline; Write-Host "* Active (Signal + Relay + API)" -ForegroundColor Green
+            Write-Host "  Yomie Server (Go): " -NoNewline; Write-Host "* Active (Signal + Relay + API)" -ForegroundColor Green
         } else {
             # Check service state for better diagnostics
             $svc = Get-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue
             if ($svc -and $svc.Status -eq 'Stopped') {
-                Write-Host "  BetterDesk Server (Go): " -NoNewline; Write-Host "o Stopped" -ForegroundColor Red
+                Write-Host "  Yomie Server (Go): " -NoNewline; Write-Host "o Stopped" -ForegroundColor Red
                 Write-Host "    Hint: Check logs at $script:RUSTDESK_PATH\logs\server_error.log" -ForegroundColor Yellow
             } else {
-                Write-Host "  BetterDesk Server (Go): " -NoNewline; Write-Host "o Inactive" -ForegroundColor Red
+                Write-Host "  Yomie Server (Go): " -NoNewline; Write-Host "o Inactive" -ForegroundColor Red
             }
         }
     } else {
@@ -616,7 +616,7 @@ function Install-Golang {
 }
 
 function Compile-GoServer {
-    Print-Step "Compiling BetterDesk Go Server..."
+    Print-Step "Compiling Yomie Go Server..."
     
     if (-not (Test-Path $script:GO_SERVER_SOURCE)) {
         Print-Error "Go server source not found at: $script:GO_SERVER_SOURCE"
@@ -634,14 +634,14 @@ function Compile-GoServer {
     $env:GOOS = "windows"
     $env:GOARCH = "amd64"
     
-    & go build -ldflags="-s -w" -o "betterdesk-server.exe" . 2>&1 | ForEach-Object { Write-Host "  $_" }
+    & go build -ldflags="-s -w" -o "yomie-server.exe" . 2>&1 | ForEach-Object { Write-Host "  $_" }
     
     Set-Location $currentDir
     
-    $outputBinary = Join-Path $script:GO_SERVER_SOURCE "betterdesk-server.exe"
+    $outputBinary = Join-Path $script:GO_SERVER_SOURCE "yomie-server.exe"
     if (Test-Path $outputBinary) {
         $size = [math]::Round((Get-Item $outputBinary).Length / 1MB, 2)
-        Print-Success "Build successful: betterdesk-server.exe ($size MB)"
+        Print-Success "Build successful: yomie-server.exe ($size MB)"
         return $true
     } else {
         Print-Error "Build failed - binary not created"
@@ -683,7 +683,7 @@ function Verify-BinaryChecksum {
 function Verify-GoBinary {
     Print-Step "Verifying Go server binary..."
     
-    $goBinary = Join-Path $script:GO_SERVER_SOURCE "betterdesk-server.exe"
+    $goBinary = Join-Path $script:GO_SERVER_SOURCE "yomie-server.exe"
     
     if (-not (Test-Path $goBinary)) {
         Print-Error "Go binary not found: $goBinary"
@@ -695,7 +695,7 @@ function Verify-GoBinary {
         $peHeader = [System.IO.File]::ReadAllBytes($goBinary)[0..1]
         if ($peHeader[0] -eq 0x4D -and $peHeader[1] -eq 0x5A) {  # MZ header
             $size = [math]::Round((Get-Item $goBinary).Length / 1MB, 2)
-            Print-Success "Go binary valid: betterdesk-server.exe ($size MB)"
+            Print-Success "Go binary valid: yomie-server.exe ($size MB)"
             return $true
         }
     } catch {
@@ -708,7 +708,7 @@ function Verify-GoBinary {
 }
 
 function Verify-Binaries {
-    Print-Step "Verifying BetterDesk binaries..."
+    Print-Step "Verifying Yomie binaries..."
     
     if ($script:SKIP_VERIFY) {
         Print-Warning "Verification skipped (-SkipVerify)"
@@ -716,7 +716,7 @@ function Verify-Binaries {
     }
     
     # Check for Go binary first
-    $goBinary = Join-Path $script:GO_SERVER_SOURCE "betterdesk-server.exe"
+    $goBinary = Join-Path $script:GO_SERVER_SOURCE "yomie-server.exe"
     
     if (Test-Path $goBinary) {
         return Verify-GoBinary
@@ -917,7 +917,7 @@ function Choose-DatabaseType {
 }
 
 function Setup-PostgreSQLDatabase {
-    Print-Step "Setting up PostgreSQL database for BetterDesk..."
+    Print-Step "Setting up PostgreSQL database for Yomie..."
     
     # Generate password if not set
     if ([string]::IsNullOrEmpty($script:POSTGRESQL_PASS)) {
@@ -951,7 +951,7 @@ function Migrate-SQLiteToPostgreSQL {
     # Find migration binary
     $migrateBin = $null
     $migratePaths = @(
-        (Join-Path $script:ScriptDir "betterdesk-server\tools\migrate\migrate.exe"),
+        (Join-Path $script:ScriptDir "yomie-server\tools\migrate\migrate.exe"),
         (Join-Path $script:ScriptDir "tools\migrate\migrate.exe")
     )
     
@@ -1106,7 +1106,7 @@ DB_PATH=$script:RUSTDESK_PATH\db_v2.sqlite3
         }
         
         $envContent = @"
-# BetterDesk Node.js Console Configuration
+# Yomie Node.js Console Configuration
 PORT=5000
 HOST=0.0.0.0
 NODE_ENV=production
@@ -1128,8 +1128,8 @@ HBBS_API_URL=http://localhost:$script:API_PORT/api
 # RustDesk Client API listener
 API_HOST=0.0.0.0
 
-# Server backend (betterdesk = Go server, rustdesk = legacy Rust)
-SERVER_BACKEND=betterdesk
+# Server backend (yomie = Go server, rustdesk = legacy Rust)
+SERVER_BACKEND=yomie
 
 # Default admin credentials (used only on first startup)
 DEFAULT_ADMIN_USERNAME=admin
@@ -1141,8 +1141,8 @@ SESSION_SECRET=$sessionSecret
 # HTTPS (set to true and provide certificate paths to enable)
 HTTPS_ENABLED=false
 HTTPS_PORT=5443
-SSL_CERT_PATH=$script:RUSTDESK_PATH\ssl\betterdesk.crt
-SSL_KEY_PATH=$script:RUSTDESK_PATH\ssl\betterdesk.key
+SSL_CERT_PATH=$script:RUSTDESK_PATH\ssl\yomie.crt
+SSL_KEY_PATH=$script:RUSTDESK_PATH\ssl\yomie.key
 SSL_CA_PATH=
 HTTP_REDIRECT_HTTPS=true
 
@@ -1246,7 +1246,7 @@ function Install-Binaries {
         [switch]$ForceRecompile
     )
     
-    Print-Step "Installing BetterDesk Go Server..."
+    Print-Step "Installing Yomie Go Server..."
     
     # Create directory
     if (-not (Test-Path $script:RUSTDESK_PATH)) {
@@ -1254,7 +1254,7 @@ function Install-Binaries {
     }
     
     # Check for Go server binary
-    $goBinaryPath = Join-Path $script:GO_SERVER_SOURCE "betterdesk-server.exe"
+    $goBinaryPath = Join-Path $script:GO_SERVER_SOURCE "yomie-server.exe"
     $needCompile = $false
     
     if (-not (Test-Path $goBinaryPath)) {
@@ -1309,13 +1309,13 @@ function Install-Binaries {
     Stop-ScheduledTask -TaskName $script:HBBR_SERVICE -ErrorAction SilentlyContinue
     
     # Kill any remaining processes
-    Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue | Stop-Process -Force
     Get-Process -Name "hbbs" -ErrorAction SilentlyContinue | Stop-Process -Force
     Get-Process -Name "hbbr" -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Seconds 2
     
     # Target path
-    $serverTarget = Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe"
+    $serverTarget = Join-Path $script:RUSTDESK_PATH "yomie-server.exe"
     
     # Verify file is not locked
     if (Test-Path $serverTarget) {
@@ -1325,15 +1325,15 @@ function Install-Binaries {
         } catch {
             Print-Warning "File $serverTarget is still locked, waiting..."
             Start-Sleep -Seconds 3
-            Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue | Stop-Process -Force
         }
     }
     
     # Copy binary
     Copy-Item -Path $goBinaryPath -Destination $serverTarget -Force
-    Print-Success "Installed betterdesk-server.exe (Go: signal + relay + API)"
+    Print-Success "Installed yomie-server.exe (Go: signal + relay + API)"
     
-    Print-Success "BetterDesk Go Server v$script:VERSION installed"
+    Print-Success "Yomie Go Server v$script:VERSION installed"
     return $true
 }
 
@@ -1368,8 +1368,8 @@ function Generate-SSLCertificates {
     Print-Step "Generating self-signed TLS certificates..."
     
     $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
-    $certPath = Join-Path $sslDir "betterdesk.crt"
-    $keyPath = Join-Path $sslDir "betterdesk.key"
+    $certPath = Join-Path $sslDir "yomie.crt"
+    $keyPath = Join-Path $sslDir "yomie.key"
     
     # Skip if certificates already exist
     if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
@@ -1391,22 +1391,22 @@ function Generate-SSLCertificates {
             -NotAfter (Get-Date).AddYears(3) `
             -KeyAlgorithm RSA `
             -KeyLength 2048 `
-            -FriendlyName "BetterDesk Server" `
+            -FriendlyName "Yomie Server" `
             -TextExtension @("2.5.29.17={text}DNS=localhost&IPAddress=$serverIP&IPAddress=127.0.0.1")
         
         # Export certificate (public)
-        Export-Certificate -Cert $cert -FilePath "$sslDir\betterdesk.cer" -Type CERT | Out-Null
+        Export-Certificate -Cert $cert -FilePath "$sslDir\yomie.cer" -Type CERT | Out-Null
         
         # Export PFX then convert to PEM using openssl if available
-        $pfxPath = Join-Path $sslDir "betterdesk.pfx"
-        $securePassword = ConvertTo-SecureString -String "betterdesk-temp" -Force -AsPlainText
+        $pfxPath = Join-Path $sslDir "yomie.pfx"
+        $securePassword = ConvertTo-SecureString -String "yomie-temp" -Force -AsPlainText
         Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePassword | Out-Null
         
         # Check if openssl is available for PEM conversion
         $opensslCmd = Get-Command openssl -ErrorAction SilentlyContinue
         if ($opensslCmd) {
-            & openssl pkcs12 -in $pfxPath -out $certPath -clcerts -nokeys -passin "pass:betterdesk-temp" 2>$null
-            & openssl pkcs12 -in $pfxPath -out $keyPath -nocerts -nodes -passin "pass:betterdesk-temp" 2>$null
+            & openssl pkcs12 -in $pfxPath -out $certPath -clcerts -nokeys -passin "pass:yomie-temp" 2>$null
+            & openssl pkcs12 -in $pfxPath -out $keyPath -nocerts -nodes -passin "pass:yomie-temp" 2>$null
             Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
         } else {
             # Keep PFX format for Windows (Go server can use it)
@@ -1436,7 +1436,7 @@ function Generate-SSLCertificates {
                 & openssl req -x509 -nodes -days 1095 -newkey rsa:2048 `
                     -keyout $keyPath `
                     -out $certPath `
-                    -subj "/CN=$serverIP/O=BetterDesk/C=US" `
+                    -subj "/CN=$serverIP/O=Yomie/C=US" `
                     -addext "subjectAltName=IP:$serverIP,IP:127.0.0.1,DNS:localhost" 2>$null
                 
                 if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
@@ -1505,7 +1505,7 @@ function Setup-Services {
         Print-Warning "Remote clients will NOT be able to connect via relay!"
         Print-Warning "If this is a public-facing server, set RELAY_SERVERS env var to your public IP."
         Write-Host ""
-        Write-Host "  Example: `$env:RELAY_SERVERS='YOUR.PUBLIC.IP'; .\betterdesk.ps1" -ForegroundColor Yellow
+        Write-Host "  Example: `$env:RELAY_SERVERS='YOUR.PUBLIC.IP'; .\yomie.ps1" -ForegroundColor Yellow
         Write-Host ""
     }
     
@@ -1576,8 +1576,8 @@ function Setup-Services {
         Print-Info "Generated API key for console-server communication"
     }
     
-    # BetterDesk Go Server (single binary: signal + relay + API)
-    $serverExe = Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe"
+    # Yomie Go Server (single binary: signal + relay + API)
+    $serverExe = Join-Path $script:RUSTDESK_PATH "yomie-server.exe"
     $serverArgs = "-mode all -relay-servers $serverIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT"
     
     # Add -init-admin-pass to sync admin password with Node.js console
@@ -1604,15 +1604,15 @@ function Setup-Services {
     
     # Add TLS flags if certificates exist
     $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
-    $certPath = Join-Path $sslDir "betterdesk.crt"
-    $keyPath = Join-Path $sslDir "betterdesk.key"
+    $certPath = Join-Path $sslDir "yomie.crt"
+    $keyPath = Join-Path $sslDir "yomie.key"
     $apiScheme = "http"
     $tlsIsSelfSigned = $false
     if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
         # Check if certificate is self-signed
         try {
             $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath)
-            $tlsIsSelfSigned = ($cert.Issuer -eq $cert.Subject) -or ($cert.Subject -like "*O=BetterDesk*")
+            $tlsIsSelfSigned = ($cert.Issuer -eq $cert.Subject) -or ($cert.Subject -like "*O=Yomie*")
             $cert.Dispose()
         } catch {
             $tlsIsSelfSigned = $true
@@ -1638,13 +1638,13 @@ function Setup-Services {
     
     & $nssm install $script:SERVER_SERVICE $serverExe $serverArgs
     & $nssm set $script:SERVER_SERVICE AppDirectory $script:RUSTDESK_PATH
-    & $nssm set $script:SERVER_SERVICE DisplayName "BetterDesk Go Server v$script:VERSION"
-    & $nssm set $script:SERVER_SERVICE Description "BetterDesk Go Server (Signal + Relay + API)"
+    & $nssm set $script:SERVER_SERVICE DisplayName "Yomie Go Server v$script:VERSION"
+    & $nssm set $script:SERVER_SERVICE Description "Yomie Go Server (Signal + Relay + API)"
     & $nssm set $script:SERVER_SERVICE Start SERVICE_AUTO_START
     & $nssm set $script:SERVER_SERVICE AppStdout "$script:RUSTDESK_PATH\logs\server.log"
     & $nssm set $script:SERVER_SERVICE AppStderr "$script:RUSTDESK_PATH\logs\server_error.log"
     
-    Print-Success "Created BetterDesk Go Server service"
+    Print-Success "Created Yomie Go Server service"
     
     # Console Service (Web Interface) - Node.js only
     if ($script:CONSOLE_TYPE -eq "nodejs") {
@@ -1654,8 +1654,8 @@ function Setup-Services {
         
         & $nssm install $script:CONSOLE_SERVICE $nodeExe $serverJs
         & $nssm set $script:CONSOLE_SERVICE AppDirectory $script:CONSOLE_PATH
-        & $nssm set $script:CONSOLE_SERVICE DisplayName "BetterDesk Web Console (Node.js)"
-        & $nssm set $script:CONSOLE_SERVICE Description "BetterDesk Web Management Console - Node.js"
+        & $nssm set $script:CONSOLE_SERVICE DisplayName "Yomie Web Console (Node.js)"
+        & $nssm set $script:CONSOLE_SERVICE Description "Yomie Web Management Console - Node.js"
         & $nssm set $script:CONSOLE_SERVICE Start SERVICE_AUTO_START
         $envExtra = @(
             "NODE_ENV=production",
@@ -1667,7 +1667,7 @@ function Setup-Services {
             "API_KEY_PATH=$script:RUSTDESK_PATH\.api_key",
             "HBBS_API_URL=${apiScheme}://localhost:$($script:API_PORT)/api",
             "BETTERDESK_API_URL=${apiScheme}://localhost:$($script:API_PORT)/api",
-            "SERVER_BACKEND=betterdesk",
+            "SERVER_BACKEND=yomie",
             "PORT=5000",
             "HOST=0.0.0.0",
             "API_HOST=0.0.0.0"
@@ -1723,8 +1723,8 @@ function Setup-ScheduledTasks {
     Unregister-ScheduledTask -TaskName $script:HBBR_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $script:CONSOLE_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
     
-    # BetterDesk Go Server Task
-    $serverExe = Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe"
+    # Yomie Go Server Task
+    $serverExe = Join-Path $script:RUSTDESK_PATH "yomie-server.exe"
     $serverArgs = "-mode all -relay-servers $ServerIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT"
     
     # Add -init-admin-pass to sync admin password with Node.js console
@@ -1751,13 +1751,13 @@ function Setup-ScheduledTasks {
     
     # Add TLS flags if certificates exist
     $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
-    $certPath = Join-Path $sslDir "betterdesk.crt"
-    $keyPath = Join-Path $sslDir "betterdesk.key"
+    $certPath = Join-Path $sslDir "yomie.crt"
+    $keyPath = Join-Path $sslDir "yomie.key"
     $tlsIsSelfSigned = $false
     if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
         try {
             $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath)
-            $tlsIsSelfSigned = ($cert.Issuer -eq $cert.Subject) -or ($cert.Subject -like "*O=BetterDesk*")
+            $tlsIsSelfSigned = ($cert.Issuer -eq $cert.Subject) -or ($cert.Subject -like "*O=Yomie*")
             $cert.Dispose()
         } catch {
             $tlsIsSelfSigned = $true
@@ -1775,7 +1775,7 @@ function Setup-ScheduledTasks {
     $serverTrigger = New-ScheduledTaskTrigger -AtStartup
     $serverPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
     $serverSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-    Register-ScheduledTask -TaskName $script:SERVER_SERVICE -Action $serverAction -Trigger $serverTrigger -Principal $serverPrincipal -Settings $serverSettings -Description "BetterDesk Go Server (Signal + Relay + API)" | Out-Null
+    Register-ScheduledTask -TaskName $script:SERVER_SERVICE -Action $serverAction -Trigger $serverTrigger -Principal $serverPrincipal -Settings $serverSettings -Description "Yomie Go Server (Signal + Relay + API)" | Out-Null
     
     # Console Task - Node.js
     if ($script:CONSOLE_TYPE -eq "nodejs") {
@@ -1783,7 +1783,7 @@ function Setup-ScheduledTasks {
         if (-not $nodeExe) { $nodeExe = "node.exe" }
         $serverJs = Join-Path $script:CONSOLE_PATH "server.js"
         $consoleAction = New-ScheduledTaskAction -Execute $nodeExe -Argument $serverJs -WorkingDirectory $script:CONSOLE_PATH
-        $consoleDesc = "BetterDesk Web Console (Node.js)"
+        $consoleDesc = "Yomie Web Console (Node.js)"
         Print-Info "Creating Node.js console task"
     }
     
@@ -2044,11 +2044,11 @@ function Stop-AllServices {
     Stop-ScheduledTask -TaskName $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
     
     # Kill processes directly (Go server + legacy)
-    Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue | Stop-Process -Force
     Get-Process -Name "hbbs" -ErrorAction SilentlyContinue | Stop-Process -Force
     Get-Process -Name "hbbr" -ErrorAction SilentlyContinue | Stop-Process -Force
     Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
-        $_.MainModule.FileName -like "*betterdesk*" -or $_.CommandLine -like "*server.js*"
+        $_.MainModule.FileName -like "*yomie*" -or $_.CommandLine -like "*server.js*"
     } | Stop-Process -Force -ErrorAction SilentlyContinue
     
     Start-Sleep -Seconds 2
@@ -2079,11 +2079,11 @@ function Test-ServiceHealth {
     )
     
     # Check if process is running
-    $processName = if ($ServiceName -eq $script:SERVER_SERVICE) { "betterdesk-server" }
+    $processName = if ($ServiceName -eq $script:SERVER_SERVICE) { "yomie-server" }
                    elseif ($ServiceName -match "Signal") { "hbbs" }
                    elseif ($ServiceName -match "Relay") { "hbbr" }
                    elseif ($ServiceName -eq $script:CONSOLE_SERVICE) { "node" }
-                   else { "betterdesk-server" }
+                   else { "yomie-server" }
     
     $process = Get-Process -Name $processName -ErrorAction SilentlyContinue
     
@@ -2116,12 +2116,12 @@ function Start-ServicesWithVerification {
     $hasErrors = $false
     
     # Check ports first
-    if (-not (Test-PortAvailable -Port 21116 -ServiceName "betterdesk-server")) {
+    if (-not (Test-PortAvailable -Port 21116 -ServiceName "yomie-server")) {
         Print-Error "Port 21116 (ID server) not available"
         $hasErrors = $true
     }
     
-    if (-not (Test-PortAvailable -Port 21117 -ServiceName "betterdesk-server")) {
+    if (-not (Test-PortAvailable -Port 21117 -ServiceName "yomie-server")) {
         Print-Error "Port 21117 (relay) not available"  
         $hasErrors = $true
     }
@@ -2160,10 +2160,10 @@ function Start-ServicesWithVerification {
     Start-Sleep -Seconds 3
     
     if (-not (Test-ServiceHealth -ServiceName $script:SERVER_SERVICE -ExpectedPort 21116 -TimeoutSeconds 10)) {
-        Print-Error "Failed to start BetterDesk server"
+        Print-Error "Failed to start Yomie server"
         return $false
     }
-    Print-Success "BetterDesk server started and healthy (signal + relay + API)"
+    Print-Success "Yomie server started and healthy (signal + relay + API)"
     
     # Inject shared API key into Go server database for Node.js <-> Go communication
     $apiKeyPath = Join-Path $script:RUSTDESK_PATH ".api_key"
@@ -2210,7 +2210,7 @@ function Do-InstallMinimal {
     Write-Host "========== MINIMAL INSTALLATION (Server Only) ==========" -ForegroundColor White
     Write-Host ""
     
-    Print-Info "BetterDesk Minimal installs the Go server binary only."
+    Print-Info "Yomie Minimal installs the Go server binary only."
     Print-Info "No web console, no Node.js, no npm dependencies."
     Print-Info "Manage via REST API on port 21114 or TCP admin console."
     Write-Host ""
@@ -2218,7 +2218,7 @@ function Do-InstallMinimal {
     Detect-Installation
     
     if ($script:INSTALL_STATUS -eq "complete") {
-        Print-Warning "BetterDesk is already installed!"
+        Print-Warning "Yomie is already installed!"
         if (-not $script:AUTO_MODE) {
             if (-not (Confirm-Action "Do you want to reinstall in Minimal mode?")) {
                 return
@@ -2268,16 +2268,16 @@ function Do-InstallMinimal {
     $ports = @(21114, 21115, 21116, 21117, 21118, 21119)
     foreach ($port in $ports) {
         try {
-            New-NetFirewallRule -DisplayName "BetterDesk Port $port" -Direction Inbound -LocalPort $port -Protocol TCP -Action Allow -ErrorAction SilentlyContinue | Out-Null
+            New-NetFirewallRule -DisplayName "Yomie Port $port" -Direction Inbound -LocalPort $port -Protocol TCP -Action Allow -ErrorAction SilentlyContinue | Out-Null
         } catch {}
     }
     # UDP for signal port
     try {
-        New-NetFirewallRule -DisplayName "BetterDesk Signal UDP 21116" -Direction Inbound -LocalPort 21116 -Protocol UDP -Action Allow -ErrorAction SilentlyContinue | Out-Null
+        New-NetFirewallRule -DisplayName "Yomie Signal UDP 21116" -Direction Inbound -LocalPort 21116 -Protocol UDP -Action Allow -ErrorAction SilentlyContinue | Out-Null
     } catch {}
     
     # Start server
-    Print-Step "Starting BetterDesk server..."
+    Print-Step "Starting Yomie server..."
     $svcName = "BetterDeskServer"
     if (Get-Service $svcName -ErrorAction SilentlyContinue) {
         Start-Service $svcName -ErrorAction SilentlyContinue
@@ -2290,9 +2290,9 @@ function Do-InstallMinimal {
     # Verify
     $svc = Get-Service $svcName -ErrorAction SilentlyContinue
     if ($svc -and $svc.Status -eq "Running") {
-        Print-Success "BetterDesk server is running"
+        Print-Success "Yomie server is running"
     } else {
-        Print-Warning "BetterDesk server may not have started correctly"
+        Print-Warning "Yomie server may not have started correctly"
     }
     
     Write-Host ""
@@ -2311,9 +2311,9 @@ function Do-InstallMinimal {
 }
 
 function Setup-ServicesMinimal {
-    Print-Step "Setting up BetterDesk server service (Minimal mode)..."
+    Print-Step "Setting up Yomie server service (Minimal mode)..."
     
-    $goBinary = Join-Path $script:INSTALL_DIR "betterdesk-server.exe"
+    $goBinary = Join-Path $script:INSTALL_DIR "yomie-server.exe"
     $keyDir = $script:INSTALL_DIR
     $dbDir = $script:INSTALL_DIR
     
@@ -2358,8 +2358,8 @@ function Setup-ServicesMinimal {
     
     nssm install $svcName $goBinary $serverArgs
     nssm set $svcName AppDirectory $script:INSTALL_DIR
-    nssm set $svcName DisplayName "BetterDesk Server (Minimal)"
-    nssm set $svcName Description "BetterDesk Go server - signal, relay, and API"
+    nssm set $svcName DisplayName "Yomie Server (Minimal)"
+    nssm set $svcName Description "Yomie Go server - signal, relay, and API"
     nssm set $svcName Start SERVICE_AUTO_START
     nssm set $svcName AppStdout (Join-Path $script:INSTALL_DIR "server.log")
     nssm set $svcName AppStderr (Join-Path $script:INSTALL_DIR "server-error.log")
@@ -2373,7 +2373,7 @@ function Setup-ServicesMinimal {
     }
     nssm set $svcName AppEnvironmentExtra $envExtra
     
-    Print-Success "BetterDesk server service created (Minimal mode)"
+    Print-Success "Yomie server service created (Minimal mode)"
 }
 
 #=============================================================================
@@ -2388,7 +2388,7 @@ function Do-Install {
     Detect-Installation
     
     if ($script:INSTALL_STATUS -eq "complete") {
-        Print-Warning "BetterDesk is already installed!"
+        Print-Warning "Yomie is already installed!"
         if (-not $script:AUTO_MODE) {
             if (-not (Confirm-Action "Do you want to reinstall?")) {
                 return
@@ -2398,7 +2398,7 @@ function Do-Install {
     }
     
     Write-Host ""
-    Print-Info "Starting BetterDesk Console v$script:VERSION installation..."
+    Print-Info "Starting Yomie Console v$script:VERSION installation..."
     Write-Host ""
     
     # Choose database type (SQLite or PostgreSQL)
@@ -2451,7 +2451,7 @@ function Do-Install {
     
     $tlsStatus = "Disabled"
     $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
-    if ((Test-Path (Join-Path $sslDir "betterdesk.crt")) -and (Test-Path (Join-Path $sslDir "betterdesk.key"))) {
+    if ((Test-Path (Join-Path $sslDir "yomie.crt")) -and (Test-Path (Join-Path $sslDir "yomie.key"))) {
         $tlsStatus = "Self-signed (auto-generated)"
     }
     
@@ -2517,7 +2517,7 @@ function Do-Update {
     Detect-Installation
     
     if ($script:INSTALL_STATUS -eq "none") {
-        Print-Error "BetterDesk is not installed!"
+        Print-Error "Yomie is not installed!"
         Print-Info "Use 'FRESH INSTALLATION' option"
         Press-Enter
         return
@@ -2589,7 +2589,7 @@ function Do-Repair {
     Write-Host ""
     Write-Host "What do you want to repair?" -ForegroundColor White
     Write-Host ""
-    Write-Host "  1. Repair binaries (replace with BetterDesk)"
+    Write-Host "  1. Repair binaries (replace with Yomie)"
     Write-Host "  2. Repair database (add missing columns)"
     Write-Host "  3. Repair Windows services"
     Write-Host "  4. Full repair (all of the above)"
@@ -2623,7 +2623,7 @@ function Repair-Binaries {
     $hbbrPath = Join-Path $binSource "hbbr-windows-x86_64.exe"
     
     if (-not (Test-Path $hbbsPath) -or -not (Test-Path $hbbrPath)) {
-        Print-Error "BetterDesk binaries not found in $binSource"
+        Print-Error "Yomie binaries not found in $binSource"
         return
     }
     
@@ -2645,8 +2645,8 @@ function Repair-Binaries {
     $hbbrLocked = $false
     
     try {
-        if (Test-Path "$script:RUSTDESK_PATH\betterdesk-server.exe") {
-            $stream = [System.IO.File]::Open("$script:RUSTDESK_PATH\betterdesk-server.exe", 'Open', 'ReadWrite', 'None')
+        if (Test-Path "$script:RUSTDESK_PATH\yomie-server.exe") {
+            $stream = [System.IO.File]::Open("$script:RUSTDESK_PATH\yomie-server.exe", 'Open', 'ReadWrite', 'None')
             $stream.Close()
         } elseif (Test-Path "$script:RUSTDESK_PATH\hbbs.exe") {
             $stream = [System.IO.File]::Open("$script:RUSTDESK_PATH\hbbs.exe", 'Open', 'ReadWrite', 'None')
@@ -2655,7 +2655,7 @@ function Repair-Binaries {
     } catch {
         $hbbsLocked = $true
         Print-Warning "Server binary is still locked, killing stale processes..."
-        Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue | Stop-Process -Force
         Get-Process -Name "hbbs" -ErrorAction SilentlyContinue | Stop-Process -Force
         Start-Sleep -Seconds 2
     }
@@ -2703,13 +2703,13 @@ function Repair-Services {
     Stop-AllServices
     Start-Sleep -Seconds 2
     
-    # Verify binaries exist (Go server: betterdesk-server.exe, fallback: legacy hbbs.exe)
-    $serverBinary = Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe"
+    # Verify binaries exist (Go server: yomie-server.exe, fallback: legacy hbbs.exe)
+    $serverBinary = Join-Path $script:RUSTDESK_PATH "yomie-server.exe"
     if (-not (Test-Path $serverBinary)) {
         # Fallback to legacy Rust binary name
         $serverBinary = Join-Path $script:RUSTDESK_PATH "hbbs.exe"
         if (-not (Test-Path $serverBinary)) {
-            Print-Error "betterdesk-server.exe not found at $script:RUSTDESK_PATH"
+            Print-Error "yomie-server.exe not found at $script:RUSTDESK_PATH"
             Print-Info "Run 'Repair binaries' first"
             return
         }
@@ -2762,8 +2762,8 @@ function Do-Validate {
     }
     
     # Check binaries (Go server or legacy Rust)
-    Write-Host "  BetterDesk Server: " -NoNewline
-    if (Test-Path (Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe")) {
+    Write-Host "  Yomie Server: " -NoNewline
+    if (Test-Path (Join-Path $script:RUSTDESK_PATH "yomie-server.exe")) {
         Write-Host "[OK] (Go: signal + relay + API)" -ForegroundColor Green
     } elseif ((Test-Path (Join-Path $script:RUSTDESK_PATH "hbbs.exe")) -and (Test-Path (Join-Path $script:RUSTDESK_PATH "hbbr.exe"))) {
         Write-Host "[OK] (Legacy Rust)" -ForegroundColor Yellow
@@ -3221,7 +3221,7 @@ function Check-FirewallRules {
         return
     }
     
-    # Check for BetterDesk firewall rules
+    # Check for Yomie firewall rules
     $requiredPorts = @(
         @{Port=21115; Proto="TCP";  Name="NAT Test"},
         @{Port=21116; Proto="TCP";  Name="ID Server TCP"},
@@ -3262,16 +3262,16 @@ function Configure-Firewall {
     if ($MissingRules.Count -eq 0) {
         # Check all required ports
         $requiredPorts = @(
-            @{Port=21115; Proto="TCP";  Name="BetterDesk NAT Test"},
-            @{Port=21116; Proto="TCP";  Name="BetterDesk ID Server TCP"},
-            @{Port=21116; Proto="UDP";  Name="BetterDesk ID Server UDP"},
-            @{Port=21117; Proto="TCP";  Name="BetterDesk Relay Server"},
-            @{Port=21118; Proto="TCP";  Name="BetterDesk WebSocket Signal"},
-            @{Port=21119; Proto="TCP";  Name="BetterDesk WebSocket Relay"},
-            @{Port=21114; Proto="TCP";  Name="BetterDesk HBBS API"},
-            @{Port=5000;  Proto="TCP";  Name="BetterDesk Web Console"},
-            @{Port=5443;  Proto="TCP";  Name="BetterDesk Console HTTPS"},
-            @{Port=21121; Proto="TCP";  Name="BetterDesk Client API"}
+            @{Port=21115; Proto="TCP";  Name="Yomie NAT Test"},
+            @{Port=21116; Proto="TCP";  Name="Yomie ID Server TCP"},
+            @{Port=21116; Proto="UDP";  Name="Yomie ID Server UDP"},
+            @{Port=21117; Proto="TCP";  Name="Yomie Relay Server"},
+            @{Port=21118; Proto="TCP";  Name="Yomie WebSocket Signal"},
+            @{Port=21119; Proto="TCP";  Name="Yomie WebSocket Relay"},
+            @{Port=21114; Proto="TCP";  Name="Yomie HBBS API"},
+            @{Port=5000;  Proto="TCP";  Name="Yomie Web Console"},
+            @{Port=5443;  Proto="TCP";  Name="Yomie Console HTTPS"},
+            @{Port=21121; Proto="TCP";  Name="Yomie Client API"}
         )
         
         foreach ($p in $requiredPorts) {
@@ -3295,7 +3295,7 @@ function Configure-Firewall {
     $created = 0
     
     foreach ($p in $MissingRules) {
-        $ruleName = "BetterDesk - $($p.Name)"
+        $ruleName = "Yomie - $($p.Name)"
         try {
             New-NetFirewallRule -DisplayName $ruleName `
                 -Direction Inbound -Action Allow `
@@ -3324,9 +3324,9 @@ function Do-Diagnostics {
     Write-Host "=== Process Information ===" -ForegroundColor White
     Write-Host ""
     
-    $serverProc = Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue
+    $serverProc = Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue
     if ($serverProc) {
-        Write-Host "  BetterDesk Server: PID $($serverProc.Id), Memory $('{0:N0}' -f ($serverProc.WorkingSet64/1MB)) MB" -ForegroundColor Green
+        Write-Host "  Yomie Server: PID $($serverProc.Id), Memory $('{0:N0}' -f ($serverProc.WorkingSet64/1MB)) MB" -ForegroundColor Green
     } else {
         # Fallback: check legacy hbbs/hbbr processes
         $hbbsProc = Get-Process -Name "hbbs" -ErrorAction SilentlyContinue
@@ -3340,7 +3340,7 @@ function Do-Diagnostics {
             }
             Print-Warning "Legacy Rust processes detected. Consider migrating to Go server."
         } else {
-            Write-Host "  BetterDesk Server: Not running" -ForegroundColor Red
+            Write-Host "  Yomie Server: Not running" -ForegroundColor Red
         }
     }
     
@@ -3394,11 +3394,11 @@ conn.close()
     Write-Host ""
     
     $portDefs = @(
-        @{Port=21114; Proto="TCP"; Expected="betterdesk-server"; Desc="Server API"},
-        @{Port=21115; Proto="TCP"; Expected="betterdesk-server"; Desc="NAT Test"},
-        @{Port=21116; Proto="TCP"; Expected="betterdesk-server"; Desc="ID Server (TCP)"},
-        @{Port=21116; Proto="UDP"; Expected="betterdesk-server"; Desc="ID Server (UDP)"},
-        @{Port=21117; Proto="TCP"; Expected="betterdesk-server"; Desc="Relay Server"},
+        @{Port=21114; Proto="TCP"; Expected="yomie-server"; Desc="Server API"},
+        @{Port=21115; Proto="TCP"; Expected="yomie-server"; Desc="NAT Test"},
+        @{Port=21116; Proto="TCP"; Expected="yomie-server"; Desc="ID Server (TCP)"},
+        @{Port=21116; Proto="UDP"; Expected="yomie-server"; Desc="ID Server (UDP)"},
+        @{Port=21117; Proto="TCP"; Expected="yomie-server"; Desc="Relay Server"},
         @{Port=5000;  Proto="TCP"; Expected="node"; Desc="Web Console"},
         @{Port=21121; Proto="TCP"; Expected="node"; Desc="Client API (WAN)"}
     )
@@ -3522,7 +3522,7 @@ function Do-Uninstall {
     Write-Host "========== UNINSTALL ==========" -ForegroundColor Red
     Write-Host ""
     
-    Print-Warning "This operation will remove BetterDesk Console!"
+    Print-Warning "This operation will remove Yomie Console!"
     Write-Host ""
     
     if (-not (Confirm-Action "Are you sure you want to continue?")) {
@@ -3562,7 +3562,7 @@ function Do-Uninstall {
         Print-Info "Removed: $script:CONSOLE_PATH"
     }
     
-    Print-Success "BetterDesk has been uninstalled"
+    Print-Success "Yomie has been uninstalled"
     Press-Enter
 }
 
@@ -3600,7 +3600,7 @@ function Configure-Paths {
         }
         "2" {
             Write-Host ""
-            $newPath = Read-Host "Enter RustDesk server path (e.g., C:\BetterDesk)"
+            $newPath = Read-Host "Enter RustDesk server path (e.g., C:\Yomie)"
             if ($newPath) {
                 if (Test-Path $newPath) {
                     $script:RUSTDESK_PATH = $newPath
@@ -3639,7 +3639,7 @@ function Configure-Paths {
             Configure-Paths
         }
         "4" {
-            $script:RUSTDESK_PATH = "C:\BetterDesk"
+            $script:RUSTDESK_PATH = "C:\Yomie"
             $script:CONSOLE_PATH = "C:\BetterDeskConsole"
             $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
             Print-Success "Paths reset to defaults"
@@ -3689,7 +3689,7 @@ function Do-RebuildGoServer {
     Detect-Installation
 
     if ($script:INSTALL_STATUS -eq "none") {
-        Print-Warning "BetterDesk is not installed. Binary will be compiled but not deployed."
+        Print-Warning "Yomie is not installed. Binary will be compiled but not deployed."
         if (-not (Confirm-Action "Continue with compilation only?")) {
             Press-Enter
             return
@@ -3706,7 +3706,7 @@ function Do-RebuildGoServer {
         return
     }
 
-    $newBinary = Join-Path $script:GO_SERVER_SOURCE "betterdesk-server.exe"
+    $newBinary = Join-Path $script:GO_SERVER_SOURCE "yomie-server.exe"
     if (-not (Test-Path $newBinary)) {
         Print-Error "Compiled binary not found at $newBinary"
         Press-Enter
@@ -3715,7 +3715,7 @@ function Do-RebuildGoServer {
 
     # Step 2: Backup current binary
     Print-Step "[2/5] Backing up current binary..."
-    $installedBinary = Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe"
+    $installedBinary = Join-Path $script:RUSTDESK_PATH "yomie-server.exe"
     $ts = Get-Date -Format "yyyyMMdd_HHmmss"
     $backupPath = "${installedBinary}.backup.${ts}"
     if (Test-Path $installedBinary) {
@@ -3743,7 +3743,7 @@ function Do-RebuildGoServer {
         } catch {
             Print-Warning "File is locked, waiting..."
             Start-Sleep -Seconds 3
-            Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue | Stop-Process -Force
             Start-Sleep -Seconds 2
         }
     }
@@ -3758,7 +3758,7 @@ function Do-RebuildGoServer {
 
     # Verify
     Start-Sleep -Seconds 3
-    $serverProcess = Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue
+    $serverProcess = Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue
     if ($serverProcess) {
         Write-Host ""
         Print-Success "Go server rebuilt and deployed successfully!"
@@ -3768,12 +3768,12 @@ function Do-RebuildGoServer {
         Write-Host "Rolling back to previous binary..." -ForegroundColor Yellow
         if (Test-Path $backupPath) {
             # Stop again
-            Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 2
             Copy-Item -Path $backupPath -Destination $installedBinary -Force
             Start-Services
             Start-Sleep -Seconds 3
-            $rollbackProcess = Get-Process -Name "betterdesk-server" -ErrorAction SilentlyContinue
+            $rollbackProcess = Get-Process -Name "yomie-server" -ErrorAction SilentlyContinue
             if ($rollbackProcess) {
                 Print-Success "Rollback successful - previous binary restored"
             } else {
@@ -3799,7 +3799,7 @@ function Do-CompileGoOnly {
         return
     }
 
-    $newBinary = Join-Path $script:GO_SERVER_SOURCE "betterdesk-server.exe"
+    $newBinary = Join-Path $script:GO_SERVER_SOURCE "yomie-server.exe"
     $size = [math]::Round((Get-Item $newBinary).Length / 1MB, 2)
     Print-Success "Binary compiled: $newBinary ($size MB)"
     Print-Info "Use option 7 -> 1 to deploy it, or copy manually."
@@ -3846,7 +3846,7 @@ function Do-BuildLegacyRust {
         Set-Location "rustdesk-server"
         git submodule update --init --recursive
 
-        Print-Step "Applying BetterDesk modifications..."
+        Print-Step "Applying Yomie modifications..."
 
         $srcDir = Join-Path $script:ScriptDir "hbbs-patch-v2\src"
         if (Test-Path $srcDir) {
@@ -3892,7 +3892,7 @@ function Do-ConfigureSSL {
     $envFile = Join-Path $script:CONSOLE_PATH ".env"
     if (-not (Test-Path $envFile)) {
         Print-Error "Node.js console .env not found at $envFile"
-        Print-Info "Please install BetterDesk first (option 1)"
+        Print-Info "Please install Yomie first (option 1)"
         Press-Enter
         return
     }
@@ -3954,8 +3954,8 @@ function Do-ConfigureSSL {
             # Self-signed with full SANs
             New-Item -ItemType Directory -Path $sslDir -Force | Out-Null
             
-            $certPath = Join-Path $sslDir "betterdesk.crt"
-            $keyPath = Join-Path $sslDir "betterdesk.key"
+            $certPath = Join-Path $sslDir "yomie.crt"
+            $keyPath = Join-Path $sslDir "yomie.key"
             
             Write-Host ""
             $certDomain = Read-Host "Enter domain name (optional, press Enter to skip)"
@@ -3993,14 +3993,14 @@ function Do-ConfigureSSL {
                 $sanArg = "subjectAltName=$sanList"
                 & openssl req -x509 -nodes -days 3650 -newkey rsa:2048 `
                     -keyout $keyPath -out $certPath `
-                    -subj "/CN=$cn/O=BetterDesk/C=PL" `
+                    -subj "/CN=$cn/O=Yomie/C=PL" `
                     -addext $sanArg 2>&1 | Out-Null
                     
                 if (-not (Test-Path $certPath)) {
                     # Fallback for older openssl without -addext
                     & openssl req -x509 -nodes -days 3650 -newkey rsa:2048 `
                         -keyout $keyPath -out $certPath `
-                        -subj "/CN=$cn/O=BetterDesk/C=PL" 2>&1 | Out-Null
+                        -subj "/CN=$cn/O=Yomie/C=PL" 2>&1 | Out-Null
                 }
             } else {
                 # PowerShell self-signed cert
@@ -4013,7 +4013,7 @@ function Do-ConfigureSSL {
                     -KeyExportPolicy Exportable
                     
                 # Export as PFX then convert to PEM via openssl if available
-                $pfxPath = Join-Path $sslDir "betterdesk.pfx"
+                $pfxPath = Join-Path $sslDir "yomie.pfx"
                 $certBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx)
                 [System.IO.File]::WriteAllBytes($pfxPath, $certBytes)
                 
@@ -4103,8 +4103,8 @@ function Do-ConfigureSSL {
             
             New-Item -ItemType Directory -Path $sslDir -Force | Out-Null
             
-            $certPath = Join-Path $sslDir "betterdesk.crt"
-            $keyPath = Join-Path $sslDir "betterdesk.key"
+            $certPath = Join-Path $sslDir "yomie.crt"
+            $keyPath = Join-Path $sslDir "yomie.key"
             
             $certDomain = Read-Host "Enter domain name (optional, press Enter to skip)"
             
@@ -4136,13 +4136,13 @@ function Do-ConfigureSSL {
                 $sanArg = "subjectAltName=$sanList"
                 & openssl req -x509 -nodes -days 3650 -newkey rsa:4096 `
                     -keyout $keyPath -out $certPath `
-                    -subj "/CN=$cn/O=BetterDesk Enterprise/C=PL" `
+                    -subj "/CN=$cn/O=Yomie Enterprise/C=PL" `
                     -addext $sanArg 2>&1 | Out-Null
                     
                 if (-not (Test-Path $certPath)) {
                     & openssl req -x509 -nodes -days 3650 -newkey rsa:4096 `
                         -keyout $keyPath -out $certPath `
-                        -subj "/CN=$cn/O=BetterDesk Enterprise/C=PL" 2>&1 | Out-Null
+                        -subj "/CN=$cn/O=Yomie Enterprise/C=PL" 2>&1 | Out-Null
                 }
             } else {
                 $dnsNames = @("localhost")
@@ -4154,7 +4154,7 @@ function Do-ConfigureSSL {
                     -KeyExportPolicy Exportable `
                     -KeyLength 4096
                     
-                $pfxPath = Join-Path $sslDir "betterdesk.pfx"
+                $pfxPath = Join-Path $sslDir "yomie.pfx"
                 $certBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx)
                 [System.IO.File]::WriteAllBytes($pfxPath, $certBytes)
                 $certPath = $pfxPath
@@ -4336,7 +4336,7 @@ function Do-ConfigureSSL {
     Set-Content $envFile -Value $envContent -NoNewline
     
     Write-Host ""
-    if (Confirm-Action "Restart BetterDesk to apply changes?") {
+    if (Confirm-Action "Restart Yomie to apply changes?") {
         $serverService = $script:SERVER_SERVICE
         $consoleService = $script:CONSOLE_SERVICE
         if (Get-Service -Name $serverService -ErrorAction SilentlyContinue) {
@@ -4345,7 +4345,7 @@ function Do-ConfigureSSL {
         if (Get-Service -Name $consoleService -ErrorAction SilentlyContinue) {
             Restart-Service -Name $consoleService -Force -ErrorAction SilentlyContinue
         }
-        Print-Success "BetterDesk services restarted"
+        Print-Success "Yomie services restarted"
     }
     
     Press-Enter
@@ -4363,10 +4363,10 @@ function Do-MigrateDatabase {
     # Locate migration binary
     $migrateBin = $null
     $searchPaths = @(
-        (Join-Path $script:ScriptDir "betterdesk-server\tools\migrate\migrate.exe"),
+        (Join-Path $script:ScriptDir "yomie-server\tools\migrate\migrate.exe"),
         (Join-Path $script:ScriptDir "tools\migrate\migrate.exe"),
         (Join-Path $script:RUSTDESK_PATH "migrate.exe"),
-        "C:\BetterDesk\migrate.exe"
+        "C:\Yomie\migrate.exe"
     )
 
     foreach ($p in $searchPaths) {
@@ -4378,20 +4378,20 @@ function Do-MigrateDatabase {
 
     if (-not $migrateBin) {
         Print-Error "Migration binary not found!"
-        Print-Info "Expected at: $(Join-Path $script:ScriptDir 'betterdesk-server\tools\migrate\migrate.exe')"
-        Print-Info "Build it with: cd betterdesk-server; go build -o tools\migrate\migrate.exe ./tools/migrate/"
+        Print-Info "Expected at: $(Join-Path $script:ScriptDir 'yomie-server\tools\migrate\migrate.exe')"
+        Print-Info "Build it with: cd yomie-server; go build -o tools\migrate\migrate.exe ./tools/migrate/"
         Press-Enter
         return
     }
 
     Print-Info "Migration binary: $migrateBin"
     Write-Host ""
-    Write-Host "  Migrate databases between different BetterDesk components." -ForegroundColor White
+    Write-Host "  Migrate databases between different Yomie components." -ForegroundColor White
     Write-Host ""
     Write-Host "  Migration Modes:" -ForegroundColor Yellow
     Write-Host "  1. Rust -> Go          Migrate from legacy Rust hbbs database to Go server" -ForegroundColor Green
     Write-Host "  2. Node.js -> Go       Migrate from Node.js web console to Go server" -ForegroundColor Green
-    Write-Host "  3. SQLite -> PostgreSQL Migrate BetterDesk Go SQLite to PostgreSQL" -ForegroundColor Green
+    Write-Host "  3. SQLite -> PostgreSQL Migrate Yomie Go SQLite to PostgreSQL" -ForegroundColor Green
     Write-Host "  4. PostgreSQL -> SQLite Migrate PostgreSQL back to SQLite" -ForegroundColor Green
     Write-Host "  5. Backup              Create timestamped backup of SQLite database" -ForegroundColor Green
     Write-Host ""
@@ -4502,7 +4502,7 @@ function Do-MigrateDatabase {
 
             if ($LASTEXITCODE -eq 0) {
                 Print-Success "SQLite -> PostgreSQL migration completed successfully!"
-                Print-Info "Update your BetterDesk Go server config: DB_URL=$pgUri"
+                Print-Info "Update your Yomie Go server config: DB_URL=$pgUri"
             } else {
                 Print-Error "Migration failed. Check the output above for details."
             }

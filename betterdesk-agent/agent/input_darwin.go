@@ -85,7 +85,7 @@ func cliclick(args ...string) error {
 		// Detect Accessibility permission denial (common on macOS 14+).
 		if strings.Contains(string(out), "permission") || strings.Contains(string(out), "not allowed") {
 			return fmt.Errorf(
-				"cliclick access denied — enable Accessibility permission in System Settings > Privacy & Security > Accessibility for BetterDesk Agent",
+				"cliclick access denied — enable Accessibility permission in System Settings > Privacy & Security > Accessibility for Yomie Agent",
 			)
 		}
 		return fmt.Errorf("cliclick: %w (output: %s)", err, string(out))

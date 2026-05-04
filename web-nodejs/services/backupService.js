@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Backup & Restore Service
+ * Yomie Console - Backup & Restore Service
  *
  * Creates/restores JSON snapshots of console configuration:
  *   - Console settings (key/value pairs)
@@ -10,7 +10,7 @@
  *   - Address books
  *   - Go server peers + blocklist + config (fetched via REST when available)
  *
- * Archive format: single JSON file (*.betterdesk-backup.json)
+ * Archive format: single JSON file (*.yomie-backup.json)
  */
 
 const db = require('./database');
@@ -49,7 +49,7 @@ async function createBackup() {
     }
 
     return {
-        _format: 'betterdesk-backup',
+        _format: 'yomie-backup',
         _version: BACKUP_FORMAT_VERSION,
         _created: timestamp,
         _console_version: config.appVersion,
@@ -69,7 +69,7 @@ async function createBackup() {
 }
 
 /**
- * Fetch data from BetterDesk Go server via REST API.
+ * Fetch data from Yomie Go server via REST API.
  * Non-critical — returns null on failure.
  */
 async function fetchGoServerData() {
@@ -107,7 +107,7 @@ function validateBackup(data) {
         errors.push('Invalid backup file: not a JSON object');
         return { valid: false, errors };
     }
-    if (data._format !== 'betterdesk-backup') {
+    if (data._format !== 'yomie-backup') {
         errors.push('Invalid backup file: missing or wrong _format field');
     }
     if (typeof data._version !== 'number' || data._version > BACKUP_FORMAT_VERSION) {

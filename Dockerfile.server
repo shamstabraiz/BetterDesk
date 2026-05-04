@@ -1,10 +1,10 @@
-# Dockerfile for BetterDesk Server (Go)
+# Dockerfile for Yomie Server (Go)
 # Multi-stage build: compile from source, then copy to minimal runtime image
 #
-# The BetterDesk server is a single binary that replaces both hbbs and hbbr.
+# The Yomie server is a single binary that replaces both hbbs and hbbr.
 # It provides: signal (UDP/TCP/WS), relay (TCP/WS), HTTP API, admin console.
 #
-# Build: docker build -f Dockerfile.server -t betterdesk-server:local .
+# Build: docker build -f Dockerfile.server -t yomie-server:local .
 
 # ---- Build stage ----
 FROM golang:1.25-alpine AS builder
@@ -14,24 +14,24 @@ RUN apk add --no-cache git || { sleep 2 && apk add --no-cache git; }
 WORKDIR /src
 
 # Copy Go module files first (cache dependencies)
-COPY betterdesk-server/go.mod betterdesk-server/go.sum ./
+COPY yomie-server/go.mod yomie-server/go.sum ./
 
 RUN go mod download
 
 # Copy full source
-COPY betterdesk-server/ .
+COPY yomie-server/ .
 
 # Build static binary (modernc.org/sqlite is pure Go — no CGO needed)
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w" \
     -tags "netgo osusergo" \
-    -o /betterdesk-server .
+    -o /yomie-server .
 
 # ---- Runtime stage ----
 FROM alpine:3.20
 
 LABEL maintainer="shamstabraiz"
-LABEL description="BetterDesk Server - RustDesk-compatible signal + relay"
+LABEL description="Yomie Server - RustDesk-compatible signal + relay"
 LABEL version="2.4.0"
 
 RUN apk add --no-cache \
@@ -42,16 +42,16 @@ RUN apk add --no-cache \
     su-exec \
     || { sleep 2 && apk add --no-cache \
     ca-certificates curl sqlite tini su-exec; } \
-    && addgroup -g 10001 -S betterdesk \
-    && adduser -u 10001 -S -G betterdesk betterdesk
+    && addgroup -g 10001 -S yomie \
+    && adduser -u 10001 -S -G yomie yomie
 
-COPY --from=builder /betterdesk-server /usr/local/bin/betterdesk-server
-RUN chmod +x /usr/local/bin/betterdesk-server
+COPY --from=builder /yomie-server /usr/local/bin/yomie-server
+RUN chmod +x /usr/local/bin/yomie-server
 
 # Create data directory
-RUN mkdir -p /opt/rustdesk && chown betterdesk:betterdesk /opt/rustdesk
+RUN mkdir -p /opt/rustdesk && chown yomie:yomie /opt/rustdesk
 
-# Entrypoint script: fixes volume permissions, then drops to betterdesk user
+# Entrypoint script: fixes volume permissions, then drops to yomie user
 COPY docker/server-entrypoint.sh /server-entrypoint.sh
 RUN chmod +x /server-entrypoint.sh
 
@@ -71,7 +71,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:21114/api/health || exit 1
 
 # Note: Container starts as root so entrypoint can fix volume permissions.
-# server-entrypoint.sh drops to betterdesk user via su-exec before running the server.
+# server-entrypoint.sh drops to yomie user via su-exec before running the server.
 
 ENTRYPOINT ["/sbin/tini", "--", "/server-entrypoint.sh"]
-CMD ["/usr/local/bin/betterdesk-server", "-mode", "all", "-key-file", "/opt/rustdesk/id_ed25519"]
+CMD ["/usr/local/bin/yomie-server", "-mode", "all", "-key-file", "/opt/rustdesk/id_ed25519"]

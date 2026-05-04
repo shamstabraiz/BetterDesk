@@ -1,5 +1,5 @@
 /**
- * BetterDesk Web Remote Client - Protocol Handler
+ * Yomie Web Remote Client - Protocol Handler
  * Implements RustDesk rendezvous and peer-to-peer protocol using protobuf
  */
 
@@ -160,7 +160,7 @@ class RDProtocol {
                 licenceKey: serverKey || '',
                 connType: this.enums.ConnType.values.DEFAULT_CONN,
                 token: '',
-                version: 'BetterDesk-Web/1.0',
+                version: 'Yomie-Web/1.0',
                 forceRelay: true // Browser must use relay
             }
         };
@@ -217,9 +217,9 @@ class RDProtocol {
                 username: opts.username || '',
                 password: passwordHash,
                 myId: opts.myId || 'web-client',
-                myName: opts.myName || 'BetterDesk Web',
+                myName: opts.myName || 'Yomie Web',
                 myPlatform: 'Web',
-                version: 'BetterDesk-Web/1.0',
+                version: 'Yomie-Web/1.0',
                 sessionId: Date.now(),
                 option: {
                     imageQuality: this.enums.ImageQuality.values[quality] || this.enums.ImageQuality.values.Best,
@@ -368,7 +368,7 @@ class RDProtocol {
     }
 
     /**
-     * Toggle flashlight / torch on remote mobile device (BetterDesk extension).
+     * Toggle flashlight / torch on remote mobile device (Yomie extension).
      * @param {boolean} on
      */
     buildToggleFlashCustom(on) {

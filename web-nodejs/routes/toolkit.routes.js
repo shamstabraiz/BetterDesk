@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Toolkit Routes
+ * Yomie Console — Toolkit Routes
  *
  * Server-side API endpoints for admin toolkit utilities:
  *   - SSL certificate inspection

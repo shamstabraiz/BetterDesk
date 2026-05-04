@@ -8,15 +8,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased] — Security hardening (2026-04-26)
 
 ### Added
-- **RustDesk PRO group endpoint stubs** — `betterdesk-server/api/server.go` now exposes `GET /api/group`, `GET|POST /api/group/get`, and `GET /api/peers/list` returning the `{total, data, msg}` envelope expected by RustDesk Flutter clients. Without these endpoints the Flutter UI aborted device-list loading and never fell back to address-book mode. Idea credit: [progloto](https://github.com/progloto) ([PR #81](https://github.com/shamstabraiz/BetterDesk/pull/81)).
-- **Catch-all 404 logging** — Both `betterdesk-server/api/server.go` (Go API) and `web-nodejs/server.js` (RustDesk-compatible API + main panel) now log unmatched routes with method, path, client IP, and User-Agent. Makes missing client-compatibility endpoints easy to spot during deployments. Diagnostics suggestion credit: [progloto](https://github.com/progloto) ([PR #81](https://github.com/shamstabraiz/BetterDesk/pull/81)).
+- **RustDesk PRO group endpoint stubs** — `yomie-server/api/server.go` now exposes `GET /api/group`, `GET|POST /api/group/get`, and `GET /api/peers/list` returning the `{total, data, msg}` envelope expected by RustDesk Flutter clients. Without these endpoints the Flutter UI aborted device-list loading and never fell back to address-book mode. Idea credit: [progloto](https://github.com/progloto) ([PR #81](https://github.com/shamstabraiz/Yomie/pull/81)).
+- **Catch-all 404 logging** — Both `yomie-server/api/server.go` (Go API) and `web-nodejs/server.js` (RustDesk-compatible API + main panel) now log unmatched routes with method, path, client IP, and User-Agent. Makes missing client-compatibility endpoints easy to spot during deployments. Diagnostics suggestion credit: [progloto](https://github.com/progloto) ([PR #81](https://github.com/shamstabraiz/Yomie/pull/81)).
 - **Defensive list parsing in panel** — `web-nodejs/services/betterdeskApi.js` and `web-nodejs/public/js/devices.js` already accepted both `[…]` and `{ peers: […] }` shapes; this stays unchanged so admin UI works regardless of which endpoint envelope a future RustDesk version returns.
 
 ### Security
 - **Brute-force protection on RustDesk client API** — `web-nodejs/routes/rustdesk-api.routes.js` now `await`s `authService.checkBruteForce(...)`. Previously the async result was treated as truthy/undefined, making the lockout effectively unenforceable on the RustDesk-compatible login route. (Audit finding #1, High)
 - **TOTP login session fixation** — `web-nodejs/routes/auth.routes.js` regenerates the session via `req.session.regenerate(...)` after successful 2FA verification, mirroring the standard login flow. Previously the pre-2FA session ID was reused for the post-2FA authenticated session. Cookie name is unchanged; existing browser sessions continue to work. (Audit finding #2, Medium)
-- **Audit endpoints now require explicit RBAC** — `betterdesk-server/api/server.go` wraps `GET /api/audit/events` and `GET /api/ws/events` in `requirePermission(auth.PermAuditView, ...)`. All built-in roles that previously consumed these endpoints (`super_admin`, `admin`, `server_admin`, `global_admin`, `operator`, `viewer`) already grant `audit.view` by default — no behavioural change for them. **Behavioural change:** the `pro` role no longer receives `200` from these endpoints (it never had `audit.view` in `DefaultRolePermissions`). If a deployment relied on this implicit access, grant `audit.view` explicitly via the role-permission overrides table. (Audit finding #3, Medium)
-- **Generic 500 responses from Go auth handlers** — `betterdesk-server/api/auth_handlers.go` no longer leaks `err.Error()` strings on 9 internal-server-error paths (list/update/delete users, TOTP setup/confirm/disable, list/create/delete API keys). Full error detail is now logged server-side via `log.Printf`. Status codes and non-500 responses are unchanged. (Audit finding #4, Medium)
+- **Audit endpoints now require explicit RBAC** — `yomie-server/api/server.go` wraps `GET /api/audit/events` and `GET /api/ws/events` in `requirePermission(auth.PermAuditView, ...)`. All built-in roles that previously consumed these endpoints (`super_admin`, `admin`, `server_admin`, `global_admin`, `operator`, `viewer`) already grant `audit.view` by default — no behavioural change for them. **Behavioural change:** the `pro` role no longer receives `200` from these endpoints (it never had `audit.view` in `DefaultRolePermissions`). If a deployment relied on this implicit access, grant `audit.view` explicitly via the role-permission overrides table. (Audit finding #3, Medium)
+- **Generic 500 responses from Go auth handlers** — `yomie-server/api/auth_handlers.go` no longer leaks `err.Error()` strings on 9 internal-server-error paths (list/update/delete users, TOTP setup/confirm/disable, list/create/delete API keys). Full error detail is now logged server-side via `log.Printf`. Status codes and non-500 responses are unchanged. (Audit finding #4, Medium)
 
 ### Deferred
 - Plaintext storage of RustDesk client access tokens (audit finding #5) and CSP `'unsafe-inline'`/`'unsafe-eval'` exceptions (audit finding #6) are intentionally **not** included in this batch. They require a phased rollout that would otherwise break existing installations or active client sessions. Tracked in [docs/security/LOGIN_API_SECURITY_AUDIT_2026-04-26.md](docs/security/LOGIN_API_SECURITY_AUDIT_2026-04-26.md#deferred-patches).
@@ -29,7 +29,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Organization & User Account System** — Multi-tenant organizations with owner/admin/operator/user roles (Go server + Node.js panel)
 - **Organization REST API** — 18 endpoints for CRUD orgs, users, devices, invitations, settings, login
 - **Client Organization Login** — `OrgLoginPanel.tsx` with server address + username/password
-- **mDNS/DNS-SD Discovery** — Auto-discover BetterDesk servers on LAN (`_betterdesk._tcp`)
+- **mDNS/DNS-SD Discovery** — Auto-discover Yomie servers on LAN (`_betterdesk._tcp`)
 - **Desktop Widget UI Overhaul** — New window management, taskbar redesign, wallpaper picker with tabs
 - **Chat 2.0** — Operator↔device group chat, E2E encryption (ECDH + AES-256-GCM), read receipts, file sharing, typing indicators
 - **Web Remote File Transfer** — Browser-based bidirectional file transfer with drag-and-drop, progress tracking, resume, history
@@ -82,7 +82,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **PostgreSQL Support** — Full PostgreSQL database backend for Go server and Node.js console
 - **SQLite → PostgreSQL Migration** — Built-in migration tool (menu option M/P)
 - **CDAP v0.3.0** — Widget rendering, device detail page, REST API, 8 widget types
-- **Native BetterDesk Agent** — Go binary for system management, 14 flags, 9 widgets
+- **Native Yomie Agent** — Go binary for system management, 14 flags, 9 widgets
 - **Bridge SDK** — Python + Node.js SDKs for CDAP bridges (Modbus, SNMP, REST)
 - **Device Revocation** — `DELETE /api/peers/{id}?revoke=true&cascade=true`
 - **Peer Metrics** — `peer_metrics` table, `GET /api/peers/{id}/metrics`
@@ -135,14 +135,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - **Go Server** — Single binary replacing hbbs + hbbr (~20K LOC)
-- **ALL-IN-ONE Scripts** — `betterdesk.sh` + `betterdesk.ps1` + `betterdesk-docker.sh`
+- **ALL-IN-ONE Scripts** — `yomie.sh` + `yomie.ps1` + `yomie-docker.sh`
 - **Automatic Mode** — `--auto` flag for non-interactive installation
 - **SHA256 Verification** — Automatic checksum verification of binaries
 
 ---
 
-[3.0.0-alpha]: https://github.com/shamstabraiz/BetterDesk/compare/v2.4.0...HEAD
-[2.4.0]: https://github.com/shamstabraiz/BetterDesk/compare/v2.3.0...v2.4.0
-[2.3.0]: https://github.com/shamstabraiz/BetterDesk/compare/v2.2.0...v2.3.0
-[2.2.0]: https://github.com/shamstabraiz/BetterDesk/compare/v2.1.0...v2.2.0
-[2.1.0]: https://github.com/shamstabraiz/BetterDesk/releases/tag/v2.1.0
+[3.0.0-alpha]: https://github.com/shamstabraiz/Yomie/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/shamstabraiz/Yomie/compare/v2.3.0...v2.4.0
+[2.3.0]: https://github.com/shamstabraiz/Yomie/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/shamstabraiz/Yomie/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/shamstabraiz/Yomie/releases/tag/v2.1.0

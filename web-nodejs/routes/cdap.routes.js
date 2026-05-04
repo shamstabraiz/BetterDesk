@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - CDAP Routes
+ * Yomie Console - CDAP Routes
  * Routes for CDAP (Custom Device Automation Protocol) device management
  * and widget rendering in the admin panel.
  */

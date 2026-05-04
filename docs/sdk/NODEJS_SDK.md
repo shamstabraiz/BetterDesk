@@ -1,9 +1,9 @@
-# Node.js SDK Reference — `betterdesk-cdap`
+# Node.js SDK Reference — `yomie-cdap`
 
 ## Installation
 
 ```bash
-npm install betterdesk-cdap
+npm install yomie-cdap
 # or from source:
 npm install ./sdks/nodejs/
 ```
@@ -15,7 +15,7 @@ npm install ./sdks/nodejs/
 The main class. Extends `EventEmitter`.
 
 ```javascript
-const { CDAPBridge, Widget } = require('betterdesk-cdap');
+const { CDAPBridge, Widget } = require('yomie-cdap');
 ```
 
 ### Constructor
@@ -90,7 +90,7 @@ bridge.addWidget(Widget.button('restart', 'Restart Service', {
 ## Complete Example
 
 ```javascript
-const { CDAPBridge, Widget } = require('betterdesk-cdap');
+const { CDAPBridge, Widget } = require('yomie-cdap');
 const os = require('os');
 
 const bridge = new CDAPBridge({
@@ -107,7 +107,7 @@ bridge.addWidget(Widget.gauge('cpu', 'CPU', { group: 'System', unit: '%', max: 1
 bridge.addWidget(Widget.gauge('mem', 'Memory', { group: 'System', unit: '%', max: 100, danger: 85 }));
 bridge.addWidget(Widget.text('uptime', 'Uptime', { group: 'Info' }));
 
-bridge.on('connected', () => console.log('Connected to BetterDesk'));
+bridge.on('connected', () => console.log('Connected to Yomie'));
 
 bridge.on('collectMetrics', () => {
     const cpus = os.cpus();

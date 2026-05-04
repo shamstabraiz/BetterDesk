@@ -117,7 +117,7 @@ impl SyncHistory {
 // ---------------------------------------------------------------------------
 
 fn history_path() -> Result<PathBuf> {
-    let dirs = directories::ProjectDirs::from("com", "BetterDesk", "BetterDesk")
+    let dirs = directories::ProjectDirs::from("com", "Yomie", "Yomie")
         .context("Cannot determine config directory")?;
     let config_dir = dirs.config_dir();
     fs::create_dir_all(config_dir)

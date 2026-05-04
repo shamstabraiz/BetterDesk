@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Chat Routes
+ * Yomie Console — Chat Routes
  * Dedicated chat page + API endpoints for Chat 2.0
  */
 

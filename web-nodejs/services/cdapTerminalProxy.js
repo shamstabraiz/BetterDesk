@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — CDAP Terminal WebSocket Proxy
+ * Yomie Console — CDAP Terminal WebSocket Proxy
  * Proxies terminal WebSocket connections from the browser to the Go server's
  * CDAP terminal endpoint.  Authenticates via session cookie.
  *

@@ -1,7 +1,7 @@
-# Audyt bezpieczeństwa i stabilności BetterDesk
+# Audyt bezpieczeństwa i stabilności Yomie
 
 **Data:** 2026-04-17
-**Zakres:** Pełny audyt projektu shamstabraiz/Rustdesk-FreeConsole (BetterDesk)
+**Zakres:** Pełny audyt projektu shamstabraiz/Rustdesk-FreeConsole (Yomie)
 **Autor:** GitHub Copilot (audyt automatyczny z ręczną weryfikacją)
 **Status projektu:** v2.4.0 (instalatory), Phase 53 (RBAC + CSRF fixes)
 
@@ -9,17 +9,17 @@
 
 ## 1. Streszczenie wykonawcze
 
-BetterDesk jest dojrzałym, wielomodułowym ekosystemem zastępującym stos RustDesk (hbbs+hbbr) własnym serwerem Go, konsolą Node.js, klientem operatorskim MGMT (Tauri), klientem agenta końcowego (Tauri), natywnym agentem Go oraz protokołem CDAP z mostami (Modbus/SNMP/REST). W ostatnich 53 fazach projekt otrzymał gruntowne utwardzenie bezpieczeństwa (RBAC 7-role, CSRF double-submit, PBKDF2, Ed25519, NaCl TCP, TOTP 2FA, audit log, rate-limiting), jednak nadal występują luki wymagające pilnej interwencji oraz znaczące braki funkcjonalne w klientach Tauri.
+Yomie jest dojrzałym, wielomodułowym ekosystemem zastępującym stos RustDesk (hbbs+hbbr) własnym serwerem Go, konsolą Node.js, klientem operatorskim MGMT (Tauri), klientem agenta końcowego (Tauri), natywnym agentem Go oraz protokołem CDAP z mostami (Modbus/SNMP/REST). W ostatnich 53 fazach projekt otrzymał gruntowne utwardzenie bezpieczeństwa (RBAC 7-role, CSRF double-submit, PBKDF2, Ed25519, NaCl TCP, TOTP 2FA, audit log, rate-limiting), jednak nadal występują luki wymagające pilnej interwencji oraz znaczące braki funkcjonalne w klientach Tauri.
 
 ### Podsumowanie ryzyka per-moduł
 
 | Moduł | Krytyczne | Wysokie | Średnie | Niskie | Kompletność |
 |-------|:---:|:---:|:---:|:---:|:---:|
-| Go Server (`betterdesk-server/`) | **4** | 6 | 8 | 5 | ~95% |
+| Go Server (`yomie-server/`) | **4** | 6 | 8 | 5 | ~95% |
 | Node.js Console (`web-nodejs/`) | 0 | 3 | 5 | 2 | ~98% |
-| MGMT Client (`betterdesk-mgmt/`) | **4** | 4 | 2 | — | ~40% |
-| Agent Client (`betterdesk-agent-client/`) | **3** | 3 | 3 | — | ~20% |
-| Natywny Go Agent (`betterdesk-agent/`) | **1** | 2 | 2 | — | ~50% |
+| MGMT Client (`yomie-mgmt/`) | **4** | 4 | 2 | — | ~40% |
+| Agent Client (`yomie-agent-client/`) | **3** | 3 | 3 | — | ~20% |
+| Natywny Go Agent (`yomie-agent/`) | **1** | 2 | 2 | — | ~50% |
 | Instalatory + Docker | 0 | 1 | 3 | 1 | ~95% |
 | Architektura połączeń | **3** | 3 | 3 | — | — |
 | **RAZEM** | **15** | **22** | **26** | **8** | — |
@@ -27,7 +27,7 @@ BetterDesk jest dojrzałym, wielomodułowym ekosystemem zastępującym stos Rust
 ### Pięć najważniejszych priorytetów (Tier 0 — do wykonania natychmiast)
 
 1. **TLS wszędzie dla kanałów API** — porty 21121 (Node.js RustDesk Client API) oraz 21122 (CDAP WebSocket) transmitują zdalne operacje terminala, zrzuty ekranu i klucze API w plaintext; wymusić `https://`/`wss://` w domyślnej konfiguracji.
-2. **MITM w klientach Tauri** — `danger_accept_invalid_certs(true)` w `betterdesk-mgmt` i `betterdesk-agent-client` pozwala dowolnemu atakującemu na przejęcie rejestracji/sesji operatora; usunąć bezwarunkową akceptację i wprowadzić potwierdzenie użytkownika + pinning fingerprintu.
+2. **MITM w klientach Tauri** — `danger_accept_invalid_certs(true)` w `yomie-mgmt` i `yomie-agent-client` pozwala dowolnemu atakującemu na przejęcie rejestracji/sesji operatora; usunąć bezwarunkową akceptację i wprowadzić potwierdzenie użytkownika + pinning fingerprintu.
 3. **JWT secret regenerowany przy restarcie Go servera** — konfig `config/config.go:170-180` generuje nowy secret jeśli brak w env, co unieważnia wszystkie sesje operatorów przy każdym restarcie; persist secret w bezpiecznym storze.
 4. **Brak auth przed upgrade WebSocket w Go serverze** — `api/cdap_handlers.go:425-430` oraz `signal/ws.go` wykonują `upgrader.Upgrade()` przed weryfikacją tokenu, co umożliwia DoS przez masowe half-open connections.
 5. **Localstorage token w MGMT Client** — `bd_access_token` dostępny dla dowolnego XSS w WebView Tauri; przenieść do `tauri-plugin-stronghold` lub secure IPC state.
@@ -86,7 +86,7 @@ BetterDesk jest dojrzałym, wielomodułowym ekosystemem zastępującym stos Rust
 
 ## 3. Audyt per-moduł
 
-### 3.1 Go Server (`betterdesk-server/`)
+### 3.1 Go Server (`yomie-server/`)
 
 ~100k LOC, 90 plików, SQLite + PostgreSQL, Ed25519, NaCl, PBKDF2 100k, JWT HMAC-SHA256, TOTP RFC 6238, rate-limiting, RBAC 7-role.
 
@@ -181,7 +181,7 @@ Express + EJS + better-sqlite3 / pg + csrf-csrf + helmet + express-rate-limit + 
 
 ---
 
-### 3.3 MGMT Client (`betterdesk-mgmt/`) — Tauri + SolidJS
+### 3.3 MGMT Client (`yomie-mgmt/`) — Tauri + SolidJS
 
 ~40k LOC Rust, 25+ modułów, 100+ IPC commands. **Kompletność ~40%.**
 
@@ -238,7 +238,7 @@ Express + EJS + better-sqlite3 / pg + csrf-csrf + helmet + express-rate-limit + 
 
 ---
 
-### 3.4 Agent Client (`betterdesk-agent-client/`) — Tauri + SolidJS
+### 3.4 Agent Client (`yomie-agent-client/`) — Tauri + SolidJS
 
 4 moduły Rust (commands, config, registration, sysinfo_collect), 17 IPC. **Kompletność ~20%.**
 
@@ -295,7 +295,7 @@ Express + EJS + better-sqlite3 / pg + csrf-csrf + helmet + express-rate-limit + 
 
 ---
 
-### 3.5 Natywny Go Agent (`betterdesk-agent/`)
+### 3.5 Natywny Go Agent (`yomie-agent/`)
 
 ~14 flag CLI, CDAP bridge przez WebSocket, gopsutil metryki, PTY terminal (Unix + Windows).
 
@@ -329,11 +329,11 @@ Express + EJS + better-sqlite3 / pg + csrf-csrf + helmet + express-rate-limit + 
 
 ### 3.6 Instalatory + Docker
 
-`betterdesk.sh`, `betterdesk.ps1`, `betterdesk-docker.sh`, `Dockerfile*`, `docker/entrypoint.sh`, `docker-compose*.yml`.
+`yomie.sh`, `yomie.ps1`, `yomie-docker.sh`, `Dockerfile*`, `docker/entrypoint.sh`, `docker-compose*.yml`.
 
 #### Znaleziska Wysokie (1)
 
-- H1: `betterdesk.sh:1396` — `curl -fsSL … | bash -` (NodeSource) bez weryfikacji SHA256. Best practice: pobrać → `sha256sum -c` → `bash`.
+- H1: `yomie.sh:1396` — `curl -fsSL … | bash -` (NodeSource) bez weryfikacji SHA256. Best practice: pobrać → `sha256sum -c` → `bash`.
 
 #### Znaleziska Średnie (3)
 
@@ -349,8 +349,8 @@ Express + EJS + better-sqlite3 / pg + csrf-csrf + helmet + express-rate-limit + 
 
 - ✅ SQL literal escape (`sql_escape_literal()`) + PostgreSQL identifier validation.
 - ✅ `chmod 600` na `.env`, `.api_key`, `id_ed25519`.
-- ✅ Non-root user w Dockerfile (`betterdesk:10001`).
-- ✅ `COPY --chown=betterdesk:betterdesk` + `tini` + `su-exec`.
+- ✅ Non-root user w Dockerfile (`yomie:10001`).
+- ✅ `COPY --chown=yomie:yomie` + `tini` + `su-exec`.
 - ✅ HEALTHCHECK `/api/health` z timeoutami.
 - ✅ Weak-secret warnings (SESSION_SECRET <32 znaków).
 - ✅ Zero dostępu do sekretów w logach stdout.
@@ -383,7 +383,7 @@ Express + EJS + better-sqlite3 / pg + csrf-csrf + helmet + express-rate-limit + 
 5. **Dzień 1-2:** Zaimplementować TOTP dla loginu operatora (osobny krok po `/api/auth/login`, analogicznie do konsoli web).
 6. **Dzień 2:** Dodać refresh-token flow (24h access, 30d refresh w keyring) + auto-refresh 5 minut przed expiry.
 7. **Dzień 3:** Token bucket rate-limiter per-command (np. `connect_to_peer` max 10/min, heartbeat 60/min).
-8. **Dzień 3-4:** Windows-specific keyring fallback do `sodiumoxide`-encrypted pliku w `%APPDATA%\BetterDesk\secrets.enc`.
+8. **Dzień 3-4:** Windows-specific keyring fallback do `sodiumoxide`-encrypted pliku w `%APPDATA%\Yomie\secrets.enc`.
 
 #### Etap 3: Kompletność funkcjonalna (Tydzień 3-4)
 
@@ -423,9 +423,9 @@ Express + EJS + better-sqlite3 / pg + csrf-csrf + helmet + express-rate-limit + 
 
 #### Etap 4: Kompletność funkcjonalna device-side (Tydzień 4-6)
 
-12. **Integracja z CDAP gateway** — użyć natywnego `betterdesk-agent` jako library albo przepisać w Rust (terminal przez `portable-pty`, file browser, clipboard przez `arboard`, screenshot przez `scrap`/`screenshots-rs`).
+12. **Integracja z CDAP gateway** — użyć natywnego `yomie-agent` jako library albo przepisać w Rust (terminal przez `portable-pty`, file browser, clipboard przez `arboard`, screenshot przez `scrap`/`screenshots-rs`).
 13. **Policy enforcement engine** — pull z serwera `GET /api/agent/policies/{id}` → cache → apply (USB block, file monitoring, app whitelist).
-14. **Auto-update mechanism** — Tauri updater plugin + signature verification (Ed25519 sign by BetterDesk CA).
+14. **Auto-update mechanism** — Tauri updater plugin + signature verification (Ed25519 sign by Yomie CA).
 15. **Per-platform hardening:**
     - Windows: UAC prompts dla screen capture, MSI + NSSM service.
     - Linux: deb/rpm + systemd z `ProtectSystem=strict`.
@@ -534,7 +534,7 @@ Po zrealizowaniu roadmapy (§4) klienci Tauri powinni osiągnąć parity z konso
 
 ## 8. Podsumowanie
 
-BetterDesk jest projektem o bardzo wysokim poziomie dojrzałości kodu serwerowego (Go + Node.js), z kompletną infrastrukturą RBAC, 2FA, audit logging, rate-limiting i CSP. **Główne ryzyko nie leży w istniejących modułach, ale w ich nierównym ukończeniu — klienci Tauri (MGMT + Agent) mają bardzo dobry UX, ale 60-80% funkcjonalności to stuby**. Zdecydowaną, jednorazową pracą 4-6 tygodni (§4) można doprowadzić oba klienty do parity z konsolą web.
+Yomie jest projektem o bardzo wysokim poziomie dojrzałości kodu serwerowego (Go + Node.js), z kompletną infrastrukturą RBAC, 2FA, audit logging, rate-limiting i CSP. **Główne ryzyko nie leży w istniejących modułach, ale w ich nierównym ukończeniu — klienci Tauri (MGMT + Agent) mają bardzo dobry UX, ale 60-80% funkcjonalności to stuby**. Zdecydowaną, jednorazową pracą 4-6 tygodni (§4) można doprowadzić oba klienty do parity z konsolą web.
 
 **Trzy rzeczy do zrobienia w tym tygodniu:**
 1. Usunąć `danger_accept_invalid_certs(true)` z obu klientów Tauri.
@@ -590,7 +590,7 @@ Druga runda weryfikacji + napraw, uruchomiona po audycie §9. Zidentyfikowała k
 |----|-------|-------------|------|
 | **GO-H6** | Go Server | `LOG_FORMAT` z env var **jest teraz walidowany** whitelistą `{"text", "json"}`. Nieprawidłowe wartości są ignorowane (silnie default `"text"`). Zapobiega log injection / config poisoning. | `config/config.go` |
 | **NATIVE-H1** | Native Agent | Native CDAP agent **ostrzega w logu**, gdy serwer używa `ws://` (plaintext) z hostem innym niż `localhost`/`127.0.0.1`/`::1`. Wymusza świadome użytkowanie plaintext w trybie prod. | `agent/config.go` |
-| **MGMT-C3** + **AGENT-C1** | MGMT / Agent Client | Refaktor 11 inline `Client::builder().danger_accept_invalid_certs(true)` do helperów `build_http_client()` z gate env var `BETTERDESK_STRICT_TLS`. Domyślnie zachowana kompatybilność (self-signed akceptowane), ale **jednorazowe ostrzeżenie w logu** + możliwość wymuszenia strict TLS przez `BETTERDESK_STRICT_TLS=1`. | `betterdesk-agent-client/src-tauri/src/{registration.rs,commands.rs}`, `betterdesk-mgmt/src-tauri/src/{commands.rs,inventory/collector.rs,network/bd_registration.rs}` |
+| **MGMT-C3** + **AGENT-C1** | MGMT / Agent Client | Refaktor 11 inline `Client::builder().danger_accept_invalid_certs(true)` do helperów `build_http_client()` z gate env var `BETTERDESK_STRICT_TLS`. Domyślnie zachowana kompatybilność (self-signed akceptowane), ale **jednorazowe ostrzeżenie w logu** + możliwość wymuszenia strict TLS przez `BETTERDESK_STRICT_TLS=1`. | `yomie-agent-client/src-tauri/src/{registration.rs,commands.rs}`, `yomie-mgmt/src-tauri/src/{commands.rs,inventory/collector.rs,network/bd_registration.rs}` |
 
 ### Odłożone (runda 3)
 

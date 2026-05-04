@@ -1,10 +1,10 @@
-// BetterDesk Agent — CDAP device agent for system monitoring, terminal,
+// Yomie Agent — CDAP device agent for system monitoring, terminal,
 // file browser, and clipboard sync.
 //
 // Usage:
 //
-//	betterdesk-agent -server ws://host:21122/cdap -auth api_key -key YOUR_KEY
-//	betterdesk-agent -config /etc/betterdesk-agent.json
+//	yomie-agent -server ws://host:21122/cdap -auth api_key -key YOUR_KEY
+//	yomie-agent -config /etc/yomie-agent.json
 package main
 
 import (
@@ -15,7 +15,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/unitronix/betterdesk-agent/agent"
+	"github.com/unitronix/yomie-agent/agent"
 )
 
 var version = "1.0.0"
@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	if *showVer {
-		fmt.Printf("betterdesk-agent %s\n", version)
+		fmt.Printf("yomie-agent %s\n", version)
 		os.Exit(0)
 	}
 
@@ -87,7 +87,7 @@ func main() {
 		log.Fatalf("Config validation: %v", err)
 	}
 
-	log.Printf("[agent] BetterDesk Agent %s starting (device: %s, type: %s)", version, cfg.DeviceName, cfg.DeviceType)
+	log.Printf("[agent] Yomie Agent %s starting (device: %s, type: %s)", version, cfg.DeviceName, cfg.DeviceType)
 
 	a := agent.New(cfg, version)
 

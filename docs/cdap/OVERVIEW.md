@@ -2,7 +2,7 @@
 
 ## Overview
 
-CDAP (Connected Device Access Protocol) is BetterDesk's unified WebSocket-based protocol for
+CDAP (Connected Device Access Protocol) is Yomie's unified WebSocket-based protocol for
 bidirectional communication between the management server and endpoint agents. It enables:
 
 - **Real-time telemetry** — CPU, memory, disk, and custom metrics streamed continuously
@@ -71,12 +71,12 @@ Each agent declares its capabilities in the manifest:
 
 | File | Description |
 |------|-------------|
-| `betterdesk-server/cdap/gateway.go` | WebSocket gateway, connection management |
-| `betterdesk-server/cdap/handler.go` | Message dispatch, command routing |
-| `betterdesk-server/cdap/audio.go` | Audio session management |
-| `betterdesk-server/cdap/clipboard.go` | Clipboard sync logic |
-| `betterdesk-server/cdap/media_control.go` | Cursor, quality, codec, multi-monitor |
-| `betterdesk-server/api/cdap_handlers.go` | REST + WS HTTP handlers |
+| `yomie-server/cdap/gateway.go` | WebSocket gateway, connection management |
+| `yomie-server/cdap/handler.go` | Message dispatch, command routing |
+| `yomie-server/cdap/audio.go` | Audio session management |
+| `yomie-server/cdap/clipboard.go` | Clipboard sync logic |
+| `yomie-server/cdap/media_control.go` | Cursor, quality, codec, multi-monitor |
+| `yomie-server/api/cdap_handlers.go` | REST + WS HTTP handlers |
 | `web-nodejs/routes/cdap.routes.js` | Node.js proxy routes |
 | `web-nodejs/services/cdapMediaProxy.js` | WebSocket proxy factory |
 

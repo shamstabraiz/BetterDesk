@@ -1,4 +1,4 @@
-// Package logging provides structured log formatting for BetterDesk server.
+// Package logging provides structured log formatting for Yomie server.
 // Supports "text" (default stdlib format) and "json" (structured JSON lines).
 // JSON format outputs one JSON object per line with timestamp, level, and message fields.
 package logging

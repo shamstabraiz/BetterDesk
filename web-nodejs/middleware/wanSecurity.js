@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - WAN API Security Middleware
+ * Yomie Console - WAN API Security Middleware
  * 
  * Hardened security layer for the internet-facing RustDesk Client API (port 21121).
  * This middleware stack is applied ONLY to the dedicated API port, not the admin panel.

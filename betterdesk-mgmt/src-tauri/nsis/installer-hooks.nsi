@@ -1,4 +1,4 @@
-; BetterDesk NSIS Installer Hooks
+; Yomie NSIS Installer Hooks
 ; Adds server configuration during installation, autostart registry entry,
 ; and Windows Firewall rules for required ports.
 
@@ -32,7 +32,7 @@ Function custom_page_server_config
     SendMessage $InfoLabel ${WM_SETFONT} $0 0
 
     ; Description
-    ${NSD_CreateLabel} 0 22u 100% 24u "Enter your BetterDesk server address. You can change this later in Settings."
+    ${NSD_CreateLabel} 0 22u 100% 24u "Enter your Yomie server address. You can change this later in Settings."
     Pop $0
 
     ; Server URL
@@ -72,9 +72,9 @@ Function custom_page_after_install
     StrCmp $ServerUrl "" skip_config
 
     SetShellVarContext current
-    CreateDirectory "$APPDATA\BetterDesk\config"
+    CreateDirectory "$APPDATA\Yomie\config"
 
-    FileOpen $0 "$APPDATA\BetterDesk\config\config.json" w
+    FileOpen $0 "$APPDATA\Yomie\config\config.json" w
     FileWrite $0 '{"server_address":"$ServerUrl:21116","server_key":"$ServerKey","console_url":"http://$ServerUrl:5000","native_protocol":true}'
     FileClose $0
 
@@ -82,25 +82,25 @@ Function custom_page_after_install
 
     ; 2. Create desktop shortcut
     SetShellVarContext current
-    CreateShortCut "$DESKTOP\BetterDesk MGMT.lnk" "$INSTDIR\betterdesk-mgmt.exe" "" "$INSTDIR\betterdesk-mgmt.exe" 0
+    CreateShortCut "$DESKTOP\Yomie MGMT.lnk" "$INSTDIR\yomie-mgmt.exe" "" "$INSTDIR\yomie-mgmt.exe" 0
 
     ; 3. Add autostart registry entry (current user — no admin required)
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" \
-        "BetterDesk MGMT" '"$INSTDIR\betterdesk-mgmt.exe" --autostart'
+        "Yomie MGMT" '"$INSTDIR\yomie-mgmt.exe" --autostart'
 
     ; 4. Add Windows Firewall rules (requires admin — installer runs elevated)
     ; Signal server TCP
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="BetterDesk Signal TCP" dir=in action=allow protocol=TCP localport=21116 enable=yes'
+    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Yomie Signal TCP" dir=in action=allow protocol=TCP localport=21116 enable=yes'
     ; Signal server UDP
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="BetterDesk Signal UDP" dir=in action=allow protocol=UDP localport=21116 enable=yes'
+    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Yomie Signal UDP" dir=in action=allow protocol=UDP localport=21116 enable=yes'
     ; Relay server
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="BetterDesk Relay" dir=in action=allow protocol=TCP localport=21117 enable=yes'
+    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Yomie Relay" dir=in action=allow protocol=TCP localport=21117 enable=yes'
     ; WebSocket signal
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="BetterDesk WS Signal" dir=in action=allow protocol=TCP localport=21118 enable=yes'
+    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Yomie WS Signal" dir=in action=allow protocol=TCP localport=21118 enable=yes'
     ; WebSocket relay
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="BetterDesk WS Relay" dir=in action=allow protocol=TCP localport=21119 enable=yes'
+    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Yomie WS Relay" dir=in action=allow protocol=TCP localport=21119 enable=yes'
     ; Allow the exe outbound
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="BetterDesk MGMT" dir=out action=allow program="$INSTDIR\betterdesk-mgmt.exe" enable=yes'
+    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Yomie MGMT" dir=out action=allow program="$INSTDIR\yomie-mgmt.exe" enable=yes'
 
 FunctionEnd
 
@@ -111,16 +111,16 @@ FunctionEnd
 Function un.custom_page_after_install
     ; Remove desktop shortcut
     SetShellVarContext current
-    Delete "$DESKTOP\BetterDesk MGMT.lnk"
+    Delete "$DESKTOP\Yomie MGMT.lnk"
 
     ; Remove autostart registry
-    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "BetterDesk MGMT"
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Yomie MGMT"
 
     ; Remove firewall rules
-    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="BetterDesk Signal TCP"'
-    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="BetterDesk Signal UDP"'
-    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="BetterDesk Relay"'
-    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="BetterDesk WS Signal"'
-    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="BetterDesk WS Relay"'
-    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="BetterDesk MGMT"'
+    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Yomie Signal TCP"'
+    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Yomie Signal UDP"'
+    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Yomie Relay"'
+    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Yomie WS Signal"'
+    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Yomie WS Relay"'
+    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Yomie MGMT"'
 FunctionEnd

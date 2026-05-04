@@ -1,8 +1,8 @@
 /**
- * BetterDesk Console — Activity Monitoring API Routes
+ * Yomie Console — Activity Monitoring API Routes
  *
  * Receives application usage sessions and idle state from the
- * BetterDesk desktop agent.  Provides admin endpoints for viewing
+ * Yomie desktop agent.  Provides admin endpoints for viewing
  * activity summaries and per-device session details.
  *
  * Endpoints:

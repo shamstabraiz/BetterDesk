@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Auth Routes
+ * Yomie Console - Auth Routes
  * Login, logout, session verification
  */
 
@@ -151,8 +151,8 @@ router.post('/api/auth/logout', async (req, res) => {
         if (err) {
             console.error('Session destroy error:', err);
         }
-        res.clearCookie(req.sessionID ? req.session?.cookie?.name : 'betterdesk.sid');
-        res.clearCookie('betterdesk.sid');
+        res.clearCookie(req.sessionID ? req.session?.cookie?.name : 'yomie.sid');
+        res.clearCookie('yomie.sid');
         res.clearCookie('bd.sid');
         res.json({ success: true });
     });
@@ -220,7 +220,7 @@ router.post('/api/auth/password', requireAuth, passwordChangeLimiter, async (req
  */
 router.get('/logout', (req, res) => {
     req.session.destroy(() => {
-        res.clearCookie('betterdesk.sid');
+        res.clearCookie('yomie.sid');
         res.clearCookie('bd.sid');
         res.redirect('/login');
     });

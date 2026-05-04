@@ -11,12 +11,12 @@ pub struct AgentConfig {
     /// Server address entered by the user.
     ///
     /// Normalized registrations persist a full origin such as
-    /// "https://betterdesk.example.com:5443" so follow-up API/CDAP calls can
+    /// "https://yomie.example.com:5443" so follow-up API/CDAP calls can
     /// preserve the correct transport scheme.
     pub server_address: String,
 
     /// API key used to authenticate the sidecar Go agent with the CDAP gateway.
-    /// Obtained from the BetterDesk admin panel → API Keys.
+    /// Obtained from the Yomie admin panel → API Keys.
     #[serde(default)]
     pub api_key: String,
 
@@ -117,7 +117,7 @@ impl Default for AgentConfig {
 impl AgentConfig {
     /// Configuration file path.
     fn config_path() -> PathBuf {
-        let dir = directories::ProjectDirs::from("com", "betterdesk", "agent")
+        let dir = directories::ProjectDirs::from("com", "yomie", "agent")
             .map(|d| d.config_dir().to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
         dir.join("agent-config.json")
@@ -184,7 +184,7 @@ impl AgentConfig {
 
     /// Build a `CdapConfig` for the native CDAP client.
     pub fn to_cdap_config(&self) -> crate::cdap_client::CdapConfig {
-        let data_dir = directories::ProjectDirs::from("com", "betterdesk", "agent")
+        let data_dir = directories::ProjectDirs::from("com", "yomie", "agent")
             .map(|d| d.data_dir().to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
 
@@ -218,7 +218,7 @@ impl AgentConfig {
         if self.auth_token.is_empty() {
             return Ok(());
         }
-        let entry = keyring::Entry::new("betterdesk-agent", &self.device_id)?;
+        let entry = keyring::Entry::new("yomie-agent", &self.device_id)?;
         entry.set_password(&self.auth_token)?;
         info!("Auth token stored in OS keyring");
         Ok(())
@@ -226,14 +226,14 @@ impl AgentConfig {
 
     /// Retrieve token from OS keyring.
     pub fn load_token_secure(device_id: &str) -> Option<String> {
-        keyring::Entry::new("betterdesk-agent", device_id)
+        keyring::Entry::new("yomie-agent", device_id)
             .ok()
             .and_then(|e| e.get_password().ok())
     }
 
     /// Delete token from OS keyring.
     pub fn clear_token_secure(device_id: &str) {
-        if let Ok(entry) = keyring::Entry::new("betterdesk-agent", device_id) {
+        if let Ok(entry) = keyring::Entry::new("yomie-agent", device_id) {
             let _ = entry.delete_credential();
         }
     }

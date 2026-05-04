@@ -36,7 +36,7 @@ pub fn build_manifest(config: &CdapConfig) -> DeviceManifest {
             "{} {} ({})",
             os_name, os_version, arch
         )),
-        manufacturer: Some("BetterDesk".into()),
+        manufacturer: Some("Yomie".into()),
         tags: Some(vec!["windows".into(), "desktop".into()]),
     };
 

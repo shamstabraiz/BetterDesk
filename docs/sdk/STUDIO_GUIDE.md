@@ -1,6 +1,6 @@
 # CDAP SDK Studio Guide
 
-> **Status:** The SDK Studio visual builder is planned for Phase 14 of the BetterDesk 3.0 roadmap.
+> **Status:** The SDK Studio visual builder is planned for Phase 14 of the Yomie 3.0 roadmap.
 > This document describes the intended feature set and workflow.
 
 ## Overview
@@ -52,7 +52,7 @@ without writing code. It generates ready-to-deploy Python or Node.js projects.
 my-agent/
 ├── main.py            # Agent entry point
 ├── config.json        # Server URL, device ID, API key
-├── requirements.txt   # betterdesk-cdap + dependencies
+├── requirements.txt   # yomie-cdap + dependencies
 └── install.sh         # systemd service installer
 ```
 
@@ -62,6 +62,6 @@ my-agent/
 my-agent/
 ├── index.js           # Agent entry point
 ├── config.json        # Server URL, device ID, API key
-├── package.json       # betterdesk-cdap + dependencies
+├── package.json       # yomie-cdap + dependencies
 └── install.ps1        # NSSM service installer (Windows)
 ```

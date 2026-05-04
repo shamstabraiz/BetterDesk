@@ -1,6 +1,6 @@
-//! LAN Discovery — automatic BetterDesk server detection.
+//! LAN Discovery — automatic Yomie server detection.
 //!
-//! Sends UDP broadcast probes on port 21119. Servers running the BetterDesk
+//! Sends UDP broadcast probes on port 21119. Servers running the Yomie
 //! LAN Discovery service reply with their identity (name, version, address,
 //! public key, etc.).
 //!

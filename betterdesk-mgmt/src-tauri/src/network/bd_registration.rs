@@ -1,4 +1,4 @@
-//! BetterDesk native registration — Go server-centric enrollment.
+//! Yomie native registration — Go server-centric enrollment.
 //!
 //! Registers directly with the Go server (:21114) via:
 //! 1. POST /api/devices/register  — initial enrollment request
@@ -203,7 +203,7 @@ pub struct BdRegistrationService {
 }
 
 impl BdRegistrationService {
-    /// Start the BetterDesk native registration service.
+    /// Start the Yomie native registration service.
     pub fn start(settings: &Settings, device_id: &str) -> Self {
         let go_api_url = settings.go_api_url();
         let console_url = settings.bd_api_url();
@@ -249,7 +249,7 @@ impl BdRegistrationService {
 
     pub fn stop(&self) {
         let _ = self.cancel_tx.send(true);
-        info!("BetterDesk registration service stop requested");
+        info!("Yomie registration service stop requested");
     }
 }
 
@@ -637,7 +637,7 @@ async fn do_enroll(
         hostname,
         platform,
         version: env!("CARGO_PKG_VERSION").to_string(),
-        device_type: "betterdesk".to_string(),
+        device_type: "yomie".to_string(),
         public_key: get_public_key_base64().ok(),
         token: if token.is_empty() { None } else { Some(token.to_string()) },
     };
@@ -744,7 +744,7 @@ async fn do_console_heartbeat(
 // ---------------------------------------------------------------------------
 
 fn get_uuid() -> Result<String> {
-    let config_dir = directories::ProjectDirs::from("com", "betterdesk", "BetterDesk")
+    let config_dir = directories::ProjectDirs::from("com", "yomie", "Yomie")
         .context("Failed to determine config directory")?
         .config_dir()
         .to_path_buf();
@@ -765,7 +765,7 @@ fn get_uuid() -> Result<String> {
 }
 
 fn get_public_key_base64() -> Result<String> {
-    let config_dir = directories::ProjectDirs::from("com", "betterdesk", "BetterDesk")
+    let config_dir = directories::ProjectDirs::from("com", "yomie", "Yomie")
         .context("Failed to determine config directory")?
         .config_dir()
         .to_path_buf();
@@ -783,7 +783,7 @@ fn get_public_key_base64() -> Result<String> {
 }
 
 fn get_identity_dir() -> Result<std::path::PathBuf> {
-    directories::ProjectDirs::from("com", "betterdesk", "BetterDesk")
+    directories::ProjectDirs::from("com", "yomie", "Yomie")
         .context("Failed to determine config directory")
         .map(|dirs| dirs.config_dir().to_path_buf())
 }
@@ -812,7 +812,7 @@ fn load_or_create_signing_key() -> Result<SigningKey> {
     std::fs::create_dir_all(&config_dir).ok();
     std::fs::write(&sk_path, signing_key.to_bytes()).context("Failed to write device signing key")?;
     std::fs::write(&pk_path, verifying_key.to_bytes()).context("Failed to write device public key")?;
-    info!("Generated Ed25519 keypair for BetterDesk management authentication");
+    info!("Generated Ed25519 keypair for Yomie management authentication");
     Ok(signing_key)
 }
 

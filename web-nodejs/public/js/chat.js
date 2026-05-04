@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Chat 2.0 Client
+ * Yomie Console — Chat 2.0 Client
  *
  * Features:
  *  - E2E encryption (ECDH P-256 + AES-256-GCM) via chatCrypto.js
@@ -629,7 +629,7 @@
             const resp = await fetch('/api/chat/upload', {
                 method: 'POST',
                 body: formData,
-                headers: { 'X-CSRF-Token': (typeof BetterDesk !== 'undefined' && BetterDesk.csrfToken) || '' },
+                headers: { 'X-CSRF-Token': (typeof Yomie !== 'undefined' && Yomie.csrfToken) || '' },
             });
             const data = await resp.json();
             if (!data.success) throw new Error(data.error);

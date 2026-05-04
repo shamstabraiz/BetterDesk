@@ -1,4 +1,4 @@
-/// BetterDesk Agent — Script Runner
+/// Yomie Agent — Script Runner
 ///
 /// Executes shell commands, PowerShell scripts, and service management
 /// operations on the local machine.  Commands are received from the
@@ -175,9 +175,9 @@ impl ScriptRunner {
     /// Reboot the machine.
     fn reboot() -> Result<(String, String, i32)> {
         if cfg!(target_os = "windows") {
-            Self::run_shell("shutdown /r /t 30 /c \"BetterDesk remote reboot\"")
+            Self::run_shell("shutdown /r /t 30 /c \"Yomie remote reboot\"")
         } else {
-            Self::run_shell("shutdown -r +1 'BetterDesk remote reboot'")
+            Self::run_shell("shutdown -r +1 'Yomie remote reboot'")
         }
     }
 }

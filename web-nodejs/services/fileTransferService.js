@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — File Transfer Relay Service
+ * Yomie Console — File Transfer Relay Service
  *
  * Relays file transfer chunks between admin console and desktop
  * agents via WebSocket.  Also provides REST endpoints for

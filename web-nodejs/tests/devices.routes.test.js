@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Devices Routes Tests
+ * Yomie Console - Devices Routes Tests
  */
 
 const request = require('supertest');

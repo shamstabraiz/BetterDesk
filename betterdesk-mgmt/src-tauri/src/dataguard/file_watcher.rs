@@ -1,4 +1,4 @@
-/// BetterDesk Agent — File Watcher (DLP)
+/// Yomie Agent — File Watcher (DLP)
 ///
 /// Watches file operations on removable drives and monitored directories.
 /// Logs copy, move, delete, and rename events for audit trail.

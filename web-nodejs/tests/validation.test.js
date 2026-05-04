@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Input Validation Tests
+ * Yomie Console - Input Validation Tests
  * Tests for security-critical input validation patterns.
  */
 

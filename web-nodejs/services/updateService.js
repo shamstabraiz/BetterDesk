@@ -1,12 +1,12 @@
 /**
- * BetterDesk Console - Self-Update Service
+ * Yomie Console - Self-Update Service
  *
  * Commit-based update system. Compares locally tracked commit SHA with
  * the HEAD of the configured GitHub branch. Downloads changed files,
  * categorises them by component (console / server / agent / scripts),
  * applies updates, and restarts affected services.
  *
- * GitHub repo:  shamstabraiz/BetterDesk
+ * GitHub repo:  shamstabraiz/Yomie
  * Tracking:     data/.update_sha (deployed commit SHA)
  *
  * Flow:
@@ -27,10 +27,10 @@ const { execSync } = require('child_process');
 const config = require('../config/config');
 
 const GITHUB_OWNER  = process.env.UPDATE_GITHUB_OWNER  || 'shamstabraiz';
-const GITHUB_REPO   = process.env.UPDATE_GITHUB_REPO   || 'BetterDesk';
+const GITHUB_REPO   = process.env.UPDATE_GITHUB_REPO   || 'Yomie';
 const GITHUB_BRANCH = process.env.UPDATE_GITHUB_BRANCH || 'main';
 const GITHUB_API    = 'https://api.github.com';
-const USER_AGENT    = `BetterDesk-Console/${config.appVersion}`;
+const USER_AGENT    = `Yomie-Console/${config.appVersion}`;
 const BACKUP_DIR    = path.join(config.dataDir, 'backups');
 const SHA_FILE      = path.join(config.dataDir, '.update_sha');
 const ROOT_DIR      = path.join(__dirname, '..');          // web-nodejs/
@@ -46,27 +46,27 @@ const COMPONENTS = {
         prefix: 'web-nodejs/',
         label: 'Web Console',
         localRoot: ROOT_DIR,
-        service: IS_WINDOWS ? 'BetterDeskConsole' : 'betterdesk-console',
+        service: IS_WINDOWS ? 'BetterDeskConsole' : 'yomie-console',
         autoUpdate: true
     },
     server: {
-        prefix: 'betterdesk-server/',
+        prefix: 'yomie-server/',
         label: 'Go Server',
-        localRoot: path.join(PROJECT_ROOT, 'betterdesk-server'),
-        service: IS_WINDOWS ? 'BetterDeskServer' : 'betterdesk-server',
+        localRoot: path.join(PROJECT_ROOT, 'yomie-server'),
+        service: IS_WINDOWS ? 'BetterDeskServer' : 'yomie-server',
         autoUpdate: false
     },
     agent: {
-        prefix: 'betterdesk-agent/',
+        prefix: 'yomie-agent/',
         label: 'Agent',
         localRoot: null,
-        service: IS_WINDOWS ? 'BetterDeskAgent' : 'betterdesk-agent',
+        service: IS_WINDOWS ? 'BetterDeskAgent' : 'yomie-agent',
         autoUpdate: false
     },
     scripts: {
         // matched by exact file names, not prefix
         files: [
-            'betterdesk.sh', 'betterdesk.ps1', 'betterdesk-docker.sh',
+            'yomie.sh', 'yomie.ps1', 'yomie-docker.sh',
             'docker-compose.yml', 'docker-compose.single.yml', 'docker-compose.quick.yml',
             'Dockerfile', 'Dockerfile.server', 'Dockerfile.console'
         ],
@@ -90,7 +90,7 @@ const EXCLUDE_PATTERNS = [
     /node_modules\//,
     /\.sqlite3$/,
     /\.exe$/,
-    /^betterdesk-server\/betterdesk-server/       // compiled binaries
+    /^yomie-server\/yomie-server/       // compiled binaries
 ];
 
 // ======================== HTTP Helpers ===================================
@@ -338,10 +338,10 @@ function detectServerBinaryPath() {
             if (out && fs.existsSync(out)) return out;
         } else {
             const raw = execSync(
-                'systemctl show betterdesk-server --property=ExecStart --value 2>/dev/null || true',
+                'systemctl show yomie-server --property=ExecStart --value 2>/dev/null || true',
                 { timeout: 5000, stdio: 'pipe' }
             ).toString().trim();
-            // ExecStart value may look like: /opt/rustdesk/betterdesk-server --flag ...
+            // ExecStart value may look like: /opt/rustdesk/yomie-server --flag ...
             const binPath = raw.replace(/^\{[^}]*path=/, '').replace(/\s*;.*$/, '').split(/\s+/)[0];
             if (binPath && fs.existsSync(binPath)) return binPath;
         }
@@ -350,15 +350,15 @@ function detectServerBinaryPath() {
     // 3. Well-known installation paths
     const candidates = IS_WINDOWS
         ? [
-            'C:\\betterdesk\\betterdesk-server.exe',
-            'C:\\Program Files\\BetterDesk\\betterdesk-server.exe',
-            path.join(PROJECT_ROOT, 'betterdesk-server', 'betterdesk-server.exe')
+            'C:\\yomie\\yomie-server.exe',
+            'C:\\Program Files\\Yomie\\yomie-server.exe',
+            path.join(PROJECT_ROOT, 'yomie-server', 'yomie-server.exe')
         ]
         : [
-            '/opt/rustdesk/betterdesk-server',
-            '/opt/betterdesk/betterdesk-server',
-            '/usr/local/bin/betterdesk-server',
-            path.join(PROJECT_ROOT, 'betterdesk-server', 'betterdesk-server')
+            '/opt/rustdesk/yomie-server',
+            '/opt/yomie/yomie-server',
+            '/usr/local/bin/yomie-server',
+            path.join(PROJECT_ROOT, 'yomie-server', 'yomie-server')
         ];
 
     for (const p of candidates) {
@@ -398,7 +398,7 @@ async function ensureServerSource(remoteSHA) {
             { timeout: 120000, stdio: 'pipe' }
         );
 
-        const srcDir = path.join(tmpDir, 'betterdesk-server');
+        const srcDir = path.join(tmpDir, 'yomie-server');
         if (fs.existsSync(srcDir)) {
             copyDirRecursive(srcDir, serverDir);
         }
@@ -411,7 +411,7 @@ async function ensureServerSource(remoteSHA) {
     // --- Fallback: GitHub tree API + raw file downloads ---
     const tree = await ghGet(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees/${remoteSHA}?recursive=1`);
     const serverFiles = (tree.tree || []).filter(t =>
-        t.path.startsWith('betterdesk-server/') &&
+        t.path.startsWith('yomie-server/') &&
         t.type === 'blob' &&
         !EXCLUDE_PATTERNS.some(rx => rx.test(t.path))
     );
@@ -450,7 +450,7 @@ async function buildGoServer() {
         return { success: false, binaryPath: null, error: 'Go toolchain not installed. Install Go from https://go.dev/dl/' };
     }
 
-    const binaryName = IS_WINDOWS ? 'betterdesk-server.exe' : 'betterdesk-server';
+    const binaryName = IS_WINDOWS ? 'yomie-server.exe' : 'yomie-server';
     const outputPath = path.join(serverDir, binaryName);
     const start = Date.now();
     const goBin = goCheck.binPath || 'go';
@@ -485,7 +485,7 @@ async function buildGoServer() {
 
 const GO_TOOLCHAIN_DIR = path.join(config.dataDir, 'go-toolchain');
 // Minimum Go version required to build the server (must match
-// betterdesk-server/go.mod). The actual point release is selected at
+// yomie-server/go.mod). The actual point release is selected at
 // install time from the live go.dev manifest.
 const GO_MIN_VERSION = '1.23.0';
 
@@ -728,9 +728,9 @@ function deployServerBinary(builtBinaryPath, targetPath) {
  */
 function getReleaseBinaryName() {
     const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
-    if (IS_WINDOWS) return `betterdesk-server-windows-${arch}.exe`;
+    if (IS_WINDOWS) return `yomie-server-windows-${arch}.exe`;
     const os = process.platform === 'darwin' ? 'darwin' : 'linux';
-    return `betterdesk-server-${os}-${arch}`;
+    return `yomie-server-${os}-${arch}`;
 }
 
 /**
@@ -749,8 +749,8 @@ async function checkPrebuiltAvailable() {
         const binaryName = getReleaseBinaryName();
         // Also check common alternative names (without os-arch suffix for Windows)
         const altNames = IS_WINDOWS
-            ? [binaryName, 'betterdesk-server.exe']
-            : [binaryName, `betterdesk-server-${process.platform === 'darwin' ? 'darwin' : 'linux'}`];
+            ? [binaryName, 'yomie-server.exe']
+            : [binaryName, `yomie-server-${process.platform === 'darwin' ? 'darwin' : 'linux'}`];
 
         const asset = release.assets.find(a =>
             altNames.some(name => a.name === name || a.name.toLowerCase() === name.toLowerCase())
@@ -787,7 +787,7 @@ async function downloadPrebuiltBinary(downloadUrl) {
     const serverDir = COMPONENTS.server.localRoot;
     fs.mkdirSync(serverDir, { recursive: true });
 
-    const binaryName = IS_WINDOWS ? 'betterdesk-server.exe' : 'betterdesk-server';
+    const binaryName = IS_WINDOWS ? 'yomie-server.exe' : 'yomie-server';
     const outputPath = path.join(serverDir, binaryName);
 
     try {
@@ -1262,15 +1262,15 @@ async function applyUpdate(remoteSHA, changedData, opts = {}) {
 
             // If release download failed, try direct raw download of the binary from the repo tree
             if (!downloadResult || !downloadResult.success) {
-                const binaryName = IS_WINDOWS ? 'betterdesk-server.exe' : 'betterdesk-server-linux-amd64';
-                const repoPath = `betterdesk-server/${binaryName}`;
+                const binaryName = IS_WINDOWS ? 'yomie-server.exe' : 'yomie-server-linux-amd64';
+                const repoPath = `yomie-server/${binaryName}`;
                 try {
                     console.log(`[UPDATE] Trying raw binary download from repo: ${repoPath}`);
                     const data = await ghDownloadFile(GITHUB_OWNER, GITHUB_REPO, remoteSHA, repoPath);
                     if (data && data.length > 1024 * 1024) {
                         const serverDir = COMPONENTS.server.localRoot;
                         fs.mkdirSync(serverDir, { recursive: true });
-                        const outName = IS_WINDOWS ? 'betterdesk-server.exe' : 'betterdesk-server';
+                        const outName = IS_WINDOWS ? 'yomie-server.exe' : 'yomie-server';
                         const outputPath = path.join(serverDir, outName);
                         fs.writeFileSync(outputPath, data);
                         if (!IS_WINDOWS) {

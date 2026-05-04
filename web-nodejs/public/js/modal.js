@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Modal Dialog System
+ * Yomie Console - Modal Dialog System
  */
 
 const Modal = (function() {

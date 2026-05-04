@@ -1,5 +1,5 @@
 // Auth handlers implement user authentication, user management,
-// API key management, and TOTP 2FA endpoints for the BetterDesk API.
+// API key management, and TOTP 2FA endpoints for the Yomie API.
 package api
 
 import (
@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/audit"
-	"github.com/unitronix/betterdesk-server/auth"
-	"github.com/unitronix/betterdesk-server/db"
+	"github.com/unitronix/yomie-server/audit"
+	"github.com/unitronix/yomie-server/auth"
+	"github.com/unitronix/yomie-server/db"
 )
 
 // Context keys for authenticated request metadata.
@@ -597,7 +597,7 @@ func (s *Server) handleSetupTOTP(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"secret": secret,
-		"uri":    auth.TOTPUri(secret, "BetterDesk", user.Username),
+		"uri":    auth.TOTPUri(secret, "Yomie", user.Username),
 	})
 }
 

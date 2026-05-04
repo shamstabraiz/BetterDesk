@@ -4,7 +4,7 @@
 //! Right-click shows the branded context menu.
 //!
 //! Menu layout:
-//!   <Company Name> — BetterDesk
+//!   <Company Name> — Yomie
 //!   ──────────────────────────────
 //!   ❓  Request Help
 //!   💬  Chat
@@ -44,7 +44,7 @@ pub struct Branding {
 impl Default for Branding {
     fn default() -> Self {
         Self {
-            company_name: "BetterDesk".into(),
+            company_name: "Yomie".into(),
             accent_color: "#3b82f6".into(),
             support_contact: String::new(),
         }
@@ -76,8 +76,8 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             tauri::image::Image::new_owned(px, 4, 4)
         });
 
-    TrayIconBuilder::with_id("betterdesk-tray")
-        .tooltip("BetterDesk — right-click for menu")
+    TrayIconBuilder::with_id("yomie-tray")
+        .tooltip("Yomie — right-click for menu")
         .icon(icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -172,11 +172,11 @@ fn build_tray_menu<R: Runtime>(
     app: &AppHandle<R>,
     branding: &Branding,
 ) -> tauri::Result<tauri::menu::Menu<R>> {
-    // Header: company name — BetterDesk (disabled, text-only branding)
-    let header_text = if branding.company_name.is_empty() || branding.company_name == "BetterDesk" {
-        "BetterDesk".to_string()
+    // Header: company name — Yomie (disabled, text-only branding)
+    let header_text = if branding.company_name.is_empty() || branding.company_name == "Yomie" {
+        "Yomie".to_string()
     } else {
-        format!("{} — BetterDesk", branding.company_name)
+        format!("{} — Yomie", branding.company_name)
     };
 
     let item_header = MenuItemBuilder::with_id("header", &header_text)
@@ -238,7 +238,7 @@ fn build_tray_menu<R: Runtime>(
 
 fn rebuild_tray_menu<R: Runtime>(app: &AppHandle<R>, branding: &Branding) -> tauri::Result<()> {
     let menu = build_tray_menu(app, branding)?;
-    if let Some(tray) = app.tray_by_id("betterdesk-tray") {
+    if let Some(tray) = app.tray_by_id("yomie-tray") {
         tray.set_menu(Some(menu))?;
     }
     Ok(())
@@ -299,7 +299,7 @@ fn toggle_main_window<R: Runtime>(app: &AppHandle<R>) {
 // ---------------------------------------------------------------------------
 
 fn branding_cache_path() -> Option<std::path::PathBuf> {
-    directories::ProjectDirs::from("com", "BetterDesk", "BetterDesk")
+    directories::ProjectDirs::from("com", "Yomie", "Yomie")
         .map(|d| d.config_dir().join("branding_cache.json"))
 }
 

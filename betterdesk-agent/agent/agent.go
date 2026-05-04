@@ -25,7 +25,7 @@ type Message struct {
 	Payload   json.RawMessage `json:"payload"`
 }
 
-// Agent connects to a BetterDesk CDAP gateway, authenticates, registers
+// Agent connects to a Yomie CDAP gateway, authenticates, registers
 // a system manifest, and handles commands / media sessions.
 type Agent struct {
 	cfg     *Config
@@ -356,7 +356,7 @@ func (a *Agent) dispatch(msg *Message) {
 	case "keyframe_request", "key_exchange", "quality_adjust":
 		// Acknowledged — no real-time media to adjust
 
-	// ── BetterDesk remote flashlight (browser → CDAP device) ──
+	// ── Yomie remote flashlight (browser → CDAP device) ──
 	case "flashlight_control":
 		log.Printf("[agent] flashlight_control received (session device may not support hardware torch)")
 

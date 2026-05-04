@@ -167,7 +167,7 @@ const App: Component = () => {
   const [ready, setReady] = createSignal(false);
   const [registered, setRegistered] = createSignal(false);
   const [isAdmin, setIsAdmin] = createSignal(false);
-  const [bootStage, setBootStage] = createSignal("Starting BetterDesk Agent...");
+  const [bootStage, setBootStage] = createSignal("Starting Yomie Agent...");
   // Quit confirmation / sudo auth dialog state.
   const [showQuitDialog, setShowQuitDialog] = createSignal(false);
 

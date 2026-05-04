@@ -2,9 +2,9 @@ const bcrypt = require('./node_modules/bcrypt');
 const Database = require('better-sqlite3');
 const path = require('path');
 
-// Platform-aware default path (C:\BetterDesk on Windows, /opt/rustdesk on Linux)
+// Platform-aware default path (C:\Yomie on Windows, /opt/rustdesk on Linux)
 const isWindows = process.platform === 'win32';
-const defaultPath = isWindows ? 'C:\\BetterDesk\\db_v2.sqlite3' : '/opt/rustdesk/db_v2.sqlite3';
+const defaultPath = isWindows ? 'C:\\Yomie\\db_v2.sqlite3' : '/opt/rustdesk/db_v2.sqlite3';
 const DB_PATH = process.env.DB_PATH || defaultPath;
 const NEW_PASSWORD = process.argv[2] || 'admin';
 

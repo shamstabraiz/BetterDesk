@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Desktop Widget Layout Routes
+ * Yomie Console - Desktop Widget Layout Routes
  * Persists per-user widget layouts and wallpaper selection server-side.
  */
 

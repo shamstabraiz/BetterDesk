@@ -1,7 +1,7 @@
 # Building a CDAP Bridge
 
-A CDAP bridge connects non-BetterDesk devices (industrial equipment, IoT sensors, network gear)
-to the BetterDesk management platform via the CDAP protocol.
+A CDAP bridge connects non-Yomie devices (industrial equipment, IoT sensors, network gear)
+to the Yomie management platform via the CDAP protocol.
 
 ## What is a Bridge?
 
@@ -12,7 +12,7 @@ A bridge is a lightweight process that:
 
 ```
 ┌──────────────┐     Modbus/TCP     ┌──────────┐     CDAP/WS     ┌──────────────┐
-│  PLC / RTU   │ ◄═══════════════► │  Bridge  │ ◄═════════════► │  BetterDesk  │
+│  PLC / RTU   │ ◄═══════════════► │  Bridge  │ ◄═════════════► │  Yomie  │
 │  (hardware)  │                    │  (Python) │                 │  Server      │
 └──────────────┘                    └──────────┘                  └──────────────┘
 ```
@@ -30,7 +30,7 @@ A bridge is a lightweight process that:
 ### 1. Install the SDK
 
 ```bash
-pip install betterdesk-cdap   # or: pip install -e sdks/python/
+pip install yomie-cdap   # or: pip install -e sdks/python/
 ```
 
 ### 2. Define Your Bridge
@@ -44,7 +44,7 @@ class TemperatureBridge(CDAPBridge):
 
     def __init__(self, sensor_ip, sensor_port=502):
         super().__init__(
-            server_url="ws://betterdesk-server:21122/cdap",
+            server_url="ws://yomie-server:21122/cdap",
             device_id=f"TEMP-{sensor_ip.replace('.', '-')}",
             device_name=f"Temp Sensor {sensor_ip}",
             device_type="temperature_sensor",
@@ -96,7 +96,7 @@ Use a JSON or YAML config file:
 
 ```json
 {
-    "server_url": "ws://betterdesk:21122/cdap",
+    "server_url": "ws://yomie:21122/cdap",
     "api_key": "${CDAP_API_KEY}",
     "device_id": "MODBUS-PLC-001",
     "device_name": "Production Line PLC",
@@ -121,10 +121,10 @@ Use a JSON or YAML config file:
 ## Node.js Bridge
 
 ```javascript
-const { CDAPBridge, Widget } = require('betterdesk-cdap');
+const { CDAPBridge, Widget } = require('yomie-cdap');
 
 const bridge = new CDAPBridge({
-    serverUrl: 'ws://betterdesk:21122/cdap',
+    serverUrl: 'ws://yomie:21122/cdap',
     deviceId: 'REST-SENSOR-001',
     deviceName: 'REST API Sensor',
     deviceType: 'rest_sensor',
@@ -150,7 +150,7 @@ bridge.connect();
 
 Bridges are typically deployed as:
 - **systemd services** on Linux
-- **Docker containers** alongside the BetterDesk stack
+- **Docker containers** alongside the Yomie stack
 - **NSSM services** on Windows
 
 See `bridges/modbus/Dockerfile` and `bridges/modbus/bridge.service` for examples.

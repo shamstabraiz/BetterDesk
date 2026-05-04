@@ -208,7 +208,7 @@ func (g *Gateway) RelayDesktopResize(ctx context.Context, sessionID string, widt
 	return ds.deviceConn.WriteMessage(ctx, msg)
 }
 
-// RelayFlashlightControl forwards flashlight/torch toggle from browser to CDAP device (BetterDesk).
+// RelayFlashlightControl forwards flashlight/torch toggle from browser to CDAP device (Yomie).
 func (g *Gateway) RelayFlashlightControl(ctx context.Context, sessionID string, on bool) error {
 	val, ok := g.desktopSessions.Load(sessionID)
 	if !ok {

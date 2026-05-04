@@ -1,12 +1,12 @@
-# BetterDesk Agent Client — Roadmap (2026-04-21)
+# Yomie Agent Client — Roadmap (2026-04-21)
 
-> Cel: uczynić `betterdesk-agent-client` (Tauri v2 + SolidJS) w pełni
+> Cel: uczynić `yomie-agent-client` (Tauri v2 + SolidJS) w pełni
 > funkcjonalnym **agentem zdalnego zarządzania** działającym niewidocznie w tle
 > systemu operacyjnego (tray, bez wpisu na pasku zadań) — odpowiednik RustDesk
 > desktop działający po stronie zarządzanego urządzenia.
 >
-> Klient operatora to **wyłącznie** `betterdesk-mgmt` (Tauri v2, osobna aplikacja).
-> `betterdesk-agent-client` jest widoczny dla użytkownika końcowego tylko przez
+> Klient operatora to **wyłącznie** `yomie-mgmt` (Tauri v2, osobna aplikacja).
+> `yomie-agent-client` jest widoczny dla użytkownika końcowego tylko przez
 > ikonę tray i opcjonalne okno ustawień.
 
 ---
@@ -15,7 +15,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│   betterdesk-agent-client (Tauri, widoczny w tray)  │
+│   yomie-agent-client (Tauri, widoczny w tray)  │
 │                                                     │
 │  ┌─────────────────┐   ┌────────────────────────┐  │
 │  │  UI / Tray      │   │  Sidecar Manager (Rust)│  │
@@ -26,20 +26,20 @@
 │  │  SettingsPanel  │              │spawn + watch    │
 │  └─────────────────┘              ▼                 │
 │                          ┌────────────────┐         │
-│                          │ betterdesk-    │         │
+│                          │ yomie-    │         │
 │                          │ agent (Go bin) │         │
 │                          │ CDAP WS client │         │
 │                          └───────┬────────┘         │
 └──────────────────────────────────┼──────────────────┘
                                    │ ws://host:21122/cdap
                           ┌────────▼────────┐
-                          │ BetterDesk      │
+                          │ Yomie      │
                           │ Server (Go)     │
                           │ CDAP Gateway    │
                           └────────┬────────┘
                                    │
                           ┌────────▼────────┐
-                          │ betterdesk-mgmt │
+                          │ yomie-mgmt │
                           │ (Operator)      │
                           └─────────────────┘
 ```
@@ -50,7 +50,7 @@
 |---|--------|
 | 1 | Agent **nigdy** nie pojawia się na pasku zadań (`skipTaskbar: true` w `tauri.conf.json`) |
 | 2 | Okno agenta jest domyślnie ukryte — pojawia się tylko gdy użytkownik kliknie ikonę tray lub dwukliknie |
-| 3 | Ciężka logika (CDAP, terminal, file browser, capture) = **Go sidecar** `betterdesk-agent` |
+| 3 | Ciężka logika (CDAP, terminal, file browser, capture) = **Go sidecar** `yomie-agent` |
 | 4 | Tauri zarządza: rejestracją, konfiguracją, tray, keyring, UI użytkownika, dialog zgody |
 | 5 | Operator widzi i kontroluje urządzenie **przez serwer**, nie bezpośrednio przez agenta |
 | 6 | Zgoda użytkownika przed sesją zdalną kontrolowana przez `require_consent` (Ustawienia) |
@@ -114,7 +114,7 @@ Zrealizowane w tej sesji:
 
 1. **`sidecar.rs`** — kompletny manager:
    - `find_binary()` — szuka w `$BETTERDESK_AGENT_BIN`, katalogu exe, data dir, PATH
-   - `write_go_config()` — zapisuje JSON kompatybilny z `betterdesk-agent/agent/config.go`
+   - `write_go_config()` — zapisuje JSON kompatybilny z `yomie-agent/agent/config.go`
    - `spawn_process()` — uruchamia go agenta z `-config <path>`
    - `monitor_loop()` — tokio task, poll co 5s, exponential backoff (5s×2^n, max 5min)
    - `terminate_child()` — SIGTERM + 5s grace + force kill
@@ -149,29 +149,29 @@ Zrealizowane w tej sesji:
 #### 56.1 — Bundling Go binary
 
 ```
-betterdesk-agent-client/
+yomie-agent-client/
 └── src-tauri/
     ├── build.rs           ← compile Go binary if CARGO_CFG_TARGET_OS matches
     └── binaries/
-        ├── betterdesk-agent-x86_64-pc-windows-msvc.exe
-        ├── betterdesk-agent-x86_64-unknown-linux-gnu
-        └── betterdesk-agent-aarch64-apple-darwin
+        ├── yomie-agent-x86_64-pc-windows-msvc.exe
+        ├── yomie-agent-x86_64-unknown-linux-gnu
+        └── yomie-agent-aarch64-apple-darwin
 ```
 
 `build.rs` logika:
 ```rust
-// If betterdesk-agent source available in parent workspace, compile it.
+// If yomie-agent source available in parent workspace, compile it.
 // Otherwise the binary must be placed manually / downloaded by installer.
 fn main() {
     tauri_build::build();
     let target = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let bin_name = if target == "windows" {
-        "betterdesk-agent.exe"
+        "yomie-agent.exe"
     } else {
-        "betterdesk-agent"
+        "yomie-agent"
     };
-    let src = format!("../betterdesk-agent/{}", bin_name);
-    let dst = format!("binaries/betterdesk-agent-{}-{}-{}",
+    let src = format!("../yomie-agent/{}", bin_name);
+    let dst = format!("binaries/yomie-agent-{}-{}-{}",
         env!("CARGO_CFG_TARGET_ARCH"),
         env!("CARGO_CFG_TARGET_VENDOR"),
         env!("CARGO_CFG_TARGET_OS"));
@@ -179,7 +179,7 @@ fn main() {
 }
 ```
 
-Alternatywnie: ALL-IN-ONE skrypt `betterdesk.sh/ps1` kopiuje binarny plik obok `.exe` agenta Tauri.
+Alternatywnie: ALL-IN-ONE skrypt `yomie.sh/ps1` kopiuje binarny plik obok `.exe` agenta Tauri.
 
 #### 56.2 — StatusPanel — sekcja "Connection Status"
 
@@ -206,7 +206,7 @@ Nowa sekcja w `StatusPanel.tsx`:
 
 #### Strategia
 
-Modyfikacja `betterdesk-agent/agent/`:
+Modyfikacja `yomie-agent/agent/`:
 - `desktop.go` — nowy moduł capture loop
 - Crate (via CGo lub exec): `screencapture`, `screenshot-rs` → PNG → JPEG → CDAP frame
 - Lub: wywołanie systemowych narzędzi:
@@ -218,7 +218,7 @@ Modyfikacja `betterdesk-agent/agent/`:
 Serwerowe CDAP `desktop.go` już wspiera strumień klatek — tylko agent musi wysyłać kolejne.
 
 ```go
-// agent/desktop.go (nowy plik w betterdesk-agent)
+// agent/desktop.go (nowy plik w yomie-agent)
 type DesktopStream struct {
     sessionID string
     stop      chan struct{}
@@ -246,8 +246,8 @@ func (s *DesktopStream) Run() {
 ```
 
 Pliki do zmiany:
-- `betterdesk-agent/agent/agent.go` — `handleDesktopStart` uruchamia `DesktopStream`, `handleDesktopStop` go zatrzymuje
-- `betterdesk-agent/agent/desktop.go` — nowy plik z `CaptureStream`
+- `yomie-agent/agent/agent.go` — `handleDesktopStart` uruchamia `DesktopStream`, `handleDesktopStop` go zatrzymuje
+- `yomie-agent/agent/desktop.go` — nowy plik z `CaptureStream`
 
 #### Zgoda użytkownika (consent dialog)
 
@@ -305,10 +305,10 @@ func (a *Agent) handleMouseInput(msg *Message) {
 | macOS | `CGEventPost` (Carbon) via cgo |
 
 Pliki do stworzenia:
-- `betterdesk-agent/agent/input.go` — dispatcher + high-level API
-- `betterdesk-agent/agent/input_linux.go` — X11 + Wayland
-- `betterdesk-agent/agent/input_windows.go` — SendInput
-- `betterdesk-agent/agent/input_darwin.go` — CGEventPost
+- `yomie-agent/agent/input.go` — dispatcher + high-level API
+- `yomie-agent/agent/input_linux.go` — X11 + Wayland
+- `yomie-agent/agent/input_windows.go` — SendInput
+- `yomie-agent/agent/input_darwin.go` — CGEventPost
 
 ---
 
@@ -367,25 +367,25 @@ Go agent:
 
 ## 4. Instalacja sidecar (aktualna procedura bez bundlingu)
 
-Do czasu Phase 56 (bundling) użytkownicy muszą zainstalować `betterdesk-agent`
+Do czasu Phase 56 (bundling) użytkownicy muszą zainstalować `yomie-agent`
 ręcznie lub przez skrypty ALL-IN-ONE.
 
 ### Opcja A — ALL-IN-ONE skrypt
 
 ```bash
-# Linux: skrypt instaluje betterdesk-agent do /opt/betterdesk/
-sudo ./betterdesk.sh
+# Linux: skrypt instaluje yomie-agent do /opt/yomie/
+sudo ./yomie.sh
 
-# Po instalacji agent Tauri znajdzie binarny w PATH lub /opt/betterdesk/
+# Po instalacji agent Tauri znajdzie binarny w PATH lub /opt/yomie/
 ```
 
 ### Opcja B — Ręczna instalacja
 
 ```bash
 # Pobierz binarny plik (GitHub Releases)
-wget https://github.com/shamstabraiz/BetterDesk/releases/latest/betterdesk-agent-linux-amd64
-chmod +x betterdesk-agent-linux-amd64
-sudo mv betterdesk-agent-linux-amd64 /usr/local/bin/betterdesk-agent
+wget https://github.com/shamstabraiz/Yomie/releases/latest/yomie-agent-linux-amd64
+chmod +x yomie-agent-linux-amd64
+sudo mv yomie-agent-linux-amd64 /usr/local/bin/yomie-agent
 
 # Ustaw API key w Ustawieniach agenta Tauri
 # Kliknij "Restart CDAP agent" w menu tray
@@ -394,7 +394,7 @@ sudo mv betterdesk-agent-linux-amd64 /usr/local/bin/betterdesk-agent
 ### Opcja C — Zmienna środowiskowa (dev)
 
 ```bash
-BETTERDESK_AGENT_BIN=/path/to/betterdesk-agent ./BetterDesk\ Agent
+BETTERDESK_AGENT_BIN=/path/to/yomie-agent ./Yomie\ Agent
 ```
 
 ---
@@ -405,12 +405,12 @@ BETTERDESK_AGENT_BIN=/path/to/betterdesk-agent ./BetterDesk\ Agent
 
 ```bash
 # 1. Uruchom agenta w trybie debug
-RUST_LOG=debug ./betterdesk-agent-client --console
+RUST_LOG=debug ./yomie-agent-client --console
 
-# 2. Sprawdź czy sidecar się uruchomił (jeśli betterdesk-agent w PATH)
+# 2. Sprawdź czy sidecar się uruchomił (jeśli yomie-agent w PATH)
 # Oczekiwane w logach:
-# [sidecar] Using binary: /usr/local/bin/betterdesk-agent
-# [sidecar] Spawned betterdesk-agent (pid=XXXX)
+# [sidecar] Using binary: /usr/local/bin/yomie-agent
+# [sidecar] Spawned yomie-agent (pid=XXXX)
 
 # 3. Sprawdź status przez IPC
 # W DevTools:
@@ -422,7 +422,7 @@ await window.__TAURI__.core.invoke("get_sidecar_status")
 
 ```bash
 # Kill sidecar ręcznie
-kill -9 $(pidof betterdesk-agent)
+kill -9 $(pidof yomie-agent)
 
 # Po 5s Tauri powinien zrestartować sidecar
 # Log: [sidecar] Process exited: ... Restarting in 5s (attempt #1)
@@ -452,7 +452,7 @@ kill -9 $(pidof betterdesk-agent)
 
 ## 7. Zależności — nowe (wymagane do Phase 57-60)
 
-### betterdesk-agent (Go sidecar)
+### yomie-agent (Go sidecar)
 
 ```
 # Phase 57 — screen capture
@@ -475,7 +475,7 @@ go get github.com/gordonklaus/portaudio  # PortAudio CGo
 go get github.com/hraban/opus          # Opus CGo
 ```
 
-### betterdesk-agent-client (Tauri Rust) — Phase 56
+### yomie-agent-client (Tauri Rust) — Phase 56
 
 ```toml
 # build.rs — kopiowanie binarka Go

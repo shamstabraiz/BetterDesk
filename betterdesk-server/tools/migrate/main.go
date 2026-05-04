@@ -1,11 +1,11 @@
-// migrate — BetterDesk database migration tool.
+// migrate — Yomie database migration tool.
 //
 // Supports multiple migration modes:
 //
-//	rust2go   — Rust hbbs-patch-v2 SQLite → BetterDesk Go schema (SQLite or PG)
-//	sqlite2pg — BetterDesk Go SQLite → PostgreSQL
-//	pg2sqlite — PostgreSQL → BetterDesk Go SQLite
-//	nodejs2go — Node.js console SQLite → BetterDesk Go schema (SQLite or PG)
+//	rust2go   — Rust hbbs-patch-v2 SQLite → Yomie Go schema (SQLite or PG)
+//	sqlite2pg — Yomie Go SQLite → PostgreSQL
+//	pg2sqlite — PostgreSQL → Yomie Go SQLite
+//	nodejs2go — Node.js console SQLite → Yomie Go schema (SQLite or PG)
 //	backup    — Create timestamped backup of a SQLite file
 //
 // Usage:
@@ -14,7 +14,7 @@
 //	./migrate -mode rust2go   -src db_v2.sqlite3 -dst postgres://user:pass@host/db
 //	./migrate -mode sqlite2pg -src ./db_v2.sqlite3 -dst postgres://user:pass@host/db
 //	./migrate -mode pg2sqlite -src postgres://user:pass@host/db -dst ./db_v2.sqlite3
-//	./migrate -mode nodejs2go -src /opt/betterdesk/data/db_v2.sqlite3 -node-auth /opt/betterdesk/data/auth.sqlite3
+//	./migrate -mode nodejs2go -src /opt/yomie/data/db_v2.sqlite3 -node-auth /opt/yomie/data/auth.sqlite3
 //	./migrate -mode nodejs2go -src db_v2.sqlite3 -node-auth auth.sqlite3 -dst postgres://user:pass@host/db
 //	./migrate -mode backup    -src db_v2.sqlite3
 package main
@@ -106,21 +106,21 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println("BetterDesk Database Migration Tool")
+	fmt.Println("Yomie Database Migration Tool")
 	fmt.Println()
 	fmt.Println("Usage: migrate -mode <mode> -src <source> [-dst <dest>] [options]")
 	fmt.Println()
 	fmt.Println("Modes:")
-	fmt.Println("  rust2go   - Migrate Rust hbbs-patch-v2 → BetterDesk Go schema")
-	fmt.Println("  sqlite2pg - Migrate BetterDesk Go SQLite → PostgreSQL")
-	fmt.Println("  pg2sqlite - Migrate PostgreSQL → BetterDesk Go SQLite")
-	fmt.Println("  nodejs2go - Migrate Node.js console → BetterDesk Go schema")
+	fmt.Println("  rust2go   - Migrate Rust hbbs-patch-v2 → Yomie Go schema")
+	fmt.Println("  sqlite2pg - Migrate Yomie Go SQLite → PostgreSQL")
+	fmt.Println("  pg2sqlite - Migrate PostgreSQL → Yomie Go SQLite")
+	fmt.Println("  nodejs2go - Migrate Node.js console → Yomie Go schema")
 	fmt.Println("  backup    - Create timestamped backup of a SQLite file")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ./migrate -mode rust2go   -src /opt/rustdesk/db_v2.sqlite3")
-	fmt.Println("  ./migrate -mode sqlite2pg -src ./db_v2.sqlite3 -dst postgres://user:pass@host/betterdesk")
-	fmt.Println("  ./migrate -mode pg2sqlite -src postgres://user:pass@host/betterdesk -dst ./db_v2.sqlite3")
+	fmt.Println("  ./migrate -mode sqlite2pg -src ./db_v2.sqlite3 -dst postgres://user:pass@host/yomie")
+	fmt.Println("  ./migrate -mode pg2sqlite -src postgres://user:pass@host/yomie -dst ./db_v2.sqlite3")
 	fmt.Println("  ./migrate -mode nodejs2go -src db_v2.sqlite3 -node-auth auth.sqlite3 -dst postgres://...")
 	fmt.Println("  ./migrate -mode backup    -src db_v2.sqlite3")
 }
@@ -148,7 +148,7 @@ func runRust2Go(srcPath, dstPath string) {
 	log.Printf("Read %d peers from Rust database", len(peers))
 
 	if dstPath == "" {
-		dstPath = filepath.Join(filepath.Dir(srcPath), "betterdesk.sqlite3")
+		dstPath = filepath.Join(filepath.Dir(srcPath), "yomie.sqlite3")
 	}
 
 	if isPG(dstPath) {
@@ -239,7 +239,7 @@ func readRustDB(path string) ([]rustPeer, error) {
 	return peers, rows.Err()
 }
 
-// writeRustPeersSQLite writes Rust peers to a BetterDesk Go SQLite database.
+// writeRustPeersSQLite writes Rust peers to a Yomie Go SQLite database.
 func writeRustPeersSQLite(path string, peers []rustPeer) (int, error) {
 	os.Remove(path)
 	db, err := sql.Open("sqlite", fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", path))
@@ -283,7 +283,7 @@ func writeRustPeersSQLite(path string, peers []rustPeer) (int, error) {
 	return count, tx.Commit()
 }
 
-// writeRustPeersPG writes Rust peers to a BetterDesk Go PostgreSQL database.
+// writeRustPeersPG writes Rust peers to a Yomie Go PostgreSQL database.
 func writeRustPeersPG(dsn string, peers []rustPeer) (int, error) {
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dsn)
@@ -899,7 +899,7 @@ func runNodeJS2Go(srcPeerPath, srcAuthPath, dstPath string) {
 	}
 
 	if dstPath == "" {
-		dstPath = filepath.Join(filepath.Dir(srcPeerPath), "betterdesk.sqlite3")
+		dstPath = filepath.Join(filepath.Dir(srcPeerPath), "yomie.sqlite3")
 	}
 
 	if isPG(dstPath) {
@@ -1397,7 +1397,7 @@ func copyNodeUsers2PG(ctx context.Context, src *sql.DB, dst *pgxpool.Pool) (int,
 
 // ── Schema Definitions ────────────────────────────────────────────────
 
-// pgSchemaStatements returns PostgreSQL DDL for all BetterDesk Go tables.
+// pgSchemaStatements returns PostgreSQL DDL for all Yomie Go tables.
 func pgSchemaStatements() []string {
 	return []string{
 		`CREATE TABLE IF NOT EXISTS peers (
@@ -1466,7 +1466,7 @@ func pgSchemaStatements() []string {
 	}
 }
 
-// sqliteSchemaStatements returns SQLite DDL for all BetterDesk Go tables.
+// sqliteSchemaStatements returns SQLite DDL for all Yomie Go tables.
 func sqliteSchemaStatements() []string {
 	return []string{
 		`CREATE TABLE IF NOT EXISTS peers (
@@ -1591,7 +1591,7 @@ func requireFile(path string) {
 // detectSQLiteSchema returns the detected schema type of a SQLite database.
 func detectSQLiteSchema(db *sql.DB) string {
 	if tableExists(db, "peers") {
-		return "betterdesk-go"
+		return "yomie-go"
 	}
 	if tableExists(db, "peer") {
 		cols := getColumns(db, "peer")

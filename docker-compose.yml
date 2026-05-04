@@ -2,25 +2,25 @@ version: '3.8'
 
 services:
     postgres:
-        container_name: betterdesk-postgres
+        container_name: yomie-postgres
         image: postgres:16-alpine
         environment:
-            POSTGRES_USER: betterdesk
+            POSTGRES_USER: yomie
             POSTGRES_PASSWORD: betterdesk123
-            POSTGRES_DB: betterdesk
+            POSTGRES_DB: yomie
         volumes:
             - postgres_data:/var/lib/postgresql/data
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U betterdesk -d betterdesk"]
+            test: ["CMD-SHELL", "pg_isready -U yomie -d yomie"]
             interval: 10s
             timeout: 5s
             retries: 5
         restart: unless-stopped
         networks:
-            - betterdesk
+            - yomie
 
     server:
-        container_name: betterdesk-server
+        container_name: yomie-server
         build:
             context: .
             dockerfile: Dockerfile.server
@@ -34,11 +34,11 @@ services:
             - "21118:21118"
             - "21119:21119"
         volumes:
-            - /opt/betterdesk-data:/opt/rustdesk
+            - /opt/yomie-data:/opt/rustdesk
         environment:
             - RELAY_SERVERS=115.186.50.85
             - INIT_ADMIN_PASS=NjYBWzYSAz4cnc
-            - DB_URL=postgres://betterdesk:betterdesk123@postgres:5432/betterdesk?sslmode=disable
+            - DB_URL=postgres://yomie:betterdesk123@postgres:5432/yomie?sslmode=disable
         depends_on:
             postgres:
                 condition: service_healthy
@@ -50,10 +50,10 @@ services:
             start_period: 15s
         restart: unless-stopped
         networks:
-            - betterdesk
+            - yomie
 
     console:
-        container_name: betterdesk-console
+        container_name: yomie-console
         build:
             context: .
             dockerfile: Dockerfile.console
@@ -62,7 +62,7 @@ services:
             - "5000:5000"
             - "21121:21121"
         volumes:
-            - /opt/betterdesk-data:/opt/rustdesk:ro
+            - /opt/yomie-data:/opt/rustdesk:ro
             - console_data:/app/data
         environment:
             - NODE_ENV=production
@@ -70,9 +70,9 @@ services:
             - HOST=0.0.0.0
             - API_HOST=0.0.0.0
             - RUSTDESK_PATH=/opt/rustdesk
-            - HBBS_API_URL=http://betterdesk-server:21114/api
-            - BETTERDESK_API_URL=http://betterdesk-server:21114/api
-            - SERVER_BACKEND=betterdesk
+            - HBBS_API_URL=http://yomie-server:21114/api
+            - BETTERDESK_API_URL=http://yomie-server:21114/api
+            - SERVER_BACKEND=yomie
             - DATA_DIR=/app/data
             - DB_PATH=/opt/rustdesk/db_v2.sqlite3
             - PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
@@ -80,13 +80,13 @@ services:
             - KEYS_PATH=/opt/rustdesk
             - DEFAULT_ADMIN_PASSWORD=NjYBWzYSAz4cnc
             - FORCE_PASSWORD_UPDATE=true
-            - WS_HBBS_HOST=betterdesk-server
+            - WS_HBBS_HOST=yomie-server
             - WS_HBBS_PORT=21116
-            - WS_HBBR_HOST=betterdesk-server
+            - WS_HBBR_HOST=yomie-server
             - WS_HBBR_PORT=21117
             - DOCKER=true
             - DB_TYPE=postgresql
-            - DATABASE_URL=postgres://betterdesk:betterdesk123@postgres:5432/betterdesk?sslmode=disable
+            - DATABASE_URL=postgres://yomie:betterdesk123@postgres:5432/yomie?sslmode=disable
         depends_on:
             postgres:
                 condition: service_healthy
@@ -100,10 +100,10 @@ services:
             start_period: 30s
         restart: unless-stopped
         networks:
-            - betterdesk
+            - yomie
 
 networks:
-    betterdesk:
+    yomie:
         driver: bridge
 
 volumes:

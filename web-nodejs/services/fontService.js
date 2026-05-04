@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Font Service
+ * Yomie Console - Font Service
  * Manages Google Fonts search, preview, and local caching
  * Fonts are downloaded to public/fonts/ for self-hosting (no external CDN dependency)
  */

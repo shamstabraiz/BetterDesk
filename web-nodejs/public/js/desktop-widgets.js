@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Desktop Widget Engine
+ * Yomie Console — Desktop Widget Engine
  * Manages draggable/resizable glassmorphic widgets on a wallpaper canvas.
  * Depends: desktop-mode.js (DesktopMode), Utils, _ (i18n)
  */
@@ -352,7 +352,7 @@
     }
 
     function saveLayoutToServer(arr) {
-        if (!window.BetterDesk || !window.BetterDesk.csrfToken) return;
+        if (!window.Yomie || !window.Yomie.csrfToken) return;
         if (typeof Utils === 'undefined' || !Utils.api) return;
         Utils.api('/api/desktop/layout', {
             method: 'POST',
@@ -1274,7 +1274,7 @@
         nav.className = 'widget-topnav';
         nav.innerHTML =
             '<button class="topnav-menu" id="topnav-menu-btn" title="Menu"><span class="material-icons">menu</span></button>' +
-            '<div class="topnav-brand">BetterDesk</div>' +
+            '<div class="topnav-brand">Yomie</div>' +
             '<div class="topnav-tabs">' +
                 '<button class="topnav-tab active" data-route="/" title="' + esc(t('nav.dashboard') || 'Dashboard') + '"><span class="material-icons">home</span></button>' +
                 '<button class="topnav-tab" data-route="/devices" title="' + esc(t('nav.devices') || 'Devices') + '"><span class="material-icons">devices</span></button>' +
@@ -1477,7 +1477,7 @@
     // Cache devices for search (populate on init)
     var _deviceSearchCache = [];
     function _loadDeviceSearchCache() {
-        var token = window.BetterDesk && window.BetterDesk.csrfToken;
+        var token = window.Yomie && window.Yomie.csrfToken;
         fetch('/api/devices', {
             credentials: 'same-origin',
             headers: token ? { 'x-csrf-token': token } : {}
@@ -2091,7 +2091,7 @@
         popup.document.open();
         popup.document.write(
             '<!DOCTYPE html><html lang="en" data-desktop-theme="' + esc(theme) + '">' +
-            '<head><meta charset="utf-8"><title>' + title + ' — BetterDesk Widget</title>' +
+            '<head><meta charset="utf-8"><title>' + title + ' — Yomie Widget</title>' +
             '<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">' +
             '<style>' + _getPopoutCSS() + '</style></head>' +
             '<body>' +

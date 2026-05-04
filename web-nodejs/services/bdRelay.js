@@ -1,7 +1,7 @@
 /**
- * BetterDesk Console — Native WebSocket Relay
+ * Yomie Console — Native WebSocket Relay
  *
- * Provides a direct relay channel between two BetterDesk desktop clients.
+ * Provides a direct relay channel between two Yomie desktop clients.
  * Unlike the RustDesk WS proxy (wsRelay.js) which bridges browser→hbbr TCP,
  * this relay pairs two desktop clients directly and passes E2E-encrypted
  * binary frames between them.  The server NEVER decrypts the payload.
@@ -196,7 +196,7 @@ function requestFromDevice(deviceId, type, payload = null, timeoutMs = REQUEST_T
 // ---------------------------------------------------------------------------
 
 /**
- * Initialize the BetterDesk relay WebSocket endpoints:
+ * Initialize the Yomie relay WebSocket endpoints:
  *   /ws/bd-relay   — data relay between paired clients
  *   /ws/bd-signal  — signaling / presence channel per device
  *
@@ -240,8 +240,8 @@ function initBdRelay(server) {
     const cleanupTimer = setInterval(cleanupSessions, CLEANUP_INTERVAL);
     cleanupTimer.unref();
 
-    console.log('  BetterDesk relay: /ws/bd-relay  (data relay)');
-    console.log('  BetterDesk relay: /ws/bd-signal (signaling)');
+    console.log('  Yomie relay: /ws/bd-relay  (data relay)');
+    console.log('  Yomie relay: /ws/bd-signal (signaling)');
 
     return { relayWss, signalWss };
 }

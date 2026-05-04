@@ -1,15 +1,15 @@
 /**
- * BetterDesk Console — Permissions Management (RBAC Phase 52)
+ * Yomie Console — Permissions Management (RBAC Phase 52)
  * Renders a permission matrix for each role with toggle switches.
  * Custom overrides are persisted in the Go server's role_permissions table.
  */
 (function () {
     'use strict';
 
-    const _ = (window.BetterDesk && window.BetterDesk.translations)
+    const _ = (window.Yomie && window.Yomie.translations)
         ? (key) => {
             const keys = key.split('.');
-            let val = window.BetterDesk.translations;
+            let val = window.Yomie.translations;
             for (const k of keys) {
                 if (val && typeof val === 'object') val = val[k];
                 else return key;
@@ -18,7 +18,7 @@
         }
         : (key) => key;
 
-    const csrfToken = (window.BetterDesk && window.BetterDesk.csrfToken) || '';
+    const csrfToken = (window.Yomie && window.Yomie.csrfToken) || '';
 
     // ── Permission categories ──────────────────────────────────────────
 

@@ -25,7 +25,7 @@ type PostgresDB struct {
 // OpenPostgres connects to a PostgreSQL server. The dsn must use the
 // postgres:// or postgresql:// scheme, for example:
 //
-//	postgres://user:pass@localhost:5432/betterdesk?sslmode=prefer
+//	postgres://user:pass@localhost:5432/yomie?sslmode=prefer
 //
 // Connection pooling is built-in via pgxpool. Configure max connections
 // with the pool_max_conns query parameter:

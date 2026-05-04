@@ -1,8 +1,8 @@
 [package]
-name = "betterdesk-mgmt"
+name = "yomie-mgmt"
 version = "1.0.0"
 edition = "2021"
-description = "BetterDesk MGMT Client — operator and admin remote management console"
+description = "Yomie MGMT Client — operator and admin remote management console"
 license = "Proprietary"
 
 [lib]

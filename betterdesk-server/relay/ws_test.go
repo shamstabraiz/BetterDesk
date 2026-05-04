@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/unitronix/betterdesk-server/config"
-	pb "github.com/unitronix/betterdesk-server/proto"
+	"github.com/unitronix/yomie-server/config"
+	pb "github.com/unitronix/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

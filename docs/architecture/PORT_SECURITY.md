@@ -1,4 +1,4 @@
-# 🔒 Secure Port Configuration - BetterDesk Console
+# 🔒 Secure Port Configuration - Yomie Console
 
 ## 📊 Analiza Portów RustDesk (Oficjalna Dokumentacja)
 

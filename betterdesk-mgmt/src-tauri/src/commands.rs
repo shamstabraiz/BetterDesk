@@ -1,6 +1,6 @@
 //! Tauri IPC commands — bridge between SolidJS frontend and Rust backend.
 //!
-//! Commands transparently dispatch between BetterDesk native protocol (HTTP +
+//! Commands transparently dispatch between Yomie native protocol (HTTP +
 //! WebSocket relay) and legacy RustDesk-compatible protocol (UDP signal + TCP
 //! relay) based on the `native_protocol` setting.
 
@@ -32,7 +32,7 @@ pub struct ActivityEntry {
 }
 
 /// MGMT-C3: central flag for TLS hardening. Defaults to allow self-signed certs
-/// (preserves backwards compatibility with existing BetterDesk deployments).
+/// (preserves backwards compatibility with existing Yomie deployments).
 /// Set `BETTERDESK_STRICT_TLS=1` to enforce strict certificate validation.
 fn strict_tls_enabled() -> bool {
     matches!(
@@ -46,7 +46,7 @@ fn warn_self_signed_once() {
     static WARNED: AtomicBool = AtomicBool::new(false);
     if !WARNED.swap(true, Ordering::SeqCst) {
         eprintln!(
-            "[BetterDesk] WARNING: TLS certificate validation is DISABLED for \
+            "[Yomie] WARNING: TLS certificate validation is DISABLED for \
              server probing/login. This is insecure against MITM. Set \
              BETTERDESK_STRICT_TLS=1 once the server has a proper certificate."
         );
@@ -105,9 +105,9 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub session: Mutex<Option<Session>>,
     pub registration: Mutex<Option<RegistrationService>>,
-    /// BetterDesk native HTTP registration service.
+    /// Yomie native HTTP registration service.
     pub bd_registration: Mutex<Option<BdRegistrationService>>,
-    /// BetterDesk native WebSocket relay connection.
+    /// Yomie native WebSocket relay connection.
     pub bd_relay: Mutex<Option<BdRelayConnection>>,
     /// Inventory collector service.
     pub inventory: Mutex<Option<InventoryCollector>>,
@@ -151,7 +151,7 @@ pub struct UnifiedRegistrationStatus {
     pub server_address: String,
     pub heartbeat_count: u64,
     pub last_error: Option<String>,
-    /// true when using BetterDesk native protocol.
+    /// true when using Yomie native protocol.
     pub native_protocol: bool,
     /// BD-native only: WebSocket signal channel connected.
     pub signal_connected: Option<bool>,
@@ -648,7 +648,7 @@ pub fn get_discovery_status(state: State<'_, AppState>) -> Result<LanDiscoverySt
 /// Sends an HTTP POST to the server's `/api/bd/register-request` endpoint
 /// with this device's identity information.
 
-/// Browse for BetterDesk servers via mDNS/DNS-SD.
+/// Browse for Yomie servers via mDNS/DNS-SD.
 /// Returns servers advertising `_betterdesk._tcp` on the local network.
 #[tauri::command]
 pub async fn discover_mdns_servers() -> Result<Vec<crate::discovery::MdnsServer>, String> {
@@ -761,7 +761,7 @@ pub fn apply_server_config(
     settings.save().map_err(|e| e.to_string())
 }
 
-/// Test connection to a BetterDesk server without saving config.
+/// Test connection to a Yomie server without saving config.
 ///
 /// Attempts to reach the server's HTTP API and signal port to verify
 /// connectivity before the user commits to saving the configuration.
@@ -849,7 +849,7 @@ pub async fn test_server_connection(
     }
 }
 
-/// Auto-connect to a BetterDesk server using only the IP/hostname.
+/// Auto-connect to a Yomie server using only the IP/hostname.
 ///
 /// Performs full endpoint discovery, connection testing, key retrieval,
 /// config save, and registration — all in one step.
@@ -1024,7 +1024,7 @@ pub async fn auto_connect_server(
 
         let settings = state.settings.lock().map_err(|e| e.to_string())?.clone();
         if settings.native_protocol {
-            // BetterDesk native: HTTP enrollment + CDAP + management
+            // Yomie native: HTTP enrollment + CDAP + management
             let svc = BdRegistrationService::start(&settings, &device_id);
             if let Ok(mut lock) = state.bd_registration.lock() {
                 *lock = Some(svc);
@@ -1123,7 +1123,7 @@ pub fn elevate_restart() -> Result<(), String> {
 
 // ---- Organization Login ----
 
-/// Login to an organization account on the BetterDesk server.
+/// Login to an organization account on the Yomie server.
 /// Returns user info + JWT token on success.
 #[tauri::command]
 pub async fn org_login(
@@ -1281,7 +1281,7 @@ pub fn open_chat_window(app: tauri::AppHandle) -> Result<(), String> {
         "chat",
         tauri::WebviewUrl::App("chat-window.html".into()),
     )
-    .title("BetterDesk Chat")
+    .title("Yomie Chat")
     .inner_size(700.0, 520.0)
     .min_inner_size(540.0, 400.0)
     .center()
@@ -1890,7 +1890,7 @@ async fn operator_json_request(
 // The shared `http_client` has a cookie store — session cookies are
 // automatically persisted across calls, enabling express-session auth.
 
-/// Proxy an HTTP request to the BetterDesk web panel through Rust.
+/// Proxy an HTTP request to the Yomie web panel through Rust.
 ///
 /// This solves the "Failed to fetch" problem caused by Tauri WebView
 /// (`https://tauri.localhost`) being blocked from fetching `http://` URLs

@@ -20,7 +20,7 @@ const Sidebar: Component = () => {
       <div class="sidebar-header">
         <div class="sidebar-logo">
           <span class="material-symbols-rounded">devices</span>
-          {!collapsed() && <span class="sidebar-title">BetterDesk Agent</span>}
+          {!collapsed() && <span class="sidebar-title">Yomie Agent</span>}
         </div>
         <button
           class="sidebar-toggle"

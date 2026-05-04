@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - i18n Middleware
+ * Yomie Console - i18n Middleware
  * Injects translation function and language info into templates
  */
 

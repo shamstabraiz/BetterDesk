@@ -1,8 +1,8 @@
 /**
- * BetterDesk Web Remote Client — CDAP Transport Adapter
+ * Yomie Web Remote Client — CDAP Transport Adapter
  *
  * Drop-in replacement for `RDClient` when the target device is a
- * BetterDesk OS-agent (CDAP transport). Exposes the same public surface
+ * Yomie OS-agent (CDAP transport). Exposes the same public surface
  * (`connect`, `disconnect`, `authenticate`, `verify2fa`, event emitter
  * with `state`/`log`/`session_start`/`disconnected`/`error`/`stats`)
  * so `remote.js` can swap implementations without branching.

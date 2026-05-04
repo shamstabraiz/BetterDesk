@@ -1,6 +1,6 @@
-# Contributing to BetterDesk Console
+# Contributing to Yomie Console
 
-Thank you for your interest in contributing to BetterDesk Console! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Yomie Console! This document provides guidelines and instructions for contributing.
 
 ## Table of Contents
 
@@ -300,7 +300,7 @@ What actually happens
 **Environment**
 - OS: [e.g., Ubuntu 22.04]
 - RustDesk Version: [e.g., 1.1.9]
-- BetterDesk Console Version: [e.g., 1.0.0]
+- Yomie Console Version: [e.g., 1.0.0]
 - Browser: [e.g., Chrome 120]
 
 **Logs**
@@ -342,4 +342,4 @@ By contributing, you agree that your contributions will be licensed under the Ap
 
 ---
 
-Thank you for contributing to BetterDesk Console! 🎉
+Thank you for contributing to Yomie Console! 🎉

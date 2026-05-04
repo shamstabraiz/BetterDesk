@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Reports API Routes
+ * Yomie Console — Reports API Routes
  *
  * Generates on-demand and saved reports from aggregated data across
  * all modules: devices, activity, security/DLP, tickets, network,

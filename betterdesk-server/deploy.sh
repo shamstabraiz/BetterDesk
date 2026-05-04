@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
-# BetterDesk Go Server — Production Deployment Script
+# Yomie Go Server — Production Deployment Script
 # Version: 1.0.0
-# Replaces: hbbs + hbbr (Rust) with a single betterdesk-server binary (Go)
+# Replaces: hbbs + hbbr (Rust) with a single yomie-server binary (Go)
 #
 # Usage:
 #   sudo ./deploy.sh                    # Interactive deployment
@@ -13,7 +13,7 @@
 # Requirements:
 #   - Linux x86_64
 #   - Root or sudo access
-#   - Existing RustDesk/BetterDesk installation (optional, for migration)
+#   - Existing RustDesk/Yomie installation (optional, for migration)
 # ============================================================================
 
 set -euo pipefail
@@ -21,16 +21,16 @@ set -euo pipefail
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Default paths (matching betterdesk.sh conventions)
-INSTALL_DIR="/opt/betterdesk"
+# Default paths (matching yomie.sh conventions)
+INSTALL_DIR="/opt/yomie"
 OLD_INSTALL_DIR="/opt/rustdesk"
 DATA_DIR="${INSTALL_DIR}/data"
 BACKUP_DIR="${INSTALL_DIR}/backups"
-LOG_DIR="/var/log/betterdesk"
-SERVICE_NAME="betterdesk"
+LOG_DIR="/var/log/yomie"
+SERVICE_NAME="yomie"
 
 # Binary names
-GO_BINARY="betterdesk-server-linux-amd64"
+GO_BINARY="yomie-server-linux-amd64"
 MIGRATE_BINARY="migrate-linux-amd64"
 
 # Colors
@@ -70,7 +70,7 @@ detect_existing_installation() {
     EXISTING_KEY=""
     EXISTING_DIR=""
 
-    for dir in /opt/rustdesk /opt/betterdesk /opt/hbbs; do
+    for dir in /opt/rustdesk /opt/yomie /opt/hbbs; do
         if [[ -d "$dir" ]]; then
             # Look for the database file
             for db in "$dir/db_v2.sqlite3" "$dir/data/db_v2.sqlite3" "$dir/db_v2.sqlite3"; do
@@ -84,7 +84,7 @@ detect_existing_installation() {
     done
 
     # Find existing key file
-    for dir in /opt/rustdesk /opt/betterdesk /opt/hbbs; do
+    for dir in /opt/rustdesk /opt/yomie /opt/hbbs; do
         for key in "$dir/id_ed25519" "$dir/data/id_ed25519" "$dir/id_ed25519"; do
             if [[ -f "$key" ]]; then
                 EXISTING_KEY="$key"
@@ -131,7 +131,7 @@ create_backup() {
     fi
 
     # Backup existing services
-    for svc in rustdesksignal rustdeskrelay betterdesk hbbs hbbr; do
+    for svc in rustdesksignal rustdeskrelay yomie hbbs hbbr; do
         if [[ -f "/etc/systemd/system/${svc}.service" ]]; then
             cp -v "/etc/systemd/system/${svc}.service" "${backup_path}/"
         fi
@@ -139,7 +139,7 @@ create_backup() {
 
     # Backup existing binaries (for rollback)
     if [[ -n "$EXISTING_DIR" ]]; then
-        for bin in hbbs hbbr betterdesk-server; do
+        for bin in hbbs hbbr yomie-server; do
             [[ -f "${EXISTING_DIR}/${bin}" ]] && cp -v "${EXISTING_DIR}/${bin}" "${backup_path}/"
         done
     fi
@@ -181,13 +181,13 @@ migrate_database() {
 # ============================================================================
 
 install_binary() {
-    log_step "Installing BetterDesk Go server..."
+    log_step "Installing Yomie Go server..."
 
     mkdir -p "$INSTALL_DIR" "$DATA_DIR" "$LOG_DIR" "$BACKUP_DIR"
 
     # Copy binary
-    cp "${SCRIPT_DIR}/${GO_BINARY}" "${INSTALL_DIR}/betterdesk-server"
-    chmod +x "${INSTALL_DIR}/betterdesk-server"
+    cp "${SCRIPT_DIR}/${GO_BINARY}" "${INSTALL_DIR}/yomie-server"
+    chmod +x "${INSTALL_DIR}/yomie-server"
 
     # Copy migration tool
     if [[ -f "${SCRIPT_DIR}/tools/migrate/${MIGRATE_BINARY}" ]]; then
@@ -204,13 +204,13 @@ install_binary() {
         fi
     fi
 
-    log_info "Binary installed: ${INSTALL_DIR}/betterdesk-server"
+    log_info "Binary installed: ${INSTALL_DIR}/yomie-server"
 }
 
 stop_old_services() {
     log_step "Stopping old services..."
 
-    for svc in rustdesksignal rustdeskrelay hbbs hbbr betterdesk; do
+    for svc in rustdesksignal rustdeskrelay hbbs hbbr yomie; do
         if systemctl is-active --quiet "$svc" 2>/dev/null; then
             log_info "Stopping $svc..."
             systemctl stop "$svc" || true
@@ -227,7 +227,7 @@ create_systemd_service() {
 
     cat > /etc/systemd/system/${SERVICE_NAME}.service << 'EOF'
 [Unit]
-Description=BetterDesk Server (Signal + Relay + API)
+Description=Yomie Server (Signal + Relay + API)
 Documentation=https://github.com/shamstabraiz/Rustdesk-FreeConsole
 After=network.target
 Wants=network-online.target
@@ -235,24 +235,24 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/betterdesk/data
-ExecStart=/opt/betterdesk/betterdesk-server \
+WorkingDirectory=/opt/yomie/data
+ExecStart=/opt/yomie/yomie-server \
     -mode all \
-    -db /opt/betterdesk/data/db_v2.sqlite3 \
-    -key-file /opt/betterdesk/data/id_ed25519 \
+    -db /opt/yomie/data/db_v2.sqlite3 \
+    -key-file /opt/yomie/data/id_ed25519 \
     -port 21116 \
     -relay-port 21117 \
     -api-port 21114 \
     -admin-port 21000 \
     -log-format json \
-    -audit-log /var/log/betterdesk/audit.jsonl
+    -audit-log /var/log/yomie/audit.jsonl
 Restart=always
 RestartSec=5
 LimitNOFILE=65535
 
 # Security hardening
 ProtectSystem=strict
-ReadWritePaths=/opt/betterdesk/data /var/log/betterdesk
+ReadWritePaths=/opt/yomie/data /var/log/yomie
 NoNewPrivileges=true
 ProtectHome=true
 ProtectKernelTunables=true
@@ -277,7 +277,7 @@ EOF
 }
 
 enable_and_start() {
-    log_step "Enabling and starting BetterDesk server..."
+    log_step "Enabling and starting Yomie server..."
 
     systemctl enable "${SERVICE_NAME}"
     systemctl start "${SERVICE_NAME}"
@@ -285,7 +285,7 @@ enable_and_start() {
     sleep 2
 
     if systemctl is-active --quiet "${SERVICE_NAME}"; then
-        log_info "BetterDesk server is running!"
+        log_info "Yomie server is running!"
     else
         log_error "Service failed to start. Check: journalctl -u ${SERVICE_NAME} -n 50"
         exit 1
@@ -408,13 +408,13 @@ configure_firewall() {
     log_step "Configuring firewall rules..."
 
     if command -v ufw &>/dev/null; then
-        ufw allow 21114/tcp comment "BetterDesk API"
-        ufw allow 21115/tcp comment "BetterDesk NAT Test"
-        ufw allow 21116/tcp comment "BetterDesk Signal TCP"
-        ufw allow 21116/udp comment "BetterDesk Signal UDP"
-        ufw allow 21117/tcp comment "BetterDesk Relay"
-        ufw allow 21118/tcp comment "BetterDesk WS Signal"
-        ufw allow 21119/tcp comment "BetterDesk WS Relay"
+        ufw allow 21114/tcp comment "Yomie API"
+        ufw allow 21115/tcp comment "Yomie NAT Test"
+        ufw allow 21116/tcp comment "Yomie Signal TCP"
+        ufw allow 21116/udp comment "Yomie Signal UDP"
+        ufw allow 21117/tcp comment "Yomie Relay"
+        ufw allow 21118/tcp comment "Yomie WS Signal"
+        ufw allow 21119/tcp comment "Yomie WS Relay"
         log_info "UFW rules added"
     elif command -v firewall-cmd &>/dev/null; then
         for port in 21114/tcp 21115/tcp 21116/tcp 21116/udp 21117/tcp 21118/tcp 21119/tcp; do
@@ -433,7 +433,7 @@ configure_firewall() {
 
 print_banner() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  BetterDesk Go Server — Deployment v${VERSION}"
+    echo "  Yomie Go Server — Deployment v${VERSION}"
     echo "  Single binary replacing hbbs + hbbr"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
@@ -474,7 +474,7 @@ main() {
         echo "  1. Create a backup of the existing database and keys"
         echo "  2. Stop old hbbs/hbbr services"
         echo "  3. Migrate the database to the new Go schema"
-        echo "  4. Install the BetterDesk Go server"
+        echo "  4. Install the Yomie Go server"
         echo "  5. Create and start a systemd service"
         echo "  6. Configure firewall rules"
         echo ""

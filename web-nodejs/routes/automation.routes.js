@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Automation & Alerts API Routes
+ * Yomie Console — Automation & Alerts API Routes
  *
  * CRUD for alert rules, alert history viewing / acknowledgement,
  * remote command execution, and SMTP configuration.
@@ -429,7 +429,7 @@ router.put('/smtp', requireAuth, requirePermission('server.config'), async (req,
         }
 
         const adapter = getAdapter();
-        const config = { host, port: port || 587, secure: !!secure, user: user || '', pass: pass || '', from: from || 'betterdesk@localhost' };
+        const config = { host, port: port || 587, secure: !!secure, user: user || '', pass: pass || '', from: from || 'yomie@localhost' };
         await adapter.setSetting('smtp_config', JSON.stringify(config));
         emailService.resetTransporter();
 

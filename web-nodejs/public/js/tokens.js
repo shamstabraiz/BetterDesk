@@ -1,17 +1,17 @@
 /**
- * BetterDesk Console - Device Tokens Management
+ * Yomie Console - Device Tokens Management
  * Client-side logic for device enrollment token management.
  */
 (function () {
     'use strict';
 
-    const _ = window.BetterDesk?.translations
-        ? (key) => key.split('.').reduce((o, k) => (o && o[k]) || key, window.BetterDesk.translations)
+    const _ = window.Yomie?.translations
+        ? (key) => key.split('.').reduce((o, k) => (o && o[k]) || key, window.Yomie.translations)
         : (key) => key;
 
     let allTokens = [];
     let currentFilter = 'all';
-    const csrfToken = window.BetterDesk?.csrfToken || '';
+    const csrfToken = window.Yomie?.csrfToken || '';
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@
     }
 
     function showToast(message, type) {
-        if (window.BetterDesk?.notify) { window.BetterDesk.notify(message, type); return; }
+        if (window.Yomie?.notify) { window.Yomie.notify(message, type); return; }
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');

@@ -1,7 +1,7 @@
 //! CDAP wire protocol — message envelope and payload types.
 //!
 //! Mirrors the Go-side `cdap.Message` struct used by both the gateway
-//! and the reference agent (`betterdesk-agent`).
+//! and the reference agent (`yomie-agent`).
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

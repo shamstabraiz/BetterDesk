@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Network Monitoring API Routes
+ * Yomie Console — Network Monitoring API Routes
  *
  * CRUD for monitoring targets, check results, and manual checks.
  *

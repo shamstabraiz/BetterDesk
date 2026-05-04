@@ -1,8 +1,8 @@
-# BetterDesk Go Server — Deployment Guide
+# Yomie Go Server — Deployment Guide
 
 ## Overview
 
-BetterDesk Go Server is a **single binary** that replaces the Rust `hbbs` (signal) + `hbbr` (relay) servers. It is fully compatible with original RustDesk clients and provides additional features:
+Yomie Go Server is a **single binary** that replaces the Rust `hbbs` (signal) + `hbbr` (relay) servers. It is fully compatible with original RustDesk clients and provides additional features:
 
 - **Combined service**: Signal + Relay + HTTP API + Admin TCP in one process
 - **Enhanced device tracking**: Online/Offline/Degraded/Critical status with configurable timeouts
@@ -15,7 +15,7 @@ BetterDesk Go Server is a **single binary** that replaces the Rust `hbbs` (signa
 - Linux x86_64 
 - Root/sudo access
 - Ports 21114-21119 + 21000 available
-- Existing RustDesk/BetterDesk installation (optional, for migration)
+- Existing RustDesk/Yomie installation (optional, for migration)
 
 ## Quick Deployment
 
@@ -23,7 +23,7 @@ BetterDesk Go Server is a **single binary** that replaces the Rust `hbbs` (signa
 
 ```bash
 # From your local machine, upload the deployment files
-scp betterdesk-server-linux-amd64 user@server:/tmp/
+scp yomie-server-linux-amd64 user@server:/tmp/
 scp tools/migrate/migrate-linux-amd64 user@server:/tmp/
 scp deploy.sh user@server:/tmp/
 ```
@@ -47,16 +47,16 @@ sudo /tmp/deploy.sh --auto
 
 ```bash
 # Check service status
-systemctl status betterdesk
+systemctl status yomie
 
 # Check API health
 curl http://localhost:21114/api/health
 
 # Check logs
-journalctl -u betterdesk -f
+journalctl -u yomie -f
 
 # Get initial admin credentials (printed at first start)
-journalctl -u betterdesk | grep "INITIAL ADMIN"
+journalctl -u yomie | grep "INITIAL ADMIN"
 ```
 
 ## Manual Deployment
@@ -65,24 +65,24 @@ journalctl -u betterdesk | grep "INITIAL ADMIN"
 
 ```bash
 # Create backup directory
-mkdir -p /opt/betterdesk/backups
+mkdir -p /opt/yomie/backups
 
 # Backup existing database (adjust path to your installation)
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-cp /opt/rustdesk/db_v2.sqlite3 /opt/betterdesk/backups/db_v2.sqlite3.${TIMESTAMP}
-cp /opt/rustdesk/db_v2.sqlite3-wal /opt/betterdesk/backups/db_v2.sqlite3-wal.${TIMESTAMP} 2>/dev/null
-cp /opt/rustdesk/db_v2.sqlite3-shm /opt/betterdesk/backups/db_v2.sqlite3-shm.${TIMESTAMP} 2>/dev/null
+cp /opt/rustdesk/db_v2.sqlite3 /opt/yomie/backups/db_v2.sqlite3.${TIMESTAMP}
+cp /opt/rustdesk/db_v2.sqlite3-wal /opt/yomie/backups/db_v2.sqlite3-wal.${TIMESTAMP} 2>/dev/null
+cp /opt/rustdesk/db_v2.sqlite3-shm /opt/yomie/backups/db_v2.sqlite3-shm.${TIMESTAMP} 2>/dev/null
 
 # Backup key files
-cp /opt/rustdesk/id_ed25519 /opt/betterdesk/backups/id_ed25519.${TIMESTAMP}
-cp /opt/rustdesk/id_ed25519.pub /opt/betterdesk/backups/id_ed25519.pub.${TIMESTAMP}
+cp /opt/rustdesk/id_ed25519 /opt/yomie/backups/id_ed25519.${TIMESTAMP}
+cp /opt/rustdesk/id_ed25519.pub /opt/yomie/backups/id_ed25519.pub.${TIMESTAMP}
 ```
 
 ### Step 2: Migrate database
 
 ```bash
 # Run migration tool
-./migrate-linux-amd64 -src /opt/rustdesk/db_v2.sqlite3 -dst /opt/betterdesk/data/db_v2.sqlite3
+./migrate-linux-amd64 -src /opt/rustdesk/db_v2.sqlite3 -dst /opt/yomie/data/db_v2.sqlite3
 ```
 
 ### Step 3: Stop old services
@@ -95,37 +95,37 @@ sudo systemctl disable rustdesksignal rustdeskrelay
 ### Step 4: Install binary
 
 ```bash
-sudo mkdir -p /opt/betterdesk/data /var/log/betterdesk
-sudo cp betterdesk-server-linux-amd64 /opt/betterdesk/betterdesk-server
-sudo chmod +x /opt/betterdesk/betterdesk-server
+sudo mkdir -p /opt/yomie/data /var/log/yomie
+sudo cp yomie-server-linux-amd64 /opt/yomie/yomie-server
+sudo chmod +x /opt/yomie/yomie-server
 
 # Copy existing key file (important for client compatibility!)
-sudo cp /opt/rustdesk/id_ed25519 /opt/betterdesk/data/
-sudo cp /opt/rustdesk/id_ed25519.pub /opt/betterdesk/data/
+sudo cp /opt/rustdesk/id_ed25519 /opt/yomie/data/
+sudo cp /opt/rustdesk/id_ed25519.pub /opt/yomie/data/
 ```
 
 ### Step 5: Create systemd service
 
 ```bash
-sudo cat > /etc/systemd/system/betterdesk.service << 'EOF'
+sudo cat > /etc/systemd/system/yomie.service << 'EOF'
 [Unit]
-Description=BetterDesk Server (Signal + Relay + API)
+Description=Yomie Server (Signal + Relay + API)
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/betterdesk/data
-ExecStart=/opt/betterdesk/betterdesk-server \
+WorkingDirectory=/opt/yomie/data
+ExecStart=/opt/yomie/yomie-server \
     -mode all \
-    -db /opt/betterdesk/data/db_v2.sqlite3 \
-    -key-file /opt/betterdesk/data/id_ed25519 \
+    -db /opt/yomie/data/db_v2.sqlite3 \
+    -key-file /opt/yomie/data/id_ed25519 \
     -port 21116 \
     -relay-port 21117 \
     -api-port 21114 \
     -admin-port 21000 \
     -log-format json \
-    -audit-log /var/log/betterdesk/audit.jsonl
+    -audit-log /var/log/yomie/audit.jsonl
 Restart=always
 RestartSec=5
 LimitNOFILE=65535
@@ -135,8 +135,8 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable betterdesk
-sudo systemctl start betterdesk
+sudo systemctl enable yomie
+sudo systemctl start yomie
 ```
 
 ### Step 6: Open firewall ports
@@ -237,12 +237,12 @@ sudo /path/to/deploy.sh --rollback
 
 ```bash
 # Stop Go server
-sudo systemctl stop betterdesk
-sudo systemctl disable betterdesk
+sudo systemctl stop yomie
+sudo systemctl disable yomie
 
 # Restore backup
-cp /opt/betterdesk/backups/backup_YYYYMMDD_HHMMSS/db_v2.sqlite3 /opt/rustdesk/
-cp /opt/betterdesk/backups/backup_YYYYMMDD_HHMMSS/id_ed25519 /opt/rustdesk/
+cp /opt/yomie/backups/backup_YYYYMMDD_HHMMSS/db_v2.sqlite3 /opt/rustdesk/
+cp /opt/yomie/backups/backup_YYYYMMDD_HHMMSS/id_ed25519 /opt/rustdesk/
 
 # Re-enable old services
 sudo systemctl enable rustdesksignal rustdeskrelay
@@ -255,11 +255,11 @@ sudo systemctl start rustdesksignal rustdeskrelay
 
 ```bash
 # Check logs
-journalctl -u betterdesk -n 100 --no-pager
+journalctl -u yomie -n 100 --no-pager
 
 # Common issues:
 # - Port already in use → check if old hbbs/hbbr is still running
-# - Permission denied → ensure /opt/betterdesk/data is writable
+# - Permission denied → ensure /opt/yomie/data is writable
 # - Key file not found → check -key-file path
 ```
 
@@ -273,7 +273,7 @@ journalctl -u betterdesk -n 100 --no-pager
 ### Devices show offline
 
 1. **Check API**: `curl http://localhost:21114/api/peers`
-2. **Check signal logs**: `journalctl -u betterdesk | grep RegisterPeer`
+2. **Check signal logs**: `journalctl -u yomie | grep RegisterPeer`
 3. **Increase timeout**: Set `PEER_TIMEOUT_SECS=30` in service environment
 
 ### Performance tuning
@@ -315,7 +315,7 @@ curl http://localhost:21114/api/peers \
 
 ```
                           ┌─────────────────────────┐
-                          │   betterdesk-server      │
+                          │   yomie-server      │
                           │   (single binary)        │
   ┌───────────────────────┼─────────────────────────┤
   │                       │                         │
@@ -331,7 +331,7 @@ curl http://localhost:21114/api/peers \
   │       │              │              │           │
   │  ┌────┴──────────────┴──────────────┴──────┐   │
   │  │              SQLite Database             │   │
-  │  │         /opt/betterdesk/data/            │   │
+  │  │         /opt/yomie/data/            │   │
   │  │         db_v2.sqlite3                    │   │
   │  └─────────────────────────────────────────┘   │
   │                                                 │

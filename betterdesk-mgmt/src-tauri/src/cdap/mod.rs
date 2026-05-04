@@ -1,6 +1,6 @@
 //! CDAP (Custom Device Automation Protocol) desktop agent.
 //!
-//! Connects this Windows machine to the BetterDesk CDAP gateway as a
+//! Connects this Windows machine to the Yomie CDAP gateway as a
 //! fully-managed "desktop" device, exposing:
 //! - System telemetry (CPU, RAM, Disk, Network)
 //! - Remote terminal (cmd.exe / PowerShell)
@@ -131,7 +131,7 @@ impl CdapConfig {
     }
 
     fn config_path() -> Result<std::path::PathBuf> {
-        let dir = directories::ProjectDirs::from("com", "betterdesk", "BetterDesk")
+        let dir = directories::ProjectDirs::from("com", "yomie", "Yomie")
             .map(|d| d.config_dir().to_path_buf())
             .unwrap_or_else(|| std::path::PathBuf::from("."));
         Ok(dir.join("cdap_config.json"))

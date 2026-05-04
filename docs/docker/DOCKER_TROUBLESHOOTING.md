@@ -1,16 +1,16 @@
-# 🚀 Docker Quick Start for BetterDesk Console
+# 🚀 Docker Quick Start for Yomie Console
 
-## Problem: "Pull Access Denied" for betterdesk-hbbs / betterdesk-hbbr
+## Problem: "Pull Access Denied" for yomie-hbbs / yomie-hbbr
 
 ### Symptom
 ```
-! Image betterdesk-hbbs:latest pull access denied for betterdesk-hbbs, repository does not exist
-! Image betterdesk-hbbr:latest pull access denied for betterdesk-hbbr, repository does not exist
-Error response from daemon: pull access denied for betterdesk-hbbr, repository does not exist
+! Image yomie-hbbs:latest pull access denied for yomie-hbbs, repository does not exist
+! Image yomie-hbbr:latest pull access denied for yomie-hbbr, repository does not exist
+Error response from daemon: pull access denied for yomie-hbbr, repository does not exist
 ```
 
 ### Cause
-BetterDesk images are **NOT published to Docker Hub**. They must be **built locally** from the provided Dockerfiles.
+Yomie images are **NOT published to Docker Hub**. They must be **built locally** from the provided Dockerfiles.
 
 > **Note**: This issue is now fixed in the latest docker-compose.yml with `pull_policy: never`. If you still see this error, update your files.
 
@@ -37,7 +37,7 @@ chmod +x docker-quickstart.sh
 ```
 
 This is the expected behavior - the images are built from:
-- `Dockerfile.hbbs` - Signal server with BetterDesk API
+- `Dockerfile.hbbs` - Signal server with Yomie API
 - `Dockerfile.hbbr` - Relay server
 - `Dockerfile.console` - Web console
 
@@ -53,7 +53,7 @@ Error loading devices: no such table: peer
 Or HTTP 500 errors to `/api/*` endpoints.
 
 ### Cause
-This happens when you're using **original RustDesk binaries** instead of **BetterDesk enhanced binaries**. The original binaries don't create the `peer` table with the columns BetterDesk Console expects.
+This happens when you're using **original RustDesk binaries** instead of **Yomie enhanced binaries**. The original binaries don't create the `peer` table with the columns Yomie Console expects.
 
 **Root causes:**
 1. Using an outdated Dockerfile that copies from `rustdesk/rustdesk-server:latest`
@@ -69,9 +69,9 @@ git pull origin main
 
 # 2. Remove old images
 docker compose down
-docker rmi betterdesk-hbbs:local betterdesk-hbbr:local 2>/dev/null || true
+docker rmi yomie-hbbs:local yomie-hbbr:local 2>/dev/null || true
 
-# 3. Rebuild with new BetterDesk binaries
+# 3. Rebuild with new Yomie binaries
 docker compose build --no-cache
 
 # 4. Start fresh
@@ -90,7 +90,7 @@ sudo ./install-improved.sh --fix
 sudo ./install-improved.sh
 ```
 
-The BetterDesk binaries in `hbbs-patch-v2/` include:
+The Yomie binaries in `hbbs-patch-v2/` include:
 - HTTP API on port 21114
 - Extended `peer` table with `is_banned`, `is_deleted`, `last_online` columns
 - Device tracking and management features
@@ -102,7 +102,7 @@ The BetterDesk binaries in `hbbs-patch-v2/` include:
 ### Symptom
 ```
 /bin/sh: 1: cannot create /etc/resolv.conf: Read-only file system
-target betterdesk-console: failed to solve: process "/bin/sh -c echo \"nameserver 8.8.8.8\" >> /etc/resolv.conf...
+target yomie-console: failed to solve: process "/bin/sh -c echo \"nameserver 8.8.8.8\" >> /etc/resolv.conf...
 ```
 
 ### Cause
@@ -149,7 +149,7 @@ sudo systemctl restart docker
 ### Symptom
 ```
 => => # Temporary failure resolving 'deb.debian.org'
-target betterdesk-console: failed to solve: ...exit code: 100
+target yomie-console: failed to solve: ...exit code: 100
 ```
 
 ### Cause
@@ -177,9 +177,9 @@ docker compose build --no-cache
 **Option 2: Use host network during build**
 ```bash
 # Build with host network
-docker build --network=host -f Dockerfile.console -t betterdesk-console:local .
-docker build --network=host -f Dockerfile.hbbs -t betterdesk-hbbs:local .
-docker build --network=host -f Dockerfile.hbbr -t betterdesk-hbbr:local .
+docker build --network=host -f Dockerfile.console -t yomie-console:local .
+docker build --network=host -f Dockerfile.hbbs -t yomie-hbbs:local .
+docker build --network=host -f Dockerfile.hbbr -t yomie-hbbr:local .
 
 # Then start normally
 docker compose up -d
@@ -225,7 +225,7 @@ volumes:
 If you must use bind mounts (host paths), add the `:z` suffix:
 ```yaml
 volumes:
-  - /opt/betterdesk:/opt/rustdesk:z     # :z makes it SELinux-compatible
+  - /opt/yomie:/opt/rustdesk:z     # :z makes it SELinux-compatible
   - /opt/console-data:/app/data:z
 ```
 
@@ -234,8 +234,8 @@ volumes:
 # Apply container-compatible SELinux context to directories
 sudo chcon -Rt svirt_sandbox_file_t /path/to/data/directory
 
-# Example for BetterDesk
-sudo chcon -Rt svirt_sandbox_file_t /opt/betterdesk
+# Example for Yomie
+sudo chcon -Rt svirt_sandbox_file_t /opt/yomie
 sudo chcon -Rt svirt_sandbox_file_t /opt/console-data
 ```
 
@@ -251,26 +251,26 @@ docker compose up -d
 sudo setenforce 1
 ```
 
-> **Note:** The `betterdesk-docker.sh` script automatically handles SELinux contexts for RHEL-based systems.
+> **Note:** The `yomie-docker.sh` script automatically handles SELinux contexts for RHEL-based systems.
 
 ---
 
 ## Problem: Missing Admin Login Credentials
 
-If you started BetterDesk Console using Docker Compose following "Option 2" and don't see admin login credentials in the logs, it means the **database migration was not automatically executed**.
+If you started Yomie Console using Docker Compose following "Option 2" and don't see admin login credentials in the logs, it means the **database migration was not automatically executed**.
 
 ## ✅ Quick Solution
 
 ### Step 1: Check container status
 ```bash
 docker compose ps
-docker compose logs betterdesk-console | grep -i admin
+docker compose logs yomie-console | grep -i admin
 ```
 
 ### Step 2: Run migration manually
 ```bash
 # Run migration directly in the console container
-docker compose exec betterdesk-console python3 -c "
+docker compose exec yomie-console python3 -c "
 import sqlite3
 import secrets
 import bcrypt
@@ -281,7 +281,7 @@ DB_PATH = '/opt/rustdesk/db_v2.sqlite3'
 DEFAULT_ADMIN_USERNAME = 'admin'
 DEFAULT_ADMIN_PASSWORD = secrets.token_urlsafe(12)
 
-print('📦 Running BetterDesk Console migration...')
+print('📦 Running Yomie Console migration...')
 
 # Connect to database
 conn = sqlite3.connect(DB_PATH)
@@ -390,7 +390,7 @@ Replace your current `Dockerfile.console` with the improved version that automat
 ### 2. Rebuild container
 ```bash
 docker compose down
-docker compose build betterdesk-console
+docker compose build yomie-console
 docker compose up -d
 ```
 
@@ -405,7 +405,7 @@ The improved version automatically:
 ### Problem: "Database not found"
 ```bash
 # Check volumes
-docker compose exec betterdesk-console ls -la /opt/rustdesk/
+docker compose exec yomie-console ls -la /opt/rustdesk/
 
 # Check if HBBS created database
 docker compose exec hbbs ls -la /root/
@@ -414,7 +414,7 @@ docker compose exec hbbs ls -la /root/
 ### Problem: "bcrypt not available"
 ```bash
 # Install bcrypt in container
-docker compose exec betterdesk-console pip install bcrypt
+docker compose exec yomie-console pip install bcrypt
 ```
 
 ### Problem: Container won't start
@@ -430,19 +430,19 @@ docker compose ps
 
 ```bash
 # Check console container logs
-docker compose logs -f betterdesk-console
+docker compose logs -f yomie-console
 
 # Access container
-docker compose exec betterdesk-console bash
+docker compose exec yomie-console bash
 
 # Restart entire stack
 docker compose restart
 
 # Check database status
-docker compose exec betterdesk-console sqlite3 /opt/rustdesk/db_v2.sqlite3 ".tables"
+docker compose exec yomie-console sqlite3 /opt/rustdesk/db_v2.sqlite3 ".tables"
 
 # Check users in database
-docker compose exec betterdesk-console sqlite3 /opt/rustdesk/db_v2.sqlite3 "SELECT username, role FROM users;"
+docker compose exec yomie-console sqlite3 /opt/rustdesk/db_v2.sqlite3 "SELECT username, role FROM users;"
 ```
 
 ## 🔒 Security & Updates
@@ -458,8 +458,8 @@ docker compose exec betterdesk-console sqlite3 /opt/rustdesk/db_v2.sqlite3 "SELE
 docker-compose pull && docker-compose down && docker-compose up -d
 
 # Method 2: Update specific services
-docker-compose pull betterdesk-console
-docker-compose up -d betterdesk-console
+docker-compose pull yomie-console
+docker-compose up -d yomie-console
 
 # Method 3: Check for updates first
 docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}\t{{.Size}}"
@@ -479,7 +479,7 @@ Instead of Watchtower, consider modern secure alternatives:
 ```bash
 # Weekly security check (add to cron)
 #!/bin/bash
-cd /path/to/BetterDesk-Console
+cd /path/to/Yomie-Console
 docker-compose pull --quiet
 if [ $? -eq 0 ]; then
     echo "Updates available - review and apply manually"
@@ -505,7 +505,7 @@ OCI runtime exec failed: exec failed: unable to start container process: exec: "
 The official `rustdesk/rustdesk-server:latest` image is based on `FROM scratch` which contains only the binaries without any shell or utilities.
 
 ### Solution
-BetterDesk Console now uses custom Dockerfiles (`Dockerfile.hbbs` and `Dockerfile.hbbr`) that:
+Yomie Console now uses custom Dockerfiles (`Dockerfile.hbbs` and `Dockerfile.hbbr`) that:
 1. Copy binaries from the official RustDesk image
 2. Use `busybox:musl` as base for shell support
 3. Provide essential tools: `sh`, `nc`, `wget`, `cat`, `ls`, `echo`, etc.

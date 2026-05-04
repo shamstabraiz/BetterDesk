@@ -84,7 +84,7 @@
 - `activity_tracker` — śledzenie czasu użycia aplikacji (background thread)
 - `terminal_session` — PTY (unix) / ConPTY (Windows)
 
-**Implementacja:** agent-client pobiera większość z natywnego `betterdesk-agent` (Go) — portować moduły do Rust lub uruchamiać jako sidecar subprocess.
+**Implementacja:** agent-client pobiera większość z natywnego `yomie-agent` (Go) — portować moduły do Rust lub uruchamiać jako sidecar subprocess.
 
 ---
 
@@ -125,7 +125,7 @@
 - `enigo` — input inject (już w MGMT)
 - `arboard` — clipboard sync
 - `tokio-tungstenite` — WS do relay
-- `protobuf` — protokół (reuse z betterdesk-server/proto)
+- `protobuf` — protokół (reuse z yomie-server/proto)
 
 ### Agent — nowe moduły
 - `remote/capture.rs` — capture loop (30-60 FPS adaptive)
@@ -178,7 +178,7 @@
 ### Portal pobierania (oddzielny port — np. 5001)
 - Nowa aplikacja Node.js `downloads-portal/` (lub route prefix w istniejącej konsoli).
 - Publiczny dostęp (bez auth).
-- Strona z brandingiem firmy: logo, nazwa, opis, "Pobierz BetterDesk Agent" × OS.
+- Strona z brandingiem firmy: logo, nazwa, opis, "Pobierz Yomie Agent" × OS.
 - Każdy link → pobiera najnowszy build z zaszytym preset configiem.
 - Po instalacji agent auto-rejestruje się do serwera (z tokenem z config).
 

@@ -1,4 +1,4 @@
-/// BetterDesk Agent — USB Device Monitor
+/// Yomie Agent — USB Device Monitor
 ///
 /// Enumerates connected USB devices and detects insertion/removal events.
 /// Reports device info (VID, PID, serial, class) to the server for

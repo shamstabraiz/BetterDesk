@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Report Engine Service
+ * Yomie Console — Report Engine Service
  *
  * Generates aggregated reports from all data sources: devices, activity,
  * tickets, inventory, network monitoring, DLP events, and alerts.

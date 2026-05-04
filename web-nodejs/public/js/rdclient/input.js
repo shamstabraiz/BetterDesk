@@ -1,5 +1,5 @@
 /**
- * BetterDesk Web Remote Client - Input Manager
+ * Yomie Web Remote Client - Input Manager
  * Captures keyboard and mouse events and converts them to RustDesk protocol messages
  */
 

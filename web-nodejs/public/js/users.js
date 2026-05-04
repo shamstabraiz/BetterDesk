@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Users Page
+ * Yomie Console - Users Page
  * User management for admins
  */
 

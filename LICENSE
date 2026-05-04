@@ -24,7 +24,7 @@ This project is available under a dual-licensing model:
 
 ### Open Source License (Apache 2.0)
 
-The BetterDesk Server and Console are licensed under the Apache License 2.0.
+The Yomie Server and Console are licensed under the Apache License 2.0.
 You may use, modify, and distribute this software freely under the terms
 of Apache 2.0. See above for the full license text.
 
@@ -42,13 +42,13 @@ Contact: shamstabraiz (Krzysztof Nienartowicz) (via GitHub Issues or email)
 
 ## Clean-Room Implementation Notice
 
-BetterDesk Server (`betterdesk-server/`) is an independent, clean-room
+Yomie Server (`yomie-server/`) is an independent, clean-room
 implementation of the RustDesk rendezvous and relay protocol. It contains
 **no code derived from the RustDesk project**. The server implements published
 protocol specifications for client compatibility, similar to how any HTTP
 server implements the HTTP protocol without being derived from Apache or Nginx.
 
-BetterDesk Console (`web-nodejs/`) is an entirely original Node.js/Express
+Yomie Console (`web-nodejs/`) is an entirely original Node.js/Express
 web application. It has no code-level dependency on RustDesk.
 
 Protocol definitions (`.proto` files) describe message formats for
@@ -68,13 +68,13 @@ tooling only and are never included in releases, packages, or Docker images.
 Earlier commits in this repository's git history may contain AGPL-3.0 licensed
 files that were part of the project when it was originally released under
 AGPL-3.0. The license change to Apache 2.0 applies to the current and all
-future versions of the active codebase (`betterdesk-server/` and `web-nodejs/`).
+future versions of the active codebase (`yomie-server/` and `web-nodejs/`).
 
 ---
 
 ## Trademark Notice
 
-"RustDesk" is a trademark of the RustDesk Team. BetterDesk is an independent
+"RustDesk" is a trademark of the RustDesk Team. Yomie is an independent
 project that implements the RustDesk protocol for client compatibility. Use of
 the name "RustDesk" in this project is purely descriptive (indicating protocol
 compatibility) and does not imply affiliation with or endorsement by the
@@ -84,12 +84,12 @@ RustDesk Team.
 
 ## Component Licenses
 
-### BetterDesk Server (Go)
+### Yomie Server (Go)
 License: Apache License 2.0
 Copyright: 2025-2026 shamstabraiz (Krzysztof Nienartowicz)
-Location: betterdesk-server/
+Location: yomie-server/
 
-### BetterDesk Console (Node.js)
+### Yomie Console (Node.js)
 License: Apache License 2.0
 Copyright: 2025-2026 shamstabraiz (Krzysztof Nienartowicz)
 Location: web-nodejs/

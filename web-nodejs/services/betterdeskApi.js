@@ -1,7 +1,7 @@
 /**
- * BetterDesk Console - BetterDesk Go Server API Client
- * Full client for the BetterDesk Go server REST API (34+ endpoints).
- * Used when serverBackend is set to 'betterdesk'.
+ * Yomie Console - Yomie Go Server API Client
+ * Full client for the Yomie Go server REST API (34+ endpoints).
+ * Used when serverBackend is set to 'yomie'.
  *
  * Auth: X-API-Key header (reads the same .api_key file as hbbs).
  * The Go server accepts X-API-Key for all authenticated endpoints.
@@ -12,7 +12,7 @@ const https = require('https');
 const fs = require('fs');
 const config = require('../config/config');
 
-// Axios instance for BetterDesk Go API
+// Axios instance for Yomie Go API
 // Allow self-signed certificates for local TLS connections
 const apiClient = axios.create({
     baseURL: config.betterdeskApiUrl,
@@ -34,10 +34,10 @@ apiClient.interceptors.response.use(undefined, async (error) => {
         const body = typeof error.response.data === 'string' ? error.response.data : '';
         if (body.includes('HTTP request to an HTTPS server') || body.includes('Client sent an HTTP request')) {
             _tlsMismatchWarned = true;
-            console.error('[BetterDesk API] ⚠ TLS MISMATCH: Go server has TLS_API=Y enabled on port ' +
+            console.error('[Yomie API] ⚠ TLS MISMATCH: Go server has TLS_API=Y enabled on port ' +
                 (config.betterdeskApiUrl || '21114') + ' but this console connects via HTTP.');
-            console.error('[BetterDesk API]   Fix: remove TLS_API=Y from Go server environment or add -tls-api removal.');
-            console.error('[BetterDesk API]   The API port must stay HTTP for console↔Go communication. See issue #104.');
+            console.error('[Yomie API]   Fix: remove TLS_API=Y from Go server environment or add -tls-api removal.');
+            console.error('[Yomie API]   The API port must stay HTTP for console↔Go communication. See issue #104.');
         }
     }
     if (error.response?.status === 401 && !_keyReloaded) {
@@ -77,9 +77,9 @@ async function getHealth() {
     try {
         const { data } = await apiClient.get('/health');
         // Go server returns status:'ok'; normalise to status:'running' for panel compatibility
-        return { ...data, status: 'running', backend: 'betterdesk' };
+        return { ...data, status: 'running', backend: 'yomie' };
     } catch (err) {
-        return { status: 'unreachable', backend: 'betterdesk', error: err.message };
+        return { status: 'unreachable', backend: 'yomie', error: err.message };
     }
 }
 
@@ -108,7 +108,7 @@ async function getAllPeers() {
         const peers = Array.isArray(data) ? data : (data.peers || []);
         return peers.map(normalisePeer);
     } catch (err) {
-        console.warn('BetterDesk API getAllPeers error:', err.message);
+        console.warn('Yomie API getAllPeers error:', err.message);
         return [];
     }
 }
@@ -208,7 +208,7 @@ async function getOnlinePeers() {
         const peers = Array.isArray(data) ? data : (data.peers || []);
         return peers;
     } catch (err) {
-        console.warn('BetterDesk API getOnlinePeers error:', err.message);
+        console.warn('Yomie API getOnlinePeers error:', err.message);
         return [];
     }
 }
@@ -363,17 +363,17 @@ async function getServerInfo() {
         return {
             health: healthRes.data,
             stats: statsRes.data,
-            backend: 'betterdesk'
+            backend: 'yomie'
         };
     } catch (err) {
         return null;
     }
 }
 
-// ========================== Sync (no-op for BetterDesk) ======================
+// ========================== Sync (no-op for Yomie) ======================
 
 /**
- * In BetterDesk mode the Go server owns the peer map, so status sync
+ * In Yomie mode the Go server owns the peer map, so status sync
  * is not needed. This is a no-op kept for interface compatibility.
  */
 async function syncOnlineStatus(/* db */) {

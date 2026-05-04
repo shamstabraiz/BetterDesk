@@ -1,4 +1,4 @@
-/// BetterDesk Agent — DLP Policy Enforcer
+/// Yomie Agent — DLP Policy Enforcer
 ///
 /// Evaluates USB devices and file operations against server-defined
 /// policies (whitelist/blacklist). Reports violations and optionally
@@ -71,7 +71,7 @@ pub struct PolicyResult {
 /// Evaluates items against a set of DLP policies.
 pub struct PolicyEnforcer {
     policies: Vec<DlpPolicy>,
-    /// URL of the BetterDesk server for policy sync
+    /// URL of the Yomie server for policy sync
     server_url: String,
     device_id: String,
 }

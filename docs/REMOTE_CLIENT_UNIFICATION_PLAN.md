@@ -5,7 +5,7 @@
 > Goal: merge the two browser remote desktop clients (`/remote/:id` RustDesk
 > client + `/remote-cdap/:id` CDAP agent viewer) into a single unified UI that
 > auto-detects the available transport, unlocks richer features when the
-> device runs the BetterDesk CDAP agent, and forwards the full RustDesk
+> device runs the Yomie CDAP agent, and forwards the full RustDesk
 > feature set (mouse, keyboard, clipboard, audio, multi-monitor, file
 > transfer, recording).
 
@@ -237,12 +237,12 @@ web-nodejs/
   public/js/cdap-audio.js                           PR 3.8
   public/js/chat.js                                 PR 2.6
 
-betterdesk-server/
+yomie-server/
   api/cdap_handlers.go                              PR 3.1
   cdap/desktop.go                                   PR 3.5
   cdap/audio.go                                     PR 3.8
 
-betterdesk-agent/
+yomie-agent/
   agent/desktop.go                                  PR 3.7 (H.264)
   agent/system.go                                   PR 3.10
   agent/clipboard.go                                PR 3.2
@@ -250,4 +250,4 @@ betterdesk-agent/
 
 ---
 
-*Last updated: 2026-04-25 — author: GitHub Copilot during BetterDesk session.*
+*Last updated: 2026-04-25 — author: GitHub Copilot during Yomie session.*

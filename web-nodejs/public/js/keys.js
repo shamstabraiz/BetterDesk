@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Keys Page
+ * Yomie Console - Keys Page
  */
 
 (function() {

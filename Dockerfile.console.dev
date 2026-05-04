@@ -3,10 +3,10 @@ FROM node:20-alpine
 
 RUN apk add --no-cache python3 make g++ sqlite curl tini netcat-openbsd
 
-RUN mkdir -p /etc/betterdesk
-COPY docker-entrypoint.sh /etc/betterdesk/docker-entrypoint.sh
-COPY docker/console-dev-entrypoint.sh /etc/betterdesk/console-dev-entrypoint.sh
-RUN chmod +x /etc/betterdesk/docker-entrypoint.sh /etc/betterdesk/console-dev-entrypoint.sh
+RUN mkdir -p /etc/yomie
+COPY docker-entrypoint.sh /etc/yomie/docker-entrypoint.sh
+COPY docker/console-dev-entrypoint.sh /etc/yomie/console-dev-entrypoint.sh
+RUN chmod +x /etc/yomie/docker-entrypoint.sh /etc/yomie/console-dev-entrypoint.sh
 
 WORKDIR /app
 COPY web-nodejs/package.json web-nodejs/package-lock.json* ./
@@ -21,4 +21,4 @@ ENV NODE_WATCH=1
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -sf http://localhost:5000/health || exit 1
 
-ENTRYPOINT ["/sbin/tini", "--", "/etc/betterdesk/console-dev-entrypoint.sh"]
+ENTRYPOINT ["/sbin/tini", "--", "/etc/yomie/console-dev-entrypoint.sh"]

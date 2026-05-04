@@ -1,8 +1,8 @@
-# BetterDesk — Threat Model
+# Yomie — Threat Model
 
 > **Methodology:** STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
 > **Last Updated:** 2026-04-01
-> **Scope:** BetterDesk Go Server, Node.js Console, Desktop Client, CDAP Agent
+> **Scope:** Yomie Go Server, Node.js Console, Desktop Client, CDAP Agent
 
 ---
 

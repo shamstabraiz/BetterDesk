@@ -1,7 +1,7 @@
 # Audyt bezpieczeństwa logowania i API
 
 Data: 2026-04-26
-Zakres: przepływy logowania BetterDesk, obsługa sesji, obsługa tokenów oraz autoryzacja HTTP/WebSocket API w konsoli Node.js i serwerze Go
+Zakres: przepływy logowania Yomie, obsługa sesji, obsługa tokenów oraz autoryzacja HTTP/WebSocket API w konsoli Node.js i serwerze Go
 Metoda: audyt kodu źródłowego bieżącej gałęzi main, skoncentrowany na uwierzytelnianiu, autoryzacji, rate limiting, cyklu życia tokenów oraz granicach zaufania między przeglądarką i API
 Status: łatki 1–4 zastosowane 2026-04-26 (zerowe lub minimalne ryzyko kompatybilności). Łatki 5–6 są odroczone i śledzone osobno, ponieważ wymagają etapowego wdrożenia, aby nie zepsuć działających instalacji.
 
@@ -11,14 +11,14 @@ Status: łatki 1–4 zastosowane 2026-04-26 (zerowe lub minimalne ryzyko kompaty
 |---|---|---|---|---|
 | 1 | Obejście brute-force lockout (brakujące `await`) | Wysoka | **Naprawione** | `web-nodejs/routes/rustdesk-api.routes.js` — dodano `await` przed `authService.checkBruteForce`. Brak wpływu na schemat, role i tokeny. |
 | 2 | Zakończenie 2FA bez regeneracji sesji | Średnia | **Naprawione** | `web-nodejs/routes/auth.routes.js` — zapisy do sesji po TOTP są teraz w `req.session.regenerate(...)`, identycznie jak w standardowym logowaniu. Nazwa cookie nie zmieniona; istniejące sesje działają dalej. |
-| 3 | Endpointy audit / WS-events bez wyraźnego RBAC | Średnia | **Naprawione** | `betterdesk-server/api/server.go` — `GET /api/audit/events` i `GET /api/ws/events` opakowane w `requirePermission(auth.PermAuditView, ...)`. Wszystkie role wbudowane, które wcześniej korzystały z tych endpointów (super_admin, admin, server_admin, global_admin, operator, viewer) już posiadają `audit.view`; dostęp traci wyłącznie rola `pro` — patrz CHANGELOG. |
-| 4 | Wyciek surowych `err.Error()` z handlerów Go | Średnia | **Naprawione** | `betterdesk-server/api/auth_handlers.go` — dziewięć ścieżek 500 zwraca teraz `{"error":"internal error"}` i loguje pełny szczegół po stronie serwera przez `log.Printf`. Kody statusów niezmienione; pozostałe ścieżki bez zmian. |
+| 3 | Endpointy audit / WS-events bez wyraźnego RBAC | Średnia | **Naprawione** | `yomie-server/api/server.go` — `GET /api/audit/events` i `GET /api/ws/events` opakowane w `requirePermission(auth.PermAuditView, ...)`. Wszystkie role wbudowane, które wcześniej korzystały z tych endpointów (super_admin, admin, server_admin, global_admin, operator, viewer) już posiadają `audit.view`; dostęp traci wyłącznie rola `pro` — patrz CHANGELOG. |
+| 4 | Wyciek surowych `err.Error()` z handlerów Go | Średnia | **Naprawione** | `yomie-server/api/auth_handlers.go` — dziewięć ścieżek 500 zwraca teraz `{"error":"internal error"}` i loguje pełny szczegół po stronie serwera przez `log.Printf`. Kody statusów niezmienione; pozostałe ścieżki bez zmian. |
 | 5 | Plaintext tokeny dostępu w `access_tokens` | Średnia | **Odroczone** | Wymaga 3-fazowego wdrożenia, żeby nie wymusić ponownego logowania na każdym aktywnym kliencie RustDesk. Patrz sekcja *Odroczone łatki* poniżej. |
 | 6 | CSP nadal z `'unsafe-inline'` (script attrs) i `'unsafe-eval'` (remote viewer) | Niska | **Odroczone** | Usunięcie tych flag wymaga refaktoringu inline’owych handlerów EJS i podmiany `eval`-owej generacji kodu protobuf.js. Patrz sekcja *Odroczone łatki* poniżej. |
 
 ## Streszczenie wykonawcze
 
-BetterDesk ma solidną bazę bezpieczeństwa jak na wieloskładnikową platformę do zdalnego zarządzania. Projekt zawiera już uwierzytelnianie sesyjne dla panelu web, TOTP 2FA, ochronę CSRF, rate limiting, RBAC, klucze API, JWT oraz rozsądną liczbę testów regresyjnych.
+Yomie ma solidną bazę bezpieczeństwa jak na wieloskładnikową platformę do zdalnego zarządzania. Projekt zawiera już uwierzytelnianie sesyjne dla panelu web, TOTP 2FA, ochronę CSRF, rate limiting, RBAC, klucze API, JWT oraz rozsądną liczbę testów regresyjnych.
 
 Główna słabość nie polega na całkowitym braku zabezpieczeń, ale na niespójności między kilkoma ścieżkami uwierzytelniania:
 
@@ -39,9 +39,9 @@ Audyt objął następujące obszary:
 - usługę auth i obsługę tokenów po stronie Node.js w [web-nodejs/services/authService.js](../../web-nodejs/services/authService.js)
 - persystencję bazy i tokenów w [web-nodejs/services/database.js](../../web-nodejs/services/database.js) i [web-nodejs/services/dbAdapter.js](../../web-nodejs/services/dbAdapter.js)
 - middleware bezpieczeństwa Node.js w [web-nodejs/middleware/auth.js](../../web-nodejs/middleware/auth.js), [web-nodejs/middleware/csrf.js](../../web-nodejs/middleware/csrf.js), [web-nodejs/middleware/security.js](../../web-nodejs/middleware/security.js) oraz [web-nodejs/middleware/rateLimiter.js](../../web-nodejs/middleware/rateLimiter.js)
-- auth i routing serwera Go w [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go), [betterdesk-server/api/server.go](../../betterdesk-server/api/server.go), [betterdesk-server/api/client_api_handlers.go](../../betterdesk-server/api/client_api_handlers.go), [betterdesk-server/api/token_handlers.go](../../betterdesk-server/api/token_handlers.go)
-- prymitywy auth po stronie Go w [betterdesk-server/auth/jwt.go](../../betterdesk-server/auth/jwt.go), [betterdesk-server/auth/password.go](../../betterdesk-server/auth/password.go) i [betterdesk-server/auth/totp.go](../../betterdesk-server/auth/totp.go)
-- testy powiązane w [web-nodejs/tests/auth.routes.test.js](../../web-nodejs/tests/auth.routes.test.js), [web-nodejs/tests/middleware.auth.test.js](../../web-nodejs/tests/middleware.auth.test.js), [web-nodejs/tests/security.middleware.test.js](../../web-nodejs/tests/security.middleware.test.js), [betterdesk-server/auth/password_test.go](../../betterdesk-server/auth/password_test.go), [betterdesk-server/auth/jwt_test.go](../../betterdesk-server/auth/jwt_test.go) i [betterdesk-server/auth/totp_test.go](../../betterdesk-server/auth/totp_test.go)
+- auth i routing serwera Go w [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go), [yomie-server/api/server.go](../../yomie-server/api/server.go), [yomie-server/api/client_api_handlers.go](../../yomie-server/api/client_api_handlers.go), [yomie-server/api/token_handlers.go](../../yomie-server/api/token_handlers.go)
+- prymitywy auth po stronie Go w [yomie-server/auth/jwt.go](../../yomie-server/auth/jwt.go), [yomie-server/auth/password.go](../../yomie-server/auth/password.go) i [yomie-server/auth/totp.go](../../yomie-server/auth/totp.go)
+- testy powiązane w [web-nodejs/tests/auth.routes.test.js](../../web-nodejs/tests/auth.routes.test.js), [web-nodejs/tests/middleware.auth.test.js](../../web-nodejs/tests/middleware.auth.test.js), [web-nodejs/tests/security.middleware.test.js](../../web-nodejs/tests/security.middleware.test.js), [yomie-server/auth/password_test.go](../../yomie-server/auth/password_test.go), [yomie-server/auth/jwt_test.go](../../yomie-server/auth/jwt_test.go) i [yomie-server/auth/totp_test.go](../../yomie-server/auth/totp_test.go)
 
 ## Mocne strony
 
@@ -63,19 +63,19 @@ Panel odrzuca zbyt długie username i password w [web-nodejs/routes/auth.routes.
 
 ### 5. Go API ma rate limiting dla logowania i 2FA
 
-Handlery login oraz login/2fa po stronie Go wymuszają per-IP rate limiting w [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go#L177) i [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go#L250).
+Handlery login oraz login/2fa po stronie Go wymuszają per-IP rate limiting w [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go#L177) i [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go#L250).
 
 ### 6. Częściowe tokeny 2FA po stronie Go są krótkotrwałe
 
-Go API poprawnie wydaje 5-minutowy częściowy token dla kroku 2FA w [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go#L213). To dobry domyślny wybór w porównaniu z długowiecznymi tokenami pośrednimi.
+Go API poprawnie wydaje 5-minutowy częściowy token dla kroku 2FA w [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go#L213). To dobry domyślny wybór w porównaniu z długowiecznymi tokenami pośrednimi.
 
 ### 7. Transport kluczy API jest lepszy niż w starszym modelu
 
-Go API akceptuje klucze API wyłącznie z nagłówka X-API-Key, a nie z query string, zgodnie z [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go#L801). To zmniejsza ryzyko wycieku do logów, cache i reverse proxy.
+Go API akceptuje klucze API wyłącznie z nagłówka X-API-Key, a nie z query string, zgodnie z [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go#L801). To zmniejsza ryzyko wycieku do logów, cache i reverse proxy.
 
 ### 8. Heartbeat i sysinfo po stronie Go są realnie limitowane
 
-Serwer definiuje i wykorzystuje osobny limiter dla heartbeat/sysinfo w [betterdesk-server/api/server.go](../../betterdesk-server/api/server.go#L76), [betterdesk-server/api/client_api_handlers.go](../../betterdesk-server/api/client_api_handlers.go#L563), [betterdesk-server/api/client_api_handlers.go](../../betterdesk-server/api/client_api_handlers.go#L631) oraz [betterdesk-server/api/client_api_handlers.go](../../betterdesk-server/api/client_api_handlers.go#L708).
+Serwer definiuje i wykorzystuje osobny limiter dla heartbeat/sysinfo w [yomie-server/api/server.go](../../yomie-server/api/server.go#L76), [yomie-server/api/client_api_handlers.go](../../yomie-server/api/client_api_handlers.go#L563), [yomie-server/api/client_api_handlers.go](../../yomie-server/api/client_api_handlers.go#L631) oraz [yomie-server/api/client_api_handlers.go](../../yomie-server/api/client_api_handlers.go#L708).
 
 ## Podsumowanie ustaleń
 
@@ -149,11 +149,11 @@ Waga: Średnia
 
 Dowody:
 
-- permisja audit istnieje: [betterdesk-server/auth/permissions.go](../../betterdesk-server/auth/permissions.go#L36)
-- rejestracja trasy audytu: [betterdesk-server/api/server.go](../../betterdesk-server/api/server.go#L201)
-- rejestracja websocketów eventów: [betterdesk-server/api/server.go](../../betterdesk-server/api/server.go#L204)
-- handler audytu: [betterdesk-server/api/server.go](../../betterdesk-server/api/server.go#L1190)
-- typy eventów rozgłaszanych przez event bus: [betterdesk-server/events/bus.go](../../betterdesk-server/events/bus.go)
+- permisja audit istnieje: [yomie-server/auth/permissions.go](../../yomie-server/auth/permissions.go#L36)
+- rejestracja trasy audytu: [yomie-server/api/server.go](../../yomie-server/api/server.go#L201)
+- rejestracja websocketów eventów: [yomie-server/api/server.go](../../yomie-server/api/server.go#L204)
+- handler audytu: [yomie-server/api/server.go](../../yomie-server/api/server.go#L1190)
+- typy eventów rozgłaszanych przez event bus: [yomie-server/events/bus.go](../../yomie-server/events/bus.go)
 
 Opis:
 
@@ -176,9 +176,9 @@ Waga: Średnia
 
 Dowody:
 
-- [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go#L336)
-- [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go#L498)
-- [betterdesk-server/api/auth_handlers.go](../../betterdesk-server/api/auth_handlers.go#L743)
+- [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go#L336)
+- [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go#L498)
+- [yomie-server/api/auth_handlers.go](../../yomie-server/api/auth_handlers.go#L743)
 
 Opis:
 
@@ -256,7 +256,7 @@ Samo w sobie nie jest to błędem, ale wyraźnie zwiększa ryzyko dryfu. Najważ
 Pozytywne sygnały:
 
 - istnieją dedykowane testy dla auth i middleware panelu w [web-nodejs/tests/auth.routes.test.js](../../web-nodejs/tests/auth.routes.test.js), [web-nodejs/tests/middleware.auth.test.js](../../web-nodejs/tests/middleware.auth.test.js) oraz [web-nodejs/tests/security.middleware.test.js](../../web-nodejs/tests/security.middleware.test.js)
-- istnieją testy prymitywów auth po stronie Go w [betterdesk-server/auth/password_test.go](../../betterdesk-server/auth/password_test.go), [betterdesk-server/auth/jwt_test.go](../../betterdesk-server/auth/jwt_test.go) oraz [betterdesk-server/auth/totp_test.go](../../betterdesk-server/auth/totp_test.go)
+- istnieją testy prymitywów auth po stronie Go w [yomie-server/auth/password_test.go](../../yomie-server/auth/password_test.go), [yomie-server/auth/jwt_test.go](../../yomie-server/auth/jwt_test.go) oraz [yomie-server/auth/totp_test.go](../../yomie-server/auth/totp_test.go)
 
 Luki w pokryciu ujawnione przez ten audyt:
 
@@ -285,13 +285,13 @@ Luki w pokryciu ujawnione przez ten audyt:
 
 ## Wniosek końcowy
 
-Warstwa logowania i API BetterDesk jest wyraźnie dojrzalsza niż w przeciętnym autorskim stosie do zdalnego zarządzania. Projekt używa wielu właściwych prymitywów i wzorców. Najważniejsza dalsza praca polega jednak na usunięciu niespójności bezpieczeństwa między różnymi ścieżkami dostępu.
+Warstwa logowania i API Yomie jest wyraźnie dojrzalsza niż w przeciętnym autorskim stosie do zdalnego zarządzania. Projekt używa wielu właściwych prymitywów i wzorców. Najważniejsza dalsza praca polega jednak na usunięciu niespójności bezpieczeństwa między różnymi ścieżkami dostępu.
 
 Po naprawieniu elementów z Priorytetu 1 ogólny poziom ryzyka tej warstwy spadnie wyraźnie bez potrzeby przebudowy całej architektury.
 
 ## Odroczone łatki
 
-Poniższe dwa ustalenia świadomie **nie** są naprawione w tej serii, ponieważ naiwna łatka popsułaby istniejące instalacje BetterDesk. Są udokumentowane tutaj, żeby można je było wdrożyć później jako osobne, dobrze przetestowane rollouty.
+Poniższe dwa ustalenia świadomie **nie** są naprawione w tej serii, ponieważ naiwna łatka popsułaby istniejące instalacje Yomie. Są udokumentowane tutaj, żeby można je było wdrożyć później jako osobne, dobrze przetestowane rollouty.
 
 ### Łatka 5 — hashowanie tokenów dostępu RustDesk w bazie (Średnia)
 

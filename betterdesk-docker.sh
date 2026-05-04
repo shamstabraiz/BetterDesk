@@ -1,7 +1,7 @@
 #!/bin/bash
 #===============================================================================
 #
-#   BetterDesk Console Manager v3.0.0
+#   Yomie Console Manager v3.0.0
 #   All-in-One Interactive Tool for Docker
 #
 #   Features:
@@ -18,7 +18,7 @@
 #     - SQLite to PostgreSQL migration
 #     - CDAP (Custom Device API Protocol) support
 #
-#   Usage: ./betterdesk-docker.sh
+#   Usage: ./yomie-docker.sh
 #
 #===============================================================================
 
@@ -30,32 +30,32 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Default paths (can be overridden by environment variables)
 DATA_DIR="${DATA_DIR:-}"
-BACKUP_DIR="${BACKUP_DIR:-/opt/betterdesk-backups}"
+BACKUP_DIR="${BACKUP_DIR:-/opt/yomie-backups}"
 COMPOSE_FILE="${COMPOSE_FILE:-$SCRIPT_DIR/docker-compose.yml}"
 
 # Database configuration
 USE_POSTGRESQL="${USE_POSTGRESQL:-false}"
 DB_TYPE="${DB_TYPE:-sqlite}"
 POSTGRESQL_URI="${POSTGRESQL_URI:-}"
-POSTGRESQL_USER="${POSTGRESQL_USER:-betterdesk}"
+POSTGRESQL_USER="${POSTGRESQL_USER:-yomie}"
 POSTGRESQL_PASS="${POSTGRESQL_PASS:-}"
-POSTGRESQL_DB="${POSTGRESQL_DB:-betterdesk}"
+POSTGRESQL_DB="${POSTGRESQL_DB:-yomie}"
 POSTGRESQL_HOST="${POSTGRESQL_HOST:-postgres}"  # Container name as host
 POSTGRESQL_PORT="${POSTGRESQL_PORT:-5432}"
 STORE_ADMIN_CREDENTIALS="${STORE_ADMIN_CREDENTIALS:-false}"
 
 # Common data directory paths to search
 COMMON_DATA_PATHS=(
-    "/opt/betterdesk-data"
-    "/var/lib/betterdesk"
+    "/opt/yomie-data"
+    "/var/lib/yomie"
     "/opt/rustdesk-data"
     "/var/lib/rustdesk"
-    "$HOME/betterdesk-data"
+    "$HOME/yomie-data"
 )
 
 # Container names
-SERVER_CONTAINER="betterdesk-server"
-CONSOLE_CONTAINER="betterdesk-console"
+SERVER_CONTAINER="yomie-server"
+CONSOLE_CONTAINER="yomie-console"
 # Legacy aliases for backwards compatibility in detect functions
 HBBS_CONTAINER="$SERVER_CONTAINER"
 HBBR_CONTAINER="$SERVER_CONTAINER"
@@ -225,7 +225,7 @@ auto_detect_docker_paths() {
     
     # If still not found, use default for new installations
     if [ -z "$DATA_DIR" ]; then
-        DATA_DIR="/opt/betterdesk-data"
+        DATA_DIR="/opt/yomie-data"
         print_info "No data found. Default path: $DATA_DIR"
     fi
     
@@ -276,7 +276,7 @@ configure_docker_paths() {
             ;;
         2)
             echo ""
-            echo -n "Enter data directory path (e.g., /opt/betterdesk-data): "
+            echo -n "Enter data directory path (e.g., /opt/yomie-data): "
             read -r new_path
             if [ -n "$new_path" ]; then
                 if [ -d "$new_path" ]; then
@@ -330,8 +330,8 @@ configure_docker_paths() {
             configure_docker_paths
             ;;
         5)
-            DATA_DIR="/opt/betterdesk-data"
-            BACKUP_DIR="/opt/betterdesk-backups"
+            DATA_DIR="/opt/yomie-data"
+            BACKUP_DIR="/opt/yomie-backups"
             COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
             print_success "Paths reset to defaults"
             press_enter
@@ -357,8 +357,8 @@ detect_installation() {
     IMAGES_BUILT=false
     DATA_EXISTS=false
     
-    # Check if images exist (new Go architecture: betterdesk-server + betterdesk-console)
-    if docker images | grep -q "betterdesk-server\|betterdesk-console"; then
+    # Check if images exist (new Go architecture: yomie-server + yomie-console)
+    if docker images | grep -q "yomie-server\|yomie-console"; then
         IMAGES_BUILT=true
         INSTALL_STATUS="partial"
     fi
@@ -409,7 +409,7 @@ print_status() {
     echo -e "${WHITE}${BOLD}═══ Image Status ═══${NC}"
     echo ""
     
-    for image in "betterdesk-server" "betterdesk-console"; do
+    for image in "yomie-server" "yomie-console"; do
         if docker images --format '{{.Repository}}' | grep -q "^$image$"; then
             local size=$(docker images --format '{{.Size}}' "$image:latest" 2>/dev/null)
             echo -e "  $image: ${GREEN}✓ Built${NC} ($size)"
@@ -506,7 +506,7 @@ choose_database_type() {
             
             # Get PostgreSQL credentials
             echo ""
-            read -p "PostgreSQL password for 'betterdesk' user [betterdesk123]: " pg_pass
+            read -p "PostgreSQL password for 'yomie' user [betterdesk123]: " pg_pass
             POSTGRESQL_PASS="${pg_pass:-betterdesk123}"
             ;;
         *)
@@ -561,7 +561,7 @@ EOF
         if [ "$DB_TYPE" = "postgresql" ]; then
                 cat >> "$COMPOSE_FILE" << EOF
     postgres:
-        container_name: betterdesk-postgres
+        container_name: yomie-postgres
         image: postgres:16-alpine
         environment:
             POSTGRES_USER: $POSTGRESQL_USER
@@ -576,7 +576,7 @@ EOF
             retries: 5
         restart: unless-stopped
         networks:
-            - betterdesk
+            - yomie
 
 EOF
         fi
@@ -601,9 +601,9 @@ EOF
         if [ -z "$admin_password" ]; then
             admin_password=$(openssl rand -base64 12 | tr -d '/+=' | head -c 16)
             # Only clean auth.db on FRESH install (no existing credentials)
-            if docker volume inspect "${PROJECT_NAME:-betterdesk}_console_data" >/dev/null 2>&1; then
+            if docker volume inspect "${PROJECT_NAME:-yomie}_console_data" >/dev/null 2>&1; then
                 print_info "Cleaning old auth database from console_data volume..."
-                docker run --rm -v "${PROJECT_NAME:-betterdesk}_console_data:/data" alpine \
+                docker run --rm -v "${PROJECT_NAME:-yomie}_console_data:/data" alpine \
                         sh -c "rm -f /data/auth.db /data/auth.db-wal /data/auth.db-shm" 2>/dev/null || true
             fi
         else
@@ -615,7 +615,7 @@ EOF
         local server_ip
         server_ip=$(get_public_ip)
 
-        # Add BetterDesk server (Go single binary - signal + relay + API)
+        # Add Yomie server (Go single binary - signal + relay + API)
         cat >> "$COMPOSE_FILE" << EOF
     server:
         container_name: $SERVER_CONTAINER
@@ -656,7 +656,7 @@ EOF
             start_period: 15s
         restart: unless-stopped
         networks:
-            - betterdesk
+            - yomie
 
     console:
         container_name: $CONSOLE_CONTAINER
@@ -678,7 +678,7 @@ EOF
             - RUSTDESK_PATH=/opt/rustdesk
             - HBBS_API_URL=http://$SERVER_CONTAINER:21114/api
             - BETTERDESK_API_URL=http://$SERVER_CONTAINER:21114/api
-            - SERVER_BACKEND=betterdesk
+            - SERVER_BACKEND=yomie
             - DATA_DIR=/app/data
             - DB_PATH=/opt/rustdesk/db_v2.sqlite3
             - PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
@@ -720,10 +720,10 @@ EOF
             start_period: 30s
         restart: unless-stopped
         networks:
-            - betterdesk
+            - yomie
 
 networks:
-    betterdesk:
+    yomie:
         driver: bridge
 EOF
 
@@ -881,7 +881,7 @@ do_install() {
     detect_installation
     
     if [ "$INSTALL_STATUS" = "complete" ]; then
-        print_warning "BetterDesk Docker is already installed!"
+        print_warning "Yomie Docker is already installed!"
         if ! confirm "Do you want to reinstall?"; then
             return
         fi
@@ -974,7 +974,7 @@ do_update() {
     detect_installation
     
     if [ "$INSTALL_STATUS" = "none" ]; then
-        print_error "BetterDesk Docker is not installed!"
+        print_error "Yomie Docker is not installed!"
         print_info "Use 'Fresh Installation' option"
         press_enter
         return
@@ -1114,7 +1114,7 @@ do_validate() {
     echo -e "${WHITE}Checking images...${NC}"
     echo ""
     
-    for image in "betterdesk-server" "betterdesk-console"; do
+    for image in "yomie-server" "yomie-console"; do
         echo -n "  $image: "
         if docker images --format '{{.Repository}}' | grep -q "^$image$"; then
             echo -e "${GREEN}✓ Built${NC}"
@@ -1406,11 +1406,11 @@ configure_firewall_rules() {
             total=$((total + 1))
             if ! ufw status 2>/dev/null | grep -qE "^${port}[/ ]"; then
                 if [ "$port" = "21116" ]; then
-                    ufw allow 21116/tcp comment "BetterDesk ID Server TCP" 2>/dev/null && created=$((created + 1))
-                    ufw allow 21116/udp comment "BetterDesk ID Server UDP" 2>/dev/null && created=$((created + 1))
+                    ufw allow 21116/tcp comment "Yomie ID Server TCP" 2>/dev/null && created=$((created + 1))
+                    ufw allow 21116/udp comment "Yomie ID Server UDP" 2>/dev/null && created=$((created + 1))
                     total=$((total + 1))
                 else
-                    ufw allow "${port}/tcp" comment "BetterDesk port ${port}" 2>/dev/null && created=$((created + 1))
+                    ufw allow "${port}/tcp" comment "Yomie port ${port}" 2>/dev/null && created=$((created + 1))
                 fi
             fi
         done
@@ -1495,7 +1495,7 @@ do_diagnostics() {
     echo -e "${WHITE}${BOLD}═══ Resource usage ═══${NC}"
     echo ""
 
-    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null | grep -E "NAME|betterdesk" || echo "No running containers found"
+    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null | grep -E "NAME|yomie" || echo "No running containers found"
 
     echo ""
     echo -e "${WHITE}${BOLD}═══ Database statistics ═══${NC}"
@@ -1531,12 +1531,12 @@ do_diagnostics() {
 
     local port_issues=0
     local port_defs=(
-        "21115:TCP:betterdesk-server:NAT Test"
-        "21116:TCP:betterdesk-server:ID Server (TCP)"
-        "21116:UDP:betterdesk-server:ID Server (UDP)"
-        "21117:TCP:betterdesk-server:Relay Server"
-        "5000:TCP:betterdesk-console:Web Console"
-        "21121:TCP:betterdesk-console:Client API (WAN)"
+        "21115:TCP:yomie-server:NAT Test"
+        "21116:TCP:yomie-server:ID Server (TCP)"
+        "21116:UDP:yomie-server:ID Server (UDP)"
+        "21117:TCP:yomie-server:Relay Server"
+        "5000:TCP:yomie-console:Web Console"
+        "21121:TCP:yomie-console:Client API (WAN)"
     )
 
     for entry in "${port_defs[@]}"; do
@@ -1708,7 +1708,7 @@ do_uninstall() {
     echo -e "${RED}${BOLD}══════════ UNINSTALL DOCKER ══════════${NC}"
     echo ""
     
-    print_warning "This operation will remove BetterDesk Docker!"
+    print_warning "This operation will remove Yomie Docker!"
     echo ""
     
     if ! confirm "Are you sure you want to continue?"; then
@@ -1724,7 +1724,7 @@ do_uninstall() {
     $COMPOSE_CMD down -v 2>/dev/null || true
     
     if confirm "Remove Docker images?"; then
-        docker rmi betterdesk-server betterdesk-console 2>/dev/null || true
+        docker rmi yomie-server yomie-console 2>/dev/null || true
         print_info "Images removed"
     fi
     
@@ -1733,7 +1733,7 @@ do_uninstall() {
         print_info "Removed: $DATA_DIR"
     fi
     
-    print_success "BetterDesk Docker has been uninstalled"
+    print_success "Yomie Docker has been uninstalled"
     press_enter
 }
 
@@ -1760,8 +1760,8 @@ detect_existing_rustdesk() {
     for pattern in "${container_patterns[@]}"; do
         while IFS= read -r line; do
             [ -z "$line" ] && continue
-            # Skip BetterDesk containers
-            if [[ "$line" == *"betterdesk"* ]]; then
+            # Skip Yomie containers
+            if [[ "$line" == *"yomie"* ]]; then
                 continue
             fi
             found_containers+=("$line")
@@ -1847,8 +1847,8 @@ detect_existing_rustdesk() {
         for fname in "docker-compose.yml" "docker-compose.yaml" "compose.yml" "compose.yaml"; do
             local candidate="$base/$fname"
             if [ -f "$candidate" ] && grep -qi "rustdesk\|hbbs\|hbbr" "$candidate" 2>/dev/null; then
-                # Skip BetterDesk's own compose file
-                if grep -qi "betterdesk" "$candidate" 2>/dev/null; then
+                # Skip Yomie's own compose file
+                if grep -qi "yomie" "$candidate" 2>/dev/null; then
                     continue
                 fi
                 EXISTING_COMPOSE_FILE="$candidate"
@@ -1874,7 +1874,7 @@ do_migrate() {
     echo -e "${WHITE}${BOLD}══════════ MIGRATE FROM EXISTING RUSTDESK ══════════${NC}"
     echo ""
     echo -e "${CYAN}This wizard will migrate your existing RustDesk Docker installation${NC}"
-    echo -e "${CYAN}to BetterDesk Console with enhanced features and web management.${NC}"
+    echo -e "${CYAN}to Yomie Console with enhanced features and web management.${NC}"
     echo ""
     
     # Check Docker
@@ -1976,8 +1976,8 @@ do_migrate() {
     echo -e "${YELLOW}${BOLD}IMPORTANT:${NC} This will:"
     echo "  1. Create a backup of existing data"
     echo "  2. Stop existing RustDesk containers (if found)"
-    echo "  3. Copy data to BetterDesk data directory"
-    echo "  4. Build and start BetterDesk containers"
+    echo "  3. Copy data to Yomie data directory"
+    echo "  4. Build and start Yomie containers"
     echo "  5. Create a web admin account"
     echo ""
     echo -e "${CYAN}Your existing RustDesk data will NOT be deleted.${NC}"
@@ -2017,11 +2017,11 @@ do_migrate() {
         print_info "  No containers to stop"
     fi
     
-    # === Step 3: Prepare BetterDesk data directory ===
-    print_step "[3/6] Preparing BetterDesk data directory..."
+    # === Step 3: Prepare Yomie data directory ===
+    print_step "[3/6] Preparing Yomie data directory..."
     
     if [ -z "$DATA_DIR" ]; then
-        DATA_DIR="/opt/betterdesk-data"
+        DATA_DIR="/opt/yomie-data"
     fi
     
     # Create directories with proper permissions (handles SELinux)
@@ -2063,8 +2063,8 @@ do_migrate() {
         print_warning "  No source data to copy"
     fi
     
-    # === Step 4: Create BetterDesk compose file ===
-    print_step "[4/6] Creating BetterDesk Docker Compose configuration..."
+    # === Step 4: Create Yomie compose file ===
+    print_step "[4/6] Creating Yomie Docker Compose configuration..."
     
     if [ ! -f "$COMPOSE_FILE" ]; then
         create_compose_file
@@ -2073,13 +2073,13 @@ do_migrate() {
     fi
     
     # === Step 5: Build and start ===
-    print_step "[5/6] Building BetterDesk Docker images..."
+    print_step "[5/6] Building Yomie Docker images..."
     
     build_images
     start_containers
     
     # === Step 6: Create admin user ===
-    print_step "[6/6] Setting up BetterDesk web console..."
+    print_step "[6/6] Setting up Yomie web console..."
     
     create_admin_user
     
@@ -2132,7 +2132,7 @@ do_migrate_postgresql() {
     detect_installation
     
     if [ "$INSTALL_STATUS" = "none" ]; then
-        print_error "BetterDesk Docker is not installed!"
+        print_error "Yomie Docker is not installed!"
         press_enter
         return
     fi
@@ -2161,7 +2161,7 @@ do_migrate_postgresql() {
     
     # Get PostgreSQL password
     echo ""
-    read -p "PostgreSQL password for 'betterdesk' user [betterdesk123]: " pg_pass
+    read -p "PostgreSQL password for 'yomie' user [betterdesk123]: " pg_pass
     POSTGRESQL_PASS="${pg_pass:-betterdesk123}"
     
     # Backup current setup
@@ -2191,8 +2191,8 @@ do_migrate_postgresql() {
     local migrate_tool=""
     local arch=$(uname -m)
     case "$arch" in
-        x86_64) migrate_tool="./betterdesk-server/tools/migrate/migrate-linux-amd64" ;;
-        aarch64|arm64) migrate_tool="./betterdesk-server/tools/migrate/migrate-linux-arm64" ;;
+        x86_64) migrate_tool="./yomie-server/tools/migrate/migrate-linux-amd64" ;;
+        aarch64|arm64) migrate_tool="./yomie-server/tools/migrate/migrate-linux-arm64" ;;
     esac
     
     if [ ! -f "$migrate_tool" ]; then
@@ -2201,7 +2201,7 @@ do_migrate_postgresql() {
         echo "  $migrate_tool sqlite2pg --sqlite \"$sqlite_db\" --pg \"postgres://$POSTGRESQL_USER:$POSTGRESQL_PASS@localhost:5432/$POSTGRESQL_DB?sslmode=disable\""
         echo ""
         print_info "PostgreSQL container is running. You can connect to it with:"
-        echo "  docker exec -it betterdesk-postgres psql -U $POSTGRESQL_USER -d $POSTGRESQL_DB"
+        echo "  docker exec -it yomie-postgres psql -U $POSTGRESQL_USER -d $POSTGRESQL_DB"
         press_enter
         return
     fi
@@ -2221,7 +2221,7 @@ do_migrate_postgresql() {
     # or use docker exec. Let's use docker exec approach:
     
     print_step "Creating PostgreSQL schema..."
-    docker exec betterdesk-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" << 'EOSQL'
+    docker exec yomie-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" << 'EOSQL'
 CREATE TABLE IF NOT EXISTS peers (
     guid TEXT PRIMARY KEY,
     id TEXT UNIQUE NOT NULL,
@@ -2325,10 +2325,10 @@ EOSQL
     
     if [ -f /tmp/peers_export.csv ] && [ -s /tmp/peers_export.csv ]; then
         # Copy to PostgreSQL container
-        docker cp /tmp/peers_export.csv betterdesk-postgres:/tmp/peers_export.csv
+        docker cp /tmp/peers_export.csv yomie-postgres:/tmp/peers_export.csv
         
         # Import with proper type conversion
-        docker exec betterdesk-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" << 'EOSQL'
+        docker exec yomie-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" << 'EOSQL'
 CREATE TEMP TABLE peers_import (
     guid TEXT, id TEXT, uuid TEXT, pk TEXT, created_at TEXT, last_online TEXT,
     info TEXT, hostname TEXT, username TEXT, os TEXT, version TEXT, cpu TEXT, memory TEXT,
@@ -2364,9 +2364,9 @@ EOSQL
         > /tmp/users_export.csv 2>/dev/null || true
     
     if [ -f /tmp/users_export.csv ] && [ -s /tmp/users_export.csv ]; then
-        docker cp /tmp/users_export.csv betterdesk-postgres:/tmp/users_export.csv
+        docker cp /tmp/users_export.csv yomie-postgres:/tmp/users_export.csv
         
-        docker exec betterdesk-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" << 'EOSQL'
+        docker exec yomie-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" << 'EOSQL'
 CREATE TEMP TABLE users_import (
     username TEXT, password_hash TEXT, role TEXT, is_active TEXT, created_at TEXT, last_login TEXT
 );
@@ -2389,7 +2389,7 @@ EOSQL
     # Verify migration
     print_step "Verifying migration..."
     local pg_count
-    pg_count=$(docker exec betterdesk-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" -t -c "SELECT COUNT(*) FROM peers;" | tr -d ' ')
+    pg_count=$(docker exec yomie-postgres psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DB" -t -c "SELECT COUNT(*) FROM peers;" | tr -d ' ')
     
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
@@ -2419,7 +2419,7 @@ do_configure_ssl() {
     detect_installation
     
     if [ "$INSTALL_STATUS" = "none" ]; then
-        print_error "BetterDesk Docker is not installed!"
+        print_error "Yomie Docker is not installed!"
         print_info "Use 'Fresh Installation' first (option 1)"
         press_enter
         return
@@ -2469,11 +2469,11 @@ do_configure_ssl() {
             fi
             
             mkdir -p "$ssl_dir"
-            cp "$cert_path" "$ssl_dir/betterdesk.crt"
-            cp "$key_path" "$ssl_dir/betterdesk.key"
+            cp "$cert_path" "$ssl_dir/yomie.crt"
+            cp "$key_path" "$ssl_dir/yomie.key"
             [ -n "$ca_path" ] && [ -f "$ca_path" ] && cp "$ca_path" "$ssl_dir/ca.crt"
             
-            chmod 600 "$ssl_dir/betterdesk.key"
+            chmod 600 "$ssl_dir/yomie.key"
             
             configure_docker_ssl "$ssl_dir" false
             print_success "Custom SSL certificate configured"
@@ -2503,24 +2503,24 @@ do_configure_ssl() {
             print_info "SANs: $san_list"
             
             openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-                -keyout "$ssl_dir/betterdesk.key" \
-                -out "$ssl_dir/betterdesk.crt" \
-                -subj "/CN=$cn/O=BetterDesk/C=PL" \
+                -keyout "$ssl_dir/yomie.key" \
+                -out "$ssl_dir/yomie.crt" \
+                -subj "/CN=$cn/O=Yomie/C=PL" \
                 -addext "subjectAltName=$san_list" 2>&1 || {
                 # Fallback for older openssl
                 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-                    -keyout "$ssl_dir/betterdesk.key" \
-                    -out "$ssl_dir/betterdesk.crt" \
-                    -subj "/CN=$cn/O=BetterDesk/C=PL" 2>&1
+                    -keyout "$ssl_dir/yomie.key" \
+                    -out "$ssl_dir/yomie.crt" \
+                    -subj "/CN=$cn/O=Yomie/C=PL" 2>&1
             }
             
-            chmod 600 "$ssl_dir/betterdesk.key"
-            chmod 644 "$ssl_dir/betterdesk.crt"
+            chmod 600 "$ssl_dir/yomie.key"
+            chmod 644 "$ssl_dir/yomie.crt"
             
             configure_docker_ssl "$ssl_dir" false
             
             print_success "Self-signed certificate generated (valid 10 years)"
-            print_info "Certificate: $ssl_dir/betterdesk.crt"
+            print_info "Certificate: $ssl_dir/yomie.crt"
             [ -n "$lan_ip" ] && [ "$lan_ip" != "$server_ip" ] && print_info "LAN IP included: $lan_ip"
             print_warning "Browsers will show security warning. Use Let's Encrypt for public servers."
             ;;
@@ -2561,24 +2561,24 @@ do_configure_ssl() {
             print_info "SANs: $san_list"
             
             openssl req -x509 -nodes -days 3650 -newkey rsa:4096 \
-                -keyout "$ssl_dir/betterdesk.key" \
-                -out "$ssl_dir/betterdesk.crt" \
-                -subj "/CN=$cn/O=BetterDesk Enterprise/C=PL" \
+                -keyout "$ssl_dir/yomie.key" \
+                -out "$ssl_dir/yomie.crt" \
+                -subj "/CN=$cn/O=Yomie Enterprise/C=PL" \
                 -addext "subjectAltName=$san_list" 2>&1 || {
                 openssl req -x509 -nodes -days 3650 -newkey rsa:4096 \
-                    -keyout "$ssl_dir/betterdesk.key" \
-                    -out "$ssl_dir/betterdesk.crt" \
-                    -subj "/CN=$cn/O=BetterDesk Enterprise/C=PL" 2>&1
+                    -keyout "$ssl_dir/yomie.key" \
+                    -out "$ssl_dir/yomie.crt" \
+                    -subj "/CN=$cn/O=Yomie Enterprise/C=PL" 2>&1
             }
             
-            chmod 600 "$ssl_dir/betterdesk.key"
-            chmod 644 "$ssl_dir/betterdesk.crt"
+            chmod 600 "$ssl_dir/yomie.key"
+            chmod 644 "$ssl_dir/yomie.crt"
             
             configure_docker_ssl "$ssl_dir" enterprise
             
             print_success "Enterprise TLS configured successfully!"
             echo ""
-            print_info "Certificate: $ssl_dir/betterdesk.crt"
+            print_info "Certificate: $ssl_dir/yomie.crt"
             print_info "Valid: 10 years (RSA 4096-bit)"
             [ -n "$lan_ip" ] && [ "$lan_ip" != "$server_ip" ] && print_info "LAN IP: $lan_ip"
             echo ""
@@ -2588,7 +2588,7 @@ do_configure_ssl() {
             print_info "  • Relay TLS: :21117"
             print_info "  • API HTTPS: :21114"
             echo ""
-            print_warning "For browsers/clients, you may need to import $ssl_dir/betterdesk.crt as trusted CA"
+            print_warning "For browsers/clients, you may need to import $ssl_dir/yomie.crt as trusted CA"
             ;;
         *)
             print_warning "Invalid option"

@@ -141,7 +141,7 @@ pub fn restart_system(delay_secs: u32) -> Result<()> {
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("shutdown")
-            .args(["/r", "/t", &delay_secs.to_string(), "/c", "BetterDesk remote restart"])
+            .args(["/r", "/t", &delay_secs.to_string(), "/c", "Yomie remote restart"])
             .status()?;
     }
     #[cfg(not(target_os = "windows"))]
@@ -159,7 +159,7 @@ pub fn shutdown_system(delay_secs: u32) -> Result<()> {
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("shutdown")
-            .args(["/s", "/t", &delay_secs.to_string(), "/c", "BetterDesk remote shutdown"])
+            .args(["/s", "/t", &delay_secs.to_string(), "/c", "Yomie remote shutdown"])
             .status()?;
     }
     #[cfg(not(target_os = "windows"))]

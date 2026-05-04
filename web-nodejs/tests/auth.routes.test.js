@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Auth Routes Tests
+ * Yomie Console - Auth Routes Tests
  */
 
 const request = require('supertest');

@@ -13,4 +13,4 @@ if [ ! -d /app/node_modules/bcrypt ]; then
     npm install
 fi
 
-exec /etc/betterdesk/docker-entrypoint.sh
+exec /etc/yomie/docker-entrypoint.sh

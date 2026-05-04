@@ -1,6 +1,6 @@
 # 🔄 Docker Migration Guide
 
-Migrate your existing RustDesk Docker installation to BetterDesk Console with zero downtime for client devices.
+Migrate your existing RustDesk Docker installation to Yomie Console with zero downtime for client devices.
 
 ---
 
@@ -20,15 +20,15 @@ Migrate your existing RustDesk Docker installation to BetterDesk Console with ze
 
 ## Overview
 
-BetterDesk Console is fully compatible with existing RustDesk server installations. The migration process preserves your encryption keys, device database, and client connections. **Existing RustDesk clients will continue to work without any changes** after migration.
+Yomie Console is fully compatible with existing RustDesk server installations. The migration process preserves your encryption keys, device database, and client connections. **Existing RustDesk clients will continue to work without any changes** after migration.
 
 ### What changes
 
-| Component | Before (RustDesk) | After (BetterDesk) |
+| Component | Before (RustDesk) | After (Yomie) |
 |---|---|---|
-| Signal server (hbbs) | `rustdesk/rustdesk-server` | `betterdesk-hbbs:local` |
-| Relay server (hbbr) | `rustdesk/rustdesk-server` | `betterdesk-hbbr:local` |
-| Web console | ❌ None | ✅ `betterdesk-console:local` |
+| Signal server (hbbs) | `rustdesk/rustdesk-server` | `yomie-hbbs:local` |
+| Relay server (hbbr) | `rustdesk/rustdesk-server` | `yomie-hbbr:local` |
+| Web console | ❌ None | ✅ `yomie-console:local` |
 | Encryption keys | Preserved ✅ | Same keys ✅ |
 | Device database | `db_v2.sqlite3` | Same file ✅ |
 | Ports | 21115-21117 | Same ports ✅ |
@@ -39,7 +39,7 @@ BetterDesk Console is fully compatible with existing RustDesk server installatio
 
 - Docker and Docker Compose installed
 - Access to existing RustDesk data directory
-- BetterDesk repository cloned:
+- Yomie repository cloned:
   ```bash
   git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
   cd Rustdesk-FreeConsole
@@ -49,11 +49,11 @@ BetterDesk Console is fully compatible with existing RustDesk server installatio
 
 ## Automatic Migration (Recommended)
 
-The `betterdesk-docker.sh` script includes interactive migration (option **M**):
+The `yomie-docker.sh` script includes interactive migration (option **M**):
 
 ```bash
-chmod +x betterdesk-docker.sh
-./betterdesk-docker.sh
+chmod +x yomie-docker.sh
+./yomie-docker.sh
 # Select: M (Migrate from existing RustDesk)
 ```
 
@@ -62,8 +62,8 @@ The wizard will:
 2. Show a summary of what was found
 3. Create a backup of your existing data
 4. Stop old RustDesk containers
-5. Copy encryption keys and database to BetterDesk data directory
-6. Build and start BetterDesk containers
+5. Copy encryption keys and database to Yomie data directory
+6. Build and start Yomie containers
 7. Create a web admin account
 
 > **Note:** Your original data is never deleted. Old containers are stopped but not removed.
@@ -110,8 +110,8 @@ ls -la /path/to/your/data/
 ### Step 3: Create a backup
 
 ```bash
-mkdir -p /opt/betterdesk-backups
-cp -r /path/to/your/data /opt/betterdesk-backups/pre_migration_$(date +%Y%m%d)
+mkdir -p /opt/yomie-backups
+cp -r /path/to/your/data /opt/yomie-backups/pre_migration_$(date +%Y%m%d)
 ```
 
 ### Step 4: Stop existing containers
@@ -125,25 +125,25 @@ docker compose down
 docker stop <hbbs_container> <hbbr_container>
 ```
 
-### Step 5: Copy data to BetterDesk directory
+### Step 5: Copy data to Yomie directory
 
 ```bash
-# Create BetterDesk data directory
-mkdir -p /opt/betterdesk-data
+# Create Yomie data directory
+mkdir -p /opt/yomie-data
 
 # Copy critical files
-cp /path/to/your/data/id_ed25519 /opt/betterdesk-data/
-cp /path/to/your/data/id_ed25519.pub /opt/betterdesk-data/
-cp /path/to/your/data/db_v2.sqlite3 /opt/betterdesk-data/
+cp /path/to/your/data/id_ed25519 /opt/yomie-data/
+cp /path/to/your/data/id_ed25519.pub /opt/yomie-data/
+cp /path/to/your/data/db_v2.sqlite3 /opt/yomie-data/
 ```
 
-### Step 6: Build and start BetterDesk
+### Step 6: Build and start Yomie
 
 ```bash
 cd Rustdesk-FreeConsole
 
-# Set data directory (if not using default /opt/betterdesk-data)
-export DATA_DIR=/opt/betterdesk-data
+# Set data directory (if not using default /opt/yomie-data)
+export DATA_DIR=/opt/yomie-data
 
 # Build images (required - images are NOT on Docker Hub)
 docker compose build
@@ -156,11 +156,11 @@ docker compose up -d
 
 ```bash
 # Check containers are running
-docker ps | grep betterdesk
+docker ps | grep yomie
 
 # Check logs
-docker logs betterdesk-hbbs --tail 20
-docker logs betterdesk-console --tail 20
+docker logs yomie-hbbs --tail 20
+docker logs yomie-console --tail 20
 
 # Access web panel
 echo "Open http://$(curl -s ifconfig.me):5000 in your browser"
@@ -201,12 +201,12 @@ echo "Open http://$(curl -s ifconfig.me):5000 in your browser"
 If something goes wrong, you can restore your original setup:
 
 ```bash
-# 1. Stop BetterDesk containers
+# 1. Stop Yomie containers
 cd Rustdesk-FreeConsole
 docker compose down
 
 # 2. Restore your original data
-cp -r /opt/betterdesk-backups/pre_migration_*/* /path/to/your/data/
+cp -r /opt/yomie-backups/pre_migration_*/* /path/to/your/data/
 
 # 3. Start your original containers
 cd /path/to/your/rustdesk/compose
@@ -221,9 +221,9 @@ docker compose up -d
 
 **Cause:** Encryption key mismatch.
 
-**Solution:** Verify that `id_ed25519` in BetterDesk data directory is identical to the original:
+**Solution:** Verify that `id_ed25519` in Yomie data directory is identical to the original:
 ```bash
-md5sum /opt/betterdesk-data/id_ed25519
+md5sum /opt/yomie-data/id_ed25519
 md5sum /path/to/original/data/id_ed25519
 # Both should match
 ```
@@ -244,8 +244,8 @@ docker rm <old_hbbs> <old_hbbr>
 
 **Solution:** Copy the database file again:
 ```bash
-cp /opt/betterdesk-backups/pre_migration_*/db_v2.sqlite3 /opt/betterdesk-data/
-docker restart betterdesk-hbbs
+cp /opt/yomie-backups/pre_migration_*/db_v2.sqlite3 /opt/yomie-data/
+docker restart yomie-hbbs
 ```
 
 ### Web console shows 0 devices
@@ -271,16 +271,16 @@ A: Not on the same machine (port conflicts). You can run them on different machi
 **Q: What if I used Docker volumes instead of bind mounts?**
 A: You'll need to copy data from the volume first:
 ```bash
-docker cp <old_hbbs_container>:/root/id_ed25519 /opt/betterdesk-data/
-docker cp <old_hbbs_container>:/root/id_ed25519.pub /opt/betterdesk-data/
-docker cp <old_hbbs_container>:/root/db_v2.sqlite3 /opt/betterdesk-data/
+docker cp <old_hbbs_container>:/root/id_ed25519 /opt/yomie-data/
+docker cp <old_hbbs_container>:/root/id_ed25519.pub /opt/yomie-data/
+docker cp <old_hbbs_container>:/root/db_v2.sqlite3 /opt/yomie-data/
 ```
 
 **Q: Does migration support RustDesk Server Pro?**
-A: No. BetterDesk is designed for the open-source RustDesk server only.
+A: No. Yomie is designed for the open-source RustDesk server only.
 
 **Q: Is it possible to migrate from a non-Docker RustDesk installation?**
-A: Yes! Use `betterdesk.sh` (Linux) or `betterdesk.ps1` (Windows) instead — they handle migration from native RustDesk installations automatically.
+A: Yes! Use `yomie.sh` (Linux) or `yomie.ps1` (Windows) instead — they handle migration from native RustDesk installations automatically.
 
 ---
 

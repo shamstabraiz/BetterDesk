@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Key Service
+ * Yomie Console - Key Service
  * Reads public key and API key from filesystem
  */
 

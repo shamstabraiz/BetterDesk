@@ -1,6 +1,6 @@
 # HTTPS Setup Guide
 
-BetterDesk Console supports native HTTPS with TLS certificates, as well as reverse proxy configurations with Caddy or Nginx.
+Yomie Console supports native HTTPS with TLS certificates, as well as reverse proxy configurations with Caddy or Nginx.
 
 ## Quick Start
 
@@ -13,12 +13,12 @@ Generate a self-signed certificate for testing:
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout /opt/rustdesk/ssl/privkey.pem \
   -out /opt/rustdesk/ssl/fullchain.pem \
-  -subj "/CN=betterdesk.local"
+  -subj "/CN=yomie.local"
 ```
 
 ```powershell
 # Windows (PowerShell)
-$cert = New-SelfSignedCertificate -DnsName "betterdesk.local" -CertStoreLocation "cert:\LocalMachine\My" -NotAfter (Get-Date).AddYears(1)
+$cert = New-SelfSignedCertificate -DnsName "yomie.local" -CertStoreLocation "cert:\LocalMachine\My" -NotAfter (Get-Date).AddYears(1)
 Export-PfxCertificate -Cert $cert -FilePath C:\RustDesk\ssl\cert.pfx -Password (ConvertTo-SecureString -String "password" -Force -AsPlainText)
 # Convert to PEM with OpenSSL or use .pfx directly
 ```
@@ -43,10 +43,10 @@ Using [Certbot](https://certbot.eff.org/):
 # Install certbot
 sudo apt install certbot
 
-# Get certificate (standalone mode - stop BetterDesk console first)
-sudo systemctl stop betterdesk-console
+# Get certificate (standalone mode - stop Yomie console first)
+sudo systemctl stop yomie-console
 sudo certbot certonly --standalone -d console.yourdomain.com
-sudo systemctl start betterdesk-console
+sudo systemctl start yomie-console
 ```
 
 Update `.env`:
@@ -64,7 +64,7 @@ Set up auto-renewal:
 
 ```bash
 # Add to crontab
-0 0 1 * * certbot renew --pre-hook "systemctl stop betterdesk-console" --post-hook "systemctl start betterdesk-console"
+0 0 1 * * certbot renew --pre-hook "systemctl stop yomie-console" --post-hook "systemctl start yomie-console"
 ```
 
 ### Option 3: Reverse Proxy with Caddy (Recommended for Production)
@@ -112,7 +112,7 @@ Install Nginx and Certbot:
 sudo apt install nginx certbot python3-certbot-nginx
 ```
 
-Create `/etc/nginx/sites-available/betterdesk`:
+Create `/etc/nginx/sites-available/yomie`:
 
 ```nginx
 # Upstream map for WebSocket connection upgrade
@@ -121,7 +121,7 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
-# BetterDesk Console
+# Yomie Console
 server {
     listen 80;
     server_name console.yourdomain.com;
@@ -180,7 +180,7 @@ server {
 ```
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/betterdesk /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/yomie /etc/nginx/sites-enabled/
 sudo nginx -t  # Validate configuration
 sudo certbot --nginx -d console.yourdomain.com
 sudo systemctl restart nginx
@@ -208,7 +208,7 @@ With Nginx reverse proxy, leave `HTTPS_ENABLED=false` in `.env`.
 
 ## Security Notes
 
-When HTTPS is enabled, BetterDesk Console automatically:
+When HTTPS is enabled, Yomie Console automatically:
 
 - Enables **HSTS** (Strict-Transport-Security) header with 1 year max-age
 - Sets `Secure` flag on session cookies
@@ -233,7 +233,7 @@ sudo firewall-cmd --reload
 
 ```powershell
 # Windows
-New-NetFirewallRule -DisplayName "BetterDesk HTTPS" -Direction Inbound -Protocol TCP -LocalPort 5443 -Action Allow
+New-NetFirewallRule -DisplayName "Yomie HTTPS" -Direction Inbound -Protocol TCP -LocalPort 5443 -Action Allow
 ```
 
 ## Troubleshooting
@@ -242,7 +242,7 @@ New-NetFirewallRule -DisplayName "BetterDesk HTTPS" -Direction Inbound -Protocol
 
 The server will log this warning and fall back to HTTP mode. Check:
 1. Certificate file paths in `.env` are correct
-2. Files are readable by the BetterDesk process (check permissions)
+2. Files are readable by the Yomie process (check permissions)
 3. Certificate format is PEM (not DER or PFX)
 
 ### Certificate Permission Errors
@@ -250,7 +250,7 @@ The server will log this warning and fall back to HTTP mode. Check:
 Let's Encrypt certificates are often readable only by root:
 
 ```bash
-# Allow BetterDesk to read certificates
+# Allow Yomie to read certificates
 sudo chmod 644 /etc/letsencrypt/live/console.yourdomain.com/fullchain.pem
 sudo chmod 640 /etc/letsencrypt/live/console.yourdomain.com/privkey.pem
 sudo chgrp root /etc/letsencrypt/live/console.yourdomain.com/privkey.pem
@@ -289,11 +289,11 @@ If the web remote desktop client connects but shows "requesting connection" inde
    sudo tail -f /var/log/nginx/error.log
    ```
 
-5. **Ensure the desktop agent (BetterDesk Client) can reach the server.** The agent must connect to `/ws/remote-agent/<device_id>` before the browser viewer can stream.
+5. **Ensure the desktop agent (Yomie Client) can reach the server.** The agent must connect to `/ws/remote-agent/<device_id>` before the browser viewer can stream.
 
-### BetterDesk Server (Go) WebSocket Ports
+### Yomie Server (Go) WebSocket Ports
 
-The BetterDesk Go server also exposes WebSocket endpoints for RustDesk protocol:
+The Yomie Go server also exposes WebSocket endpoints for RustDesk protocol:
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
@@ -337,7 +337,7 @@ server {
 
 ## Installer SSL Configuration (Option C)
 
-The BetterDesk ALL-IN-ONE installers (`betterdesk.sh`, `betterdesk.ps1`, `betterdesk-docker.sh`) include a built-in SSL configuration menu accessible via **Option C** in the main menu.
+The Yomie ALL-IN-ONE installers (`yomie.sh`, `yomie.ps1`, `yomie-docker.sh`) include a built-in SSL configuration menu accessible via **Option C** in the main menu.
 
 ### SSL Menu Options
 
@@ -366,7 +366,7 @@ Selecting "y" opens the SSL configuration menu where you can choose **Option 5**
 
 ## Enterprise TLS (Full HTTPS on All Ports)
 
-Enterprise TLS enables HTTPS/TLS on **all BetterDesk ports**, not just the web console:
+Enterprise TLS enables HTTPS/TLS on **all Yomie ports**, not just the web console:
 
 | Port | Component | Without Enterprise TLS | With Enterprise TLS |
 |------|-----------|------------------------|---------------------|
@@ -382,7 +382,7 @@ Enterprise TLS enables HTTPS/TLS on **all BetterDesk ports**, not just the web c
 - **RustDesk client version 1.3.x or newer** — older clients do not support TLS on signal/relay ports
 - Valid TLS certificate (Let's Encrypt, custom CA, or self-signed for testing)
 - Certificate SAN (Subject Alternative Name) should include:
-  - Domain name (e.g., `betterdesk.example.com`)
+  - Domain name (e.g., `yomie.example.com`)
   - Public IP address
   - LAN IP address (if used internally)
   - `localhost` and `127.0.0.1` (for local connections)
@@ -411,12 +411,12 @@ When Enterprise TLS is enabled via the installer, the systemd service is configu
 
 ```ini
 [Service]
-ExecStart=/opt/rustdesk/betterdesk-server \
+ExecStart=/opt/rustdesk/yomie-server \
     -key-dir /opt/rustdesk \
     -db-path /opt/rustdesk/db_v2.sqlite3 \
     -relay-servers YOUR_PUBLIC_IP:21117 \
-    -tls-cert /opt/rustdesk/ssl/betterdesk.crt \
-    -tls-key /opt/rustdesk/ssl/betterdesk.key \
+    -tls-cert /opt/rustdesk/ssl/yomie.crt \
+    -tls-key /opt/rustdesk/ssl/yomie.key \
     -tls-signal \
     -tls-relay
 
@@ -431,8 +431,8 @@ The `.env` file is updated with:
 ```env
 HTTPS_ENABLED=true
 HTTPS_PORT=5443
-SSL_CERT_PATH=/opt/rustdesk/ssl/betterdesk.crt
-SSL_KEY_PATH=/opt/rustdesk/ssl/betterdesk.key
+SSL_CERT_PATH=/opt/rustdesk/ssl/yomie.crt
+SSL_KEY_PATH=/opt/rustdesk/ssl/yomie.key
 HTTP_REDIRECT_HTTPS=true
 ALLOW_SELF_SIGNED_CERTS=true  # For self-signed certs (dev/LAN)
 ENTERPRISE_TLS=true
@@ -453,7 +453,7 @@ ENTERPRISE_TLS=true
 #### Clients show "connection timeout" after enabling TLS
 
 - Verify RustDesk client is version 1.3.x or newer
-- Check that the Go server started successfully: `journalctl -u betterdesk-server -n 50`
+- Check that the Go server started successfully: `journalctl -u yomie-server -n 50`
 - Ensure certificate SAN includes the IP/domain the client is connecting to
 
 #### "Failed to secure tcp: deadline has elapsed"

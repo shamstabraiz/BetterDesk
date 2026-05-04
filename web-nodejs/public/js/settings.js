@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Settings Page
+ * Yomie Console - Settings Page
  */
 
 (function() {
@@ -621,7 +621,7 @@
         if (!preview) return;
         
         const type = document.querySelector('input[name="logo-type"]:checked')?.value || 'icon';
-        const name = document.getElementById('brand-name')?.value || 'BetterDesk';
+        const name = document.getElementById('brand-name')?.value || 'Yomie';
         
         if (type === 'text') {
             const logoText = document.getElementById('logo-text-input')?.value || name;
@@ -686,7 +686,7 @@
         try {
             const resp = await fetch('/api/settings/branding/upload-logo', {
                 method: 'POST',
-                headers: { 'x-csrf-token': window.BetterDesk?.csrfToken || '' },
+                headers: { 'x-csrf-token': window.Yomie?.csrfToken || '' },
                 body: formData
             });
             const result = await resp.json();
@@ -732,7 +732,7 @@
      */
     function collectBrandingData() {
         const data = {
-            appName: document.getElementById('brand-name')?.value || 'BetterDesk',
+            appName: document.getElementById('brand-name')?.value || 'Yomie',
             appDescription: document.getElementById('brand-description')?.value || '',
             logoType: document.querySelector('input[name="logo-type"]:checked')?.value || 'icon',
             logoIcon: document.getElementById('logo-icon-name')?.value || 'dns',
@@ -977,7 +977,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'betterdesk-theme.json';
+                a.download = 'yomie-theme.json';
                 a.click();
                 URL.revokeObjectURL(url);
                 Notifications.success(_('branding.exported'));
@@ -1039,8 +1039,8 @@
             
             try {
                 const fetchHeaders = {};
-                if (window.BetterDesk && window.BetterDesk.csrfToken) {
-                    fetchHeaders['X-CSRF-Token'] = window.BetterDesk.csrfToken;
+                if (window.Yomie && window.Yomie.csrfToken) {
+                    fetchHeaders['X-CSRF-Token'] = window.Yomie.csrfToken;
                 }
                 const response = await fetch('/api/settings/backup', {
                     credentials: 'same-origin',
@@ -1053,7 +1053,7 @@
                 const a = document.createElement('a');
                 a.href = url;
                 const date = new Date().toISOString().slice(0, 10);
-                a.download = `betterdesk-backup-${date}.json`;
+                a.download = `yomie-backup-${date}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
                 
@@ -1097,7 +1097,7 @@
                     return;
                 }
                 
-                if (data._format !== 'betterdesk-backup') {
+                if (data._format !== 'yomie-backup') {
                     Notifications.error(_('backup.invalid_format'));
                     e.target.value = '';
                     return;
@@ -1116,8 +1116,8 @@
                 if (label) label.classList.add('loading');
                 
                 const headers = {};
-                if (window.BetterDesk && window.BetterDesk.csrfToken) {
-                    headers['X-CSRF-Token'] = window.BetterDesk.csrfToken;
+                if (window.Yomie && window.Yomie.csrfToken) {
+                    headers['X-CSRF-Token'] = window.Yomie.csrfToken;
                 }
                 
                 const response = await fetch('/api/settings/restore', {
@@ -1159,7 +1159,7 @@
             setVal('backup-stat-folders', data.folders || 0);
             setVal('backup-stat-groups', (data.userGroups || 0) + (data.deviceGroups || 0));
             setVal('backup-stat-strategies', data.strategies || 0);
-            setVal('backup-stat-backend', data.backend === 'betterdesk' ? 'BetterDesk Go' : 'RustDesk');
+            setVal('backup-stat-backend', data.backend === 'yomie' ? 'Yomie Go' : 'RustDesk');
         } catch { /* silent */ }
     }
     

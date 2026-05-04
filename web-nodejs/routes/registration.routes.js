@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Registration Requests Routes
+ * Yomie Console — Registration Requests Routes
  *
  * Handles LAN discovery registration workflow:
  *

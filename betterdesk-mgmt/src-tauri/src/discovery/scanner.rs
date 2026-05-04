@@ -1,11 +1,11 @@
-//! UDP broadcast scanner for BetterDesk servers on the local network.
+//! UDP broadcast scanner for Yomie servers on the local network.
 //!
 //! Protocol (matches `web-nodejs/services/lanDiscovery.js`):
 //!   Client → broadcast 255.255.255.255:21119
-//!     { "type": "betterdesk-discover", "version": 1 }
+//!     { "type": "yomie-discover", "version": 1 }
 //!
 //!   Server → unicast reply
-//!     { "type": "betterdesk-announce", "version": 1, "server": { ... } }
+//!     { "type": "yomie-announce", "version": 1, "server": { ... } }
 
 use anyhow::Result;
 use log::{debug, info, warn};
@@ -68,7 +68,7 @@ struct AnnounceResponse {
     server: ServerInfo,
 }
 
-/// A discovered BetterDesk server with connection details.
+/// A discovered Yomie server with connection details.
 #[derive(Debug, Clone, Serialize)]
 pub struct DiscoveredServer {
     /// Server display name (hostname).
@@ -245,7 +245,7 @@ async fn send_probe_and_collect() -> Result<Vec<(SocketAddr, ServerInfo)>> {
 
     // Build probe message
     let probe = DiscoverProbe {
-        msg_type: "betterdesk-discover".into(),
+        msg_type: "yomie-discover".into(),
         version: 1,
     };
     let probe_bytes = serde_json::to_vec(&probe)?;
@@ -268,7 +268,7 @@ async fn send_probe_and_collect() -> Result<Vec<(SocketAddr, ServerInfo)>> {
         match tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await {
             Ok(Ok((len, addr))) => {
                 if let Ok(response) = serde_json::from_slice::<AnnounceResponse>(&buf[..len]) {
-                    if response.msg_type == "betterdesk-announce" {
+                    if response.msg_type == "yomie-announce" {
                         results.push((addr, response.server));
                     }
                 }

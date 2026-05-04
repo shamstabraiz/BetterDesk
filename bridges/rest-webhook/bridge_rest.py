@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""BetterDesk CDAP — REST / Webhook Bridge.
+"""Yomie CDAP — REST / Webhook Bridge.
 
 Polls HTTP endpoints and/or listens for incoming webhooks.  Pushes values
-to BetterDesk via CDAP, and writes back to REST APIs on command.
+to Yomie via CDAP, and writes back to REST APIs on command.
 
 Usage:
-    pip install betterdesk-cdap aiohttp
+    pip install yomie-cdap aiohttp
     python bridge_rest.py --config config.json
 """
 
@@ -250,7 +250,7 @@ class RESTBridge:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="BetterDesk CDAP REST/Webhook Bridge")
+    parser = argparse.ArgumentParser(description="Yomie CDAP REST/Webhook Bridge")
     parser.add_argument("--config", "-c", default="config.json", help="Path to config file")
     parser.add_argument("--log-level", "-l", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()

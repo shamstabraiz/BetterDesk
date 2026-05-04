@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/db"
-	"github.com/unitronix/betterdesk-server/peer"
-	"github.com/unitronix/betterdesk-server/security"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/db"
+	"github.com/unitronix/yomie-server/peer"
+	"github.com/unitronix/yomie-server/security"
 )
 
 func setupTestAdmin(t *testing.T) (*Server, int) {
@@ -60,7 +60,7 @@ func connectAdmin(t *testing.T, port int) net.Conn {
 	// Read banner
 	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	reader := bufio.NewReader(conn)
-	reader.ReadString('\n') // BetterDesk Admin Console
+	reader.ReadString('\n') // Yomie Admin Console
 	reader.ReadString('\n') // Type 'help'...
 	reader.ReadString('\n') // blank line
 
@@ -100,7 +100,7 @@ func TestAdminStatusCommand(t *testing.T) {
 	conn := connectAdmin(t, port)
 
 	resp := sendCommand(conn, "status")
-	if !strings.Contains(resp, "BetterDesk") {
+	if !strings.Contains(resp, "Yomie") {
 		t.Errorf("status should contain server name, got: %s", resp)
 	}
 	if !strings.Contains(resp, "DB Peers") {

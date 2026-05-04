@@ -1,12 +1,12 @@
 /**
- * BetterDesk Console - Client-side i18n
+ * Yomie Console - Client-side i18n
  */
 
 (function() {
     'use strict';
     
-    const translations = window.BetterDesk?.translations || {};
-    const currentLang = window.BetterDesk?.lang || 'en';
+    const translations = window.Yomie?.translations || {};
+    const currentLang = window.Yomie?.lang || 'en';
     
     /**
      * Get translation by key with optional interpolation

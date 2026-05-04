@@ -1,6 +1,6 @@
 # Go build artifacts
-betterdesk-server
-betterdesk-server-*
+yomie-server
+yomie-server-*
 *.exe
 *.test
 

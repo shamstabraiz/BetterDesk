@@ -167,7 +167,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-csrf-token': window.BetterDesk?.csrfToken || ''
+                    'x-csrf-token': window.Yomie?.csrfToken || ''
                 }
             });
             const data = await resp.json();

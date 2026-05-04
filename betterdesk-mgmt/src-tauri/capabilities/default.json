@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default BetterDesk capabilities",
+  "description": "Default Yomie capabilities",
   "windows": ["main"],
   "permissions": [
     "core:default",

@@ -29,7 +29,7 @@ This document translates the CDAP specification (CUSTOM_DEVICE_API.md) into a co
 - **Auth integration** — CDAP clients authenticate via the same user/2FA system as the Node.js panel and RustDesk clients
 - **RustDesk synchronization** — CDAP native desktop clients coexist with RustDesk clients in the same peer table, address books, connection history, and panel views
 - **Media channel** — Binary frame relay for remote desktop, video, audio, input
-- **Native BetterDesk client** — Desktop agent that combines remote desktop + OS management
+- **Native Yomie client** — Desktop agent that combines remote desktop + OS management
 
 ### Core Principle
 
@@ -160,7 +160,7 @@ This document translates the CDAP specification (CUSTOM_DEVICE_API.md) into a co
 
 ### AD-4: RustDesk Client Synchronization Strategy
 
-**Problem**: When a BetterDesk native client (CDAP) runs on the same machine as a RustDesk client, or replaces it, the following must be synchronized:
+**Problem**: When a Yomie native client (CDAP) runs on the same machine as a RustDesk client, or replaces it, the following must be synchronized:
 
 | Resource | RustDesk Source | CDAP Source | Sync Strategy |
 |----------|-----------------|-------------|---------------|
@@ -174,7 +174,7 @@ This document translates the CDAP specification (CUSTOM_DEVICE_API.md) into a co
 
 ### AD-5: Native Client ↔ RustDesk Interoperability
 
-**Scenario**: User A has BetterDesk native client. User B has RustDesk client. Can User A remote-control User B's machine?
+**Scenario**: User A has Yomie native client. User B has RustDesk client. Can User A remote-control User B's machine?
 
 **Decision**: **Not directly** — CDAP media channel is not compatible with RustDesk's protobuf signal/relay protocol. But the server can **bridge** the connection:
 
@@ -185,18 +185,18 @@ This document translates the CDAP specification (CUSTOM_DEVICE_API.md) into a co
 | CDAP → RustDesk | **Server-side protocol bridge** | Medium (+50ms) | Phase 6 |
 | RustDesk → CDAP | Not needed (CDAP is superset) | — | Not planned |
 
-The server-side protocol bridge (Phase 6) is complex and optional. The primary migration path is: install BetterDesk native client → device appears as both `rustdesk` AND `desktop` types → gradually deprecate RustDesk client on that machine.
+The server-side protocol bridge (Phase 6) is complex and optional. The primary migration path is: install Yomie native client → device appears as both `rustdesk` AND `desktop` types → gradually deprecate RustDesk client on that machine.
 
 ### AD-6: Unified Device Identity
 
-When a machine has both RustDesk and BetterDesk native clients:
+When a machine has both RustDesk and Yomie native clients:
 
 ```
 ┌─────────────────────────────────────────┐
 │              Machine: PC-Design-03       │
 │                                         │
 │  ┌──────────────┐  ┌─────────────────┐  │
-│  │ RustDesk      │  │ BetterDesk     │  │
+│  │ RustDesk      │  │ Yomie     │  │
 │  │ Client        │  │ Native Client  │  │
 │  │               │  │                │  │
 │  │ ID: 892734561 │  │ ID: CDAP-D2E9F4│  │
@@ -207,7 +207,7 @@ When a machine has both RustDesk and BetterDesk native clients:
           │                   │
           ▼                   ▼
 ┌───────────────────────────────────────┐
-│           BetterDesk Server            │
+│           Yomie Server            │
 │                                       │
 │  peers table:                         │
 │  ┌─────────────┬──────────┬─────────┐ │
@@ -284,13 +284,13 @@ When a machine has both RustDesk and BetterDesk native clients:
 
 ### 2FA for Native Desktop Client
 
-The BetterDesk native desktop client needs a full 2FA UI:
+The Yomie native desktop client needs a full 2FA UI:
 
 ```
 ┌──────────────────────────────────────┐
-│       BetterDesk - Login             │
+│       Yomie - Login             │
 │                                      │
-│  Server: betterdesk.example.com      │
+│  Server: yomie.example.com      │
 │                                      │
 │  Username: [operator1        ]       │
 │  Password: [••••••••         ]       │
@@ -302,7 +302,7 @@ The BetterDesk native desktop client needs a full 2FA UI:
                 │
                 ▼
 ┌──────────────────────────────────────┐
-│       BetterDesk - 2FA               │
+│       Yomie - 2FA               │
 │                                      │
 │  Enter authenticator code:           │
 │                                      │
@@ -318,7 +318,7 @@ The BetterDesk native desktop client needs a full 2FA UI:
                 ▼
 ┌──────────────────────────────────────┐
 │  ✓ Connected as operator1            │
-│  Server: betterdesk.example.com      │
+│  Server: yomie.example.com      │
 │  Device ID: CDAP-D2E9F4             │
 │                                      │
 │  This device is ready for remote     │
@@ -389,9 +389,9 @@ Rules:
 
 ### Problem Statement
 
-A BetterDesk deployment typically has a mix of:
+A Yomie deployment typically has a mix of:
 - **Existing RustDesk clients** — already deployed on workstations, using RustDesk protocol on port 21116
-- **New BetterDesk native clients** (CDAP) — being rolled out, using CDAP on port 21122
+- **New Yomie native clients** (CDAP) — being rolled out, using CDAP on port 21122
 - **IoT/SCADA bridges** (CDAP) — new devices via CDAP
 
 These must coexist in the same panel, same device list, same address books, same permissions.
@@ -488,7 +488,7 @@ Implementation: `handleListPeers` in Go server already overlays live status from
 
 #### 5. Linked Device View
 
-When a machine runs both RustDesk and BetterDesk native clients:
+When a machine runs both RustDesk and Yomie native clients:
 
 ```
 Panel Device List:
@@ -625,24 +625,24 @@ Auto-linking algorithm:
 
 ---
 
-### Phase 6: Native BetterDesk Desktop Agent (10-15 days)
+### Phase 6: Native Yomie Desktop Agent (10-15 days)
 
 | # | Task | Effort | Files |
 |---|------|--------|-------|
-| 6.1 | Agent binary scaffold (Rust or Go) — systemd/service installer | 2d | `betterdesk-agent/` (NEW repo or dir) |
-| 6.2 | CDAP client library — auth + heartbeat + manifest | 2d | `betterdesk-agent/cdap/` |
-| 6.3 | Screen capture — DXGI (Windows), X11/PipeWire (Linux) | 2d | `betterdesk-agent/capture/` |
-| 6.4 | Video encoder — H.264/VP9 hardware-accelerated | 2d | `betterdesk-agent/encoder/` |
-| 6.5 | Audio capture — WASAPI (Windows), PulseAudio (Linux) | 1d | `betterdesk-agent/audio/` |
-| 6.6 | Input injection — keyboard/mouse (platform-specific) | 1d | `betterdesk-agent/input/` |
-| 6.7 | Clipboard monitor — text/image sync | 1d | `betterdesk-agent/clipboard/` |
-| 6.8 | File transfer — chunk read/write with resume | 1d | `betterdesk-agent/files/` |
-| 6.9 | System widgets — CPU/RAM/disk/services/processes | 1d | `betterdesk-agent/sysinfo/` |
-| 6.10 | Login UI — username/password + 2FA dialog | 1d | `betterdesk-agent/ui/` |
-| 6.11 | Tray icon + auto-start | 0.5d | `betterdesk-agent/ui/` |
-| 6.12 | Update from ALL-IN-ONE scripts (install/update support) | 1d | `betterdesk.sh`, `betterdesk.ps1` |
+| 6.1 | Agent binary scaffold (Rust or Go) — systemd/service installer | 2d | `yomie-agent/` (NEW repo or dir) |
+| 6.2 | CDAP client library — auth + heartbeat + manifest | 2d | `yomie-agent/cdap/` |
+| 6.3 | Screen capture — DXGI (Windows), X11/PipeWire (Linux) | 2d | `yomie-agent/capture/` |
+| 6.4 | Video encoder — H.264/VP9 hardware-accelerated | 2d | `yomie-agent/encoder/` |
+| 6.5 | Audio capture — WASAPI (Windows), PulseAudio (Linux) | 1d | `yomie-agent/audio/` |
+| 6.6 | Input injection — keyboard/mouse (platform-specific) | 1d | `yomie-agent/input/` |
+| 6.7 | Clipboard monitor — text/image sync | 1d | `yomie-agent/clipboard/` |
+| 6.8 | File transfer — chunk read/write with resume | 1d | `yomie-agent/files/` |
+| 6.9 | System widgets — CPU/RAM/disk/services/processes | 1d | `yomie-agent/sysinfo/` |
+| 6.10 | Login UI — username/password + 2FA dialog | 1d | `yomie-agent/ui/` |
+| 6.11 | Tray icon + auto-start | 0.5d | `yomie-agent/ui/` |
+| 6.12 | Update from ALL-IN-ONE scripts (install/update support) | 1d | `yomie.sh`, `yomie.ps1` |
 
-**Gate**: BetterDesk agent installs on Windows/Linux, logs in with 2FA, appears as `desktop` type in panel, supports remote desktop + system management widgets.
+**Gate**: Yomie agent installs on Windows/Linux, logs in with 2FA, appears as `desktop` type in panel, supports remote desktop + system management widgets.
 
 ---
 
@@ -664,7 +664,7 @@ Auto-linking algorithm:
 
 ## File-Level Change Map
 
-### Go Server (`betterdesk-server/`)
+### Go Server (`yomie-server/`)
 
 | File | Action | Phase | Description |
 |------|--------|-------|-------------|
@@ -711,9 +711,9 @@ Auto-linking algorithm:
 
 | File | Action | Phase | Description |
 |------|--------|-------|-------------|
-| `betterdesk.sh` | Modify | 6 | CDAP port in firewall, agent install option |
-| `betterdesk.ps1` | Modify | 6 | Same for Windows |
-| `betterdesk-docker.sh` | Modify | 1 | Expose port 21122 in docker-compose |
+| `yomie.sh` | Modify | 6 | CDAP port in firewall, agent install option |
+| `yomie.ps1` | Modify | 6 | Same for Windows |
+| `yomie-docker.sh` | Modify | 1 | Expose port 21122 in docker-compose |
 | `docker-compose.yml` | Modify | 1 | Add port 21122 mapping |
 | `Dockerfile` | Modify | 1 | Expose 21122 |
 
@@ -767,7 +767,7 @@ Auto-linking algorithm:
 ### Migration Path for Organizations
 
 ```
-Step 1: Update BetterDesk server (Phase 1-4)
+Step 1: Update Yomie server (Phase 1-4)
   └── CDAP gateway starts on port 21122
   └── All existing devices still work
 
@@ -775,7 +775,7 @@ Step 2: Deploy IoT/SCADA bridges (Phase 2+)
   └── New device types appear in panel
   └── RustDesk devices unaffected
 
-Step 3: Deploy BetterDesk native agent on select machines (Phase 6)
+Step 3: Deploy Yomie native agent on select machines (Phase 6)
   └── Machine shows two entries (RustDesk + CDAP)
   └── Admin can link them in panel
 
@@ -804,12 +804,12 @@ Every phase is independent. If Phase 5 (media) has issues, Phases 1-4 (widgets, 
 | Binary frame relay performance for desktop | High | Low | E2E opaque (zero decode), tested architecture |
 | Native agent cross-platform complexity | High | High | Start with one platform (Linux or Windows), add second |
 | Bridge SDK maintenance burden | Medium | Medium | Minimal SDKs (~200 LOC), auto-generate from spec |
-| RustDesk protocol changes break existing | Medium | Low | BetterDesk server frozen at RustDesk 1.3.x compat |
+| RustDesk protocol changes break existing | Medium | Low | Yomie server frozen at RustDesk 1.3.x compat |
 | 2FA lockout (lost phone, no recovery codes) | Medium | Medium | Admin can disable 2FA from panel, recovery codes backup reminder |
 | CDAP spec changes during development | Medium | Medium | Versioned manifests, backward compat |
 | Revocation message not delivered (device offline) | Medium | High | Blocklist + soft-delete ensure re-registration fails regardless; `revoke` is best-effort optimization |
 | Cascade delete accidental scope | High | Low | Cascade is opt-in checkbox, admin must explicitly confirm; audited |
-| RustDesk client cannot be config-wiped | Medium | N/A | Protocol limitation; blocklist prevents re-registration; BetterDesk native client supports full wipe |
+| RustDesk client cannot be config-wiped | Medium | N/A | Protocol limitation; blocklist prevents re-registration; Yomie native client supports full wipe |
 
 ---
 
@@ -823,7 +823,7 @@ Every phase is independent. If Phase 5 (media) has issues, Phases 1-4 (widgets, 
 | 3: Security + Auth + Revocation | 6-8 days | 17-25 days | Full RBAC + 2FA + auth convergence + device revocation |
 | 4: Advanced + Sync | 5-7 days | 22-32 days | Full widget set + RustDesk sync |
 | 5: Media Channel | 10-15 days | 32-47 days | Remote desktop via CDAP |
-| 6: Native Agent | 10-15 days | 42-62 days | BetterDesk desktop agent binary |
+| 6: Native Agent | 10-15 days | 42-62 days | Yomie desktop agent binary |
 | 7: Ecosystem | 5-7 days | 47-69 days | Bridge SDKs + reference bridges |
 
 **MVP (Phases 0-2)**: ~16 days → CDAP devices with widgets in panel  

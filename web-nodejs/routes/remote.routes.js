@@ -1,6 +1,6 @@
 /**
- * BetterDesk Console - Remote Desktop Routes
- * Serves the web-based remote desktop viewer page (RustDesk compat + BetterDesk native)
+ * Yomie Console - Remote Desktop Routes
+ * Serves the web-based remote desktop viewer page (RustDesk compat + Yomie native)
  */
 
 const express = require('express');

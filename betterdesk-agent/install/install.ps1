@@ -1,4 +1,4 @@
-# BetterDesk Agent — Windows installer (NSSM service)
+# Yomie Agent — Windows installer (NSSM service)
 # Usage: Run as Administrator
 #   .\install.ps1 [-Server URL] [-Key KEY] [-Name NAME] [-Uninstall]
 [CmdletBinding()]
@@ -6,7 +6,7 @@ param(
     [string]$Server,
     [string]$Key,
     [string]$Name,
-    [string]$InstallDir = "$env:ProgramFiles\BetterDesk\Agent",
+    [string]$InstallDir = "$env:ProgramFiles\Yomie\Agent",
     [switch]$Uninstall
 )
 
@@ -27,7 +27,7 @@ if (-not (Test-Admin)) {
 
 # Uninstall
 if ($Uninstall) {
-    Write-Host "=== Uninstalling BetterDesk Agent ===" -ForegroundColor Yellow
+    Write-Host "=== Uninstalling Yomie Agent ===" -ForegroundColor Yellow
     $nssmPath = "$InstallDir\nssm.exe"
     if (Test-Path $nssmPath) {
         & $nssmPath stop $ServiceName 2>$null
@@ -39,7 +39,7 @@ if ($Uninstall) {
     if (Test-Path $InstallDir) {
         Remove-Item -Path $InstallDir -Recurse -Force
     }
-    Write-Host "BetterDesk Agent uninstalled." -ForegroundColor Green
+    Write-Host "Yomie Agent uninstalled." -ForegroundColor Green
     exit 0
 }
 
@@ -47,25 +47,25 @@ if ($Uninstall) {
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BinaryPath = $null
 $Candidates = @(
-    (Join-Path (Split-Path $ScriptDir) "betterdesk-agent.exe"),
-    (Join-Path $ScriptDir "betterdesk-agent.exe")
+    (Join-Path (Split-Path $ScriptDir) "yomie-agent.exe"),
+    (Join-Path $ScriptDir "yomie-agent.exe")
 )
 foreach ($c in $Candidates) {
     if (Test-Path $c) { $BinaryPath = $c; break }
 }
 if (-not $BinaryPath) {
-    Write-Host "ERROR: betterdesk-agent.exe not found. Build it first." -ForegroundColor Red
+    Write-Host "ERROR: yomie-agent.exe not found. Build it first." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "=== Installing BetterDesk Agent ===" -ForegroundColor Cyan
+Write-Host "=== Installing Yomie Agent ===" -ForegroundColor Cyan
 
 # Create directories
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 New-Item -ItemType Directory -Path "$InstallDir\data" -Force | Out-Null
 
 # Copy binary
-Copy-Item -Path $BinaryPath -Destination "$InstallDir\betterdesk-agent.exe" -Force
+Copy-Item -Path $BinaryPath -Destination "$InstallDir\yomie-agent.exe" -Force
 
 # Create config if not exists
 $ConfigFile = "$InstallDir\config.json"
@@ -126,7 +126,7 @@ if (-not (Test-Path $nssmPath)) {
 & $nssmPath stop $ServiceName 2>$null
 & $nssmPath remove $ServiceName confirm 2>$null
 
-& $nssmPath install $ServiceName "$InstallDir\betterdesk-agent.exe"
+& $nssmPath install $ServiceName "$InstallDir\yomie-agent.exe"
 & $nssmPath set $ServiceName AppParameters "-config `"$ConfigFile`""
 & $nssmPath set $ServiceName AppDirectory $InstallDir
 & $nssmPath set $ServiceName Start SERVICE_AUTO_START
@@ -134,13 +134,13 @@ if (-not (Test-Path $nssmPath)) {
 & $nssmPath set $ServiceName AppStderr "$InstallDir\data\agent.log"
 & $nssmPath set $ServiceName AppRotateFiles 1
 & $nssmPath set $ServiceName AppRotateBytes 10485760
-& $nssmPath set $ServiceName Description "BetterDesk CDAP Agent"
+& $nssmPath set $ServiceName Description "Yomie CDAP Agent"
 
 & $nssmPath start $ServiceName
 
 Write-Host ""
-Write-Host "=== BetterDesk Agent Installed ===" -ForegroundColor Green
-Write-Host "  Binary:  $InstallDir\betterdesk-agent.exe"
+Write-Host "=== Yomie Agent Installed ===" -ForegroundColor Green
+Write-Host "  Binary:  $InstallDir\yomie-agent.exe"
 Write-Host "  Config:  $ConfigFile"
 Write-Host "  Service: $ServiceName"
 Write-Host ""

@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Toolkit
+ * Yomie Console — Toolkit
  *
  * Client-side logic for all toolkit tools.
  * Network tools call /api/network/* (existing endpoints).
@@ -8,14 +8,14 @@
  * @module toolkit
  */
 
-/* global BetterDesk, _ */
+/* global Yomie, _ */
 'use strict';
 
 (function () {
     // ── Helpers ─────────────────────────────────────────────────────────
 
     function getCsrfToken() {
-        return window.BetterDesk?.csrfToken || '';
+        return window.Yomie?.csrfToken || '';
     }
 
     function t(key, fallback) {

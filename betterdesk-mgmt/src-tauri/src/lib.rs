@@ -1,4 +1,4 @@
-//! BetterDesk MGMT Client — operator and admin remote management console.
+//! Yomie MGMT Client — operator and admin remote management console.
 //!
 //! Architecture:
 //! - `config`    — Persistent settings (server, keys, identity)
@@ -55,10 +55,10 @@ pub fn run() {
     // Default to DEBUG in --console mode, INFO otherwise.
     let is_console = std::env::args().any(|a| a == "--console");
 
-    // Initialize dual logging: stderr + file in %APPDATA%/BetterDesk/BetterDesk/logs/
+    // Initialize dual logging: stderr + file in %APPDATA%/Yomie/Yomie/logs/
     logging::init(is_console);
 
-    info!("BetterDesk MGMT v{} (pid={}) — boot", env!("CARGO_PKG_VERSION"), std::process::id());
+    info!("Yomie MGMT v{} (pid={}) — boot", env!("CARGO_PKG_VERSION"), std::process::id());
     if is_console {
         info!("Console mode ACTIVE — all logs visible in terminal");
     }
@@ -285,7 +285,7 @@ pub fn run() {
                     Ok(device_id) => {
                         info!("Device ID resolved in {:?}: {}", boot.elapsed(), device_id);
                         if settings.native_protocol {
-                            // BetterDesk native — HTTP registration + WebSocket relay
+                            // Yomie native — HTTP registration + WebSocket relay
                             info!(
                                 "Auto-starting BD native registration with {} as {}",
                                 settings.bd_api_url(),
@@ -409,9 +409,9 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running BetterDesk");
+        .expect("error while running Yomie");
 
     // App loop exited — signal all services to stop.
     shutdown_token.cancel();
-    info!("BetterDesk shutdown complete");
+    info!("Yomie shutdown complete");
 }

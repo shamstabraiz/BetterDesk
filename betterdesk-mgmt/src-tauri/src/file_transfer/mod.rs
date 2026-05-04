@@ -1,4 +1,4 @@
-/// BetterDesk Agent — File Transfer module
+/// Yomie Agent — File Transfer module
 ///
 /// Bidirectional file transfer over the WebSocket relay.
 /// Supports sending, receiving, and browsing remote file systems.

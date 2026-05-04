@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/db"
-	"github.com/unitronix/betterdesk-server/peer"
-	"github.com/unitronix/betterdesk-server/security"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/db"
+	"github.com/unitronix/yomie-server/peer"
+	"github.com/unitronix/yomie-server/security"
 )
 
 // Server is the TCP admin interface.
@@ -144,7 +144,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		fmt.Fprintln(conn, "Authenticated.")
 	}
 
-	fmt.Fprintf(conn, "BetterDesk Admin Console %s\r\n", s.version)
+	fmt.Fprintf(conn, "Yomie Admin Console %s\r\n", s.version)
 	fmt.Fprintf(conn, "Type 'help' for available commands.\r\n\r\n")
 
 	scanner := bufio.NewScanner(conn)
@@ -219,7 +219,7 @@ func (s *Server) cmdStatus(conn net.Conn) {
 	total, online, _ := s.db.GetPeerCount()
 	stats := s.peers.GetStats(config.DegradedThreshold, config.CriticalThreshold)
 
-	fmt.Fprintf(conn, "Server:    BetterDesk %s\r\n", s.version)
+	fmt.Fprintf(conn, "Server:    Yomie %s\r\n", s.version)
 	fmt.Fprintf(conn, "Uptime:    %s\r\n", time.Since(startTime).Truncate(time.Second))
 	fmt.Fprintf(conn, "DB Peers:  %d total, %d online\r\n", total, online)
 	fmt.Fprintf(conn, "In Memory: %d total, %d online, %d degraded, %d critical\r\n",

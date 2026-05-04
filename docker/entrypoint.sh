@@ -1,10 +1,10 @@
 #!/bin/sh
-# BetterDesk — All-in-One Container Entrypoint
+# Yomie — All-in-One Container Entrypoint
 # Runs Go server + Node.js console via supervisord
 set -e
 
 echo "========================================"
-echo "  BetterDesk All-in-One Container"
+echo "  Yomie All-in-One Container"
 echo "  Version: 2.4.0"
 echo "========================================"
 echo ""
@@ -21,12 +21,12 @@ echo "  DATA_DIR:      ${DATA_DIR:-/app/data}"
 echo ""
 
 # Ensure data directories exist and have correct permissions
-mkdir -p /opt/rustdesk /app/data /var/log/betterdesk 2>/dev/null || true
-chown -R betterdesk:betterdesk /opt/rustdesk /app/data /var/log/betterdesk 2>/dev/null || true
+mkdir -p /opt/rustdesk /app/data /var/log/yomie 2>/dev/null || true
+chown -R yomie:yomie /opt/rustdesk /app/data /var/log/yomie 2>/dev/null || true
 # Verify write access — SQLite WAL mode requires writable directory (Issue #78)
-if ! su -s /bin/sh betterdesk -c 'touch /opt/rustdesk/.write_test' 2>/dev/null; then
+if ! su -s /bin/sh yomie -c 'touch /opt/rustdesk/.write_test' 2>/dev/null; then
     echo ""
-    echo "ERROR: /opt/rustdesk is NOT writable by the betterdesk user (UID 10001)."
+    echo "ERROR: /opt/rustdesk is NOT writable by the yomie user (UID 10001)."
     echo "  SQLite WAL mode requires write access to the database directory."
     echo "  If using bind mounts, run: chown -R 10001:10001 /path/to/your/data"
     echo "  Or use Docker named volumes instead of bind mounts."
@@ -36,7 +36,7 @@ rm -f /opt/rustdesk/.write_test 2>/dev/null || true
 # Fix private key permissions (volume mounts may preserve wrong UID/mode)
 if [ -f /opt/rustdesk/id_ed25519 ]; then
     chmod 600 /opt/rustdesk/id_ed25519
-    chown betterdesk:betterdesk /opt/rustdesk/id_ed25519
+    chown yomie:yomie /opt/rustdesk/id_ed25519
 fi
 
 # BD-2026-007: Warn about weak default secrets
@@ -136,12 +136,12 @@ if [ -z "${API_KEY:-}" ] && [ ! -f "$API_KEY_FILE" ]; then
     fi
     echo "$API_KEY" > "$API_KEY_FILE"
     chmod 600 "$API_KEY_FILE"
-    chown betterdesk:betterdesk "$API_KEY_FILE" 2>/dev/null || true
+    chown yomie:yomie "$API_KEY_FILE" 2>/dev/null || true
     echo "Auto-generated API key → $API_KEY_FILE"
 elif [ -n "${API_KEY:-}" ] && [ ! -f "$API_KEY_FILE" ]; then
     echo "$API_KEY" > "$API_KEY_FILE"
     chmod 600 "$API_KEY_FILE"
-    chown betterdesk:betterdesk "$API_KEY_FILE" 2>/dev/null || true
+    chown yomie:yomie "$API_KEY_FILE" 2>/dev/null || true
     echo "API key from env → $API_KEY_FILE"
 fi
 
@@ -158,4 +158,4 @@ echo "========================================"
 echo ""
 
 # Start supervisord (manages both processes)
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/betterdesk.conf
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/yomie.conf

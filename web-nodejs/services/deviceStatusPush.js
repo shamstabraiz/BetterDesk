@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Real-time Device Status Push
+ * Yomie Console — Real-time Device Status Push
  *
  * Connects to Go server's WebSocket event bus and pushes device status
  * changes to browser clients in real time.

@@ -7,6 +7,6 @@ import "./styles/global.css";
 const root = document.getElementById("root");
 
 installFrontendErrorLogging();
-frontendLog("info", "app.main", "Rendering BetterDesk Agent root");
+frontendLog("info", "app.main", "Rendering Yomie Agent root");
 
 render(() => <App />, root!);

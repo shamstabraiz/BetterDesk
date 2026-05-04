@@ -92,7 +92,7 @@ mod tests {
         let mut alice = SecretBoxStream::new(&key);
         let mut bob = SecretBoxStream::new(&key);
 
-        let plaintext = b"Hello, BetterDesk!";
+        let plaintext = b"Hello, Yomie!";
         let ciphertext = alice.encrypt(plaintext).unwrap();
         let decrypted = bob.decrypt(&ciphertext).unwrap();
         assert_eq!(decrypted, plaintext);

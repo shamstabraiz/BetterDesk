@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Login Page
+ * Yomie Console - Login Page
  */
 
 (function() {
@@ -21,7 +21,7 @@
         
         if (!loginForm) return;
         
-        const csrfToken = window.BetterDesk?.csrfToken || '';
+        const csrfToken = window.Yomie?.csrfToken || '';
         
         // Password visibility toggle
         passwordToggle?.addEventListener('click', () => {

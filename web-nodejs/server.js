@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Server Entry Point
+ * Yomie Console - Server Entry Point
  * Professional Web Management Panel for RustDesk Server
  * 
  * @author shamstabraiz
@@ -62,7 +62,7 @@ if (!fs.existsSync(config.dataDir)) {
 // Security headers (Helmet)
 app.use(securityMiddleware);
 
-// CORS for BetterDesk desktop clients (Tauri webview origins)
+// CORS for Yomie desktop clients (Tauri webview origins)
 app.use('/api/', (req, res, next) => {
     const origin = req.headers.origin || '';
     const allowed = [
@@ -91,7 +91,7 @@ app.use(cookieParser());
 // Session management — also kept as a standalone middleware ref for WebSocket upgrades
 // Use a different cookie name in HTTP mode to avoid collision with stale
 // Secure cookies left over from a previous HTTPS configuration (Issue #82).
-const SESSION_COOKIE = config.httpsEnabled ? 'betterdesk.sid' : 'bd.sid';
+const SESSION_COOKIE = config.httpsEnabled ? 'yomie.sid' : 'bd.sid';
 const sessionMiddleware = session({
     secret: config.sessionSecret,
     name: SESSION_COOKIE,
@@ -145,7 +145,7 @@ app.use('/api/', apiLimiter);
 // dedicated WAN-facing port (21121) with additional hardening.
 app.use(rustdeskApiRoutes);
 
-// BetterDesk Desktop Client API — device-facing endpoints that use
+// Yomie Desktop Client API — device-facing endpoints that use
 // Bearer token or X-Device-Id header, not browser CSRF cookies.
 app.use('/api/bd', bdApiRoutes);
 
@@ -175,7 +175,7 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api/bd/')) {
         return next();
     }
-    // Skip CSRF for BetterDesk desktop clients (Tauri) — they are not
+    // Skip CSRF for Yomie desktop clients (Tauri) — they are not
     // vulnerable to CSRF attacks (not browser tabs). Identified by origin.
     const origin = req.headers.origin || '';
     const tauriOrigins = ['http://localhost:1420', 'tauri://localhost', 'https://tauri.localhost'];
@@ -438,7 +438,7 @@ async function startServer() {
         // Initialize WebSocket proxy for remote desktop client
         initWsProxy(server, sessionMiddleware);
 
-        // Initialize BetterDesk native relay (WebSocket)
+        // Initialize Yomie native relay (WebSocket)
         initBdRelay(server);
 
         // Initialize Chat relay (WebSocket — agent ↔ operator, persistent via Go API)
@@ -654,7 +654,7 @@ function printStartupBanner(protocol, port) {
     console.log('');
     console.log('  ╔══════════════════════════════════════════════════╗');
     console.log('  ║                                                  ║');
-    console.log('  ║   🖥️  BetterDesk Console v' + config.appVersion.padEnd(23) + '  ║');
+    console.log('  ║   🖥️  Yomie Console v' + config.appVersion.padEnd(23) + '  ║');
     console.log('  ║                                                  ║');
     console.log('  ╠══════════════════════════════════════════════════╣');
     console.log('  ║                                                  ║');

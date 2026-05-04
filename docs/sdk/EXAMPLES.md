@@ -88,7 +88,7 @@ Periodically fetches data from a REST API.
 
 ```javascript
 // bridges/rest-webhook/bridge.js
-const { CDAPBridge, Widget } = require('betterdesk-cdap');
+const { CDAPBridge, Widget } = require('yomie-cdap');
 
 const bridge = new CDAPBridge({
     serverUrl: process.env.CDAP_SERVER,

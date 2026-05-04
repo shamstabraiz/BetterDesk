@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Toast Notifications
+ * Yomie Console - Toast Notifications
  */
 
 const Notifications = (function() {

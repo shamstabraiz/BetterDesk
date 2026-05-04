@@ -1,4 +1,4 @@
-# BetterDesk Console — Implementation Plan v3.0
+# Yomie Console — Implementation Plan v3.0
 
 > **Purpose**: Living document for tracking development priorities, planned features, and community contributions.  
 > **Last updated**: 2026-03-22  
@@ -22,7 +22,7 @@ Format: `- [ ] **Feature name** — Brief description (module: X, priority: High
 | **Go Server** | Go, protobuf, Ed25519, SQLite/PostgreSQL | Production |
 | **Web Console** | Node.js, Express, EJS, vanilla JS | Production |
 | **CDAP Gateway** | WebSocket, Go server integrated | Production |
-| **BetterDesk Agent** | Go binary, gopsutil, cross-platform | Production |
+| **Yomie Agent** | Go binary, gopsutil, cross-platform | Production |
 | **Bridge SDKs** | Python + Node.js CDAP SDKs | Released v1.0.0 |
 | **ALL-IN-ONE Scripts** | bash + PowerShell installers | v2.4.0 |
 | **Docker** | Single-container + multi-container | Production |
@@ -84,7 +84,7 @@ All modules have **real backend logic** — DB tables, REST endpoints, frontend 
 **Planned features**:
 - [ ] Subnet scanner (ICMP sweep + ARP table)
 - [ ] Port scanner for RustDesk ports (21116, 21117)
-- [ ] Auto-detection of devices running BetterDesk agent
+- [ ] Auto-detection of devices running Yomie agent
 - [ ] Scheduled scans with configurable subnets
 - [ ] Discovery results → pending registration queue
 - [ ] Agent-based network neighbor discovery

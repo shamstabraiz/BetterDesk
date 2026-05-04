@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegram/nicegram-tauri/refs/heads/main/packages/tauri-utils/schema.json",
-  "productName": "BetterDesk MGMT",
+  "productName": "Yomie MGMT",
   "version": "1.0.0",
-  "identifier": "com.betterdesk.mgmt",
+  "identifier": "com.yomie.mgmt",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "BetterDesk MGMT",
+        "title": "Yomie MGMT",
         "width": 1280,
         "height": 800,
         "minWidth": 960,
@@ -52,7 +52,7 @@
           "Polish": "nsis/languages/pl.nsh"
         },
         "installMode": "both",
-        "startMenuFolder": "BetterDesk",
+        "startMenuFolder": "Yomie",
         "headerImage": "icons/nsis-header.bmp",
         "sidebarImage": "icons/nsis-sidebar.bmp",
         "installerIcon": "icons/icon.ico",

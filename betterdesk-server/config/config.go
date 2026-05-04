@@ -1,4 +1,4 @@
-// Package config provides configuration management for BetterDesk server.
+// Package config provides configuration management for Yomie server.
 // Supports CLI flags, environment variables, and sensible defaults.
 package config
 

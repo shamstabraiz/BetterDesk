@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegram/nicegram-tauri/refs/heads/main/packages/tauri-utils/schema.json",
-  "productName": "BetterDesk Agent",
+  "productName": "Yomie Agent",
   "version": "1.0.0",
-  "identifier": "com.betterdesk.agent",
+  "identifier": "com.yomie.agent",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1421",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "BetterDesk Agent",
+        "title": "Yomie Agent",
         "width": 480,
         "height": 520,
         "minWidth": 400,
@@ -41,7 +41,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/betterdesk-agent"
+      "binaries/yomie-agent"
     ],
     "windows": {
       "nsis": {

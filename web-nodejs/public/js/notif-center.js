@@ -26,14 +26,14 @@
 
     function _(key) {
         try {
-            return (window.BetterDesk && window._) ? window._(key) : key;
+            return (window.Yomie && window._) ? window._(key) : key;
         } catch {
             return key;
         }
     }
 
     function csrf() {
-        return (window.BetterDesk && window.BetterDesk.csrfToken) || '';
+        return (window.Yomie && window.Yomie.csrfToken) || '';
     }
 
     function formatTime(iso) {

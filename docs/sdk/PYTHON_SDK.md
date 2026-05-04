@@ -1,9 +1,9 @@
-# Python SDK Reference — `betterdesk-cdap`
+# Python SDK Reference — `yomie-cdap`
 
 ## Installation
 
 ```bash
-pip install betterdesk-cdap
+pip install yomie-cdap
 # or from source:
 pip install -e sdks/python/
 ```

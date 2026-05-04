@@ -1,7 +1,7 @@
 /**
- * BetterDesk Console — Desktop Client API Routes
+ * Yomie Console — Desktop Client API Routes
  *
- * REST endpoints consumed by the BetterDesk desktop client (Tauri).
+ * REST endpoints consumed by the Yomie desktop client (Tauri).
  * These run on the main console server (port 5000) under /api/bd/*.
  *
  * Endpoints:
@@ -495,7 +495,7 @@ router.get('/branding', (req, res) => {
     try {
         const branding = brandingService.getBranding();
         res.json({
-            company_name: branding.appName || 'BetterDesk',
+            company_name: branding.appName || 'Yomie',
             accent_color: branding.colors?.accentBlue || '#3b82f6',
             support_contact: branding.supportContact || '',
         });
@@ -503,7 +503,7 @@ router.get('/branding', (req, res) => {
         console.error('[BD-API] Branding error:', err.message);
         // Return defaults on error — never block the client
         res.json({
-            company_name: 'BetterDesk',
+            company_name: 'Yomie',
             accent_color: '#3b82f6',
             support_contact: '',
         });

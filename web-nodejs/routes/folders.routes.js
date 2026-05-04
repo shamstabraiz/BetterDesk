@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Folders Routes
+ * Yomie Console - Folders Routes
  * Device folder organization
  */
 

@@ -1,5 +1,5 @@
 # check=skip=SecretsUsedInArgOrEnv
-# Dockerfile for BetterDesk Console (Node.js)
+# Dockerfile for Yomie Console (Node.js)
 # Multi-stage build for smaller production image
 #
 # Stage 1: Install dependencies (cached layer)
@@ -24,7 +24,7 @@ RUN npm install --production
 FROM node:20-alpine
 
 LABEL maintainer="shamstabraiz"
-LABEL description="BetterDesk Console - Web Management Panel"
+LABEL description="Yomie Console - Web Management Panel"
 LABEL version="2.4.0"
 
 WORKDIR /app
@@ -36,8 +36,8 @@ RUN apk add --no-cache \
     tini \
     su-exec \
     || { sleep 2 && apk add --no-cache sqlite curl tini su-exec; } \
-    && addgroup -g 10001 -S betterdesk \
-    && adduser -u 10001 -S -G betterdesk betterdesk
+    && addgroup -g 10001 -S yomie \
+    && adduser -u 10001 -S -G yomie yomie
 
 # Copy application files FIRST, then overlay compiled node_modules.
 # This prevents local node_modules from overwriting Alpine/musl native modules.
@@ -51,7 +51,7 @@ RUN chmod +x /app/docker-entrypoint.sh /console-entrypoint.sh
 
 # Create data directories
 RUN mkdir -p /app/data /opt/rustdesk && \
-    chown -R betterdesk:betterdesk /app /opt/rustdesk
+    chown -R yomie:yomie /app /opt/rustdesk
 
 # Environment variables (defaults)
 ENV NODE_ENV=production
@@ -63,7 +63,7 @@ ENV RUSTDESK_PATH=/opt/rustdesk
 ENV DB_PATH=/app/data/db_v2.sqlite3
 ENV PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
 ENV API_KEY_PATH=/opt/rustdesk/.api_key
-ENV SERVER_BACKEND=betterdesk
+ENV SERVER_BACKEND=yomie
 ENV DOCKER=true
 
 # Health check
@@ -76,7 +76,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 EXPOSE 5000 21121
 
 # Note: Container starts as root so console-entrypoint.sh can fix volume permissions.
-# It drops to betterdesk user via su-exec before running docker-entrypoint.sh.
+# It drops to yomie user via su-exec before running docker-entrypoint.sh.
 
 # Use tini as init to handle signals properly
 ENTRYPOINT ["/sbin/tini", "--"]

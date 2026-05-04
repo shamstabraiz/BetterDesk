@@ -89,7 +89,7 @@ impl RelayConnection {
         info!("[RELAY] Step 1: Sent RequestRelay (peer_id={}, uuid={})", peer_id, uuid);
 
         // Step 2: Read first frame — could be RelayResponse (from hbbr) or SignedId (from peer).
-        // BetterDesk Go relay does NOT send RelayResponse; original hbbr may.
+        // Yomie Go relay does NOT send RelayResponse; original hbbr may.
         info!("[RELAY] Step 2: Waiting for first frame from relay...");
         let first_frame = read_frame(&mut reader).await
             .context("Relay channel closed before peer connected")?;

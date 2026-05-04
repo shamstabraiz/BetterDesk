@@ -1,7 +1,7 @@
 /**
- * BetterDesk Console — CDAP SDK Studio Routes
+ * Yomie Console — CDAP SDK Studio Routes
  * Visual node editor for building CDAP bridge flows.
- * Phase 14 of the BetterDesk 3.0 Roadmap.
+ * Phase 14 of the Yomie 3.0 Roadmap.
  */
 
 const express = require('express');

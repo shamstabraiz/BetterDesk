@@ -1,7 +1,7 @@
 {
-  "name": "betterdesk-console",
+  "name": "yomie-console",
   "version": "2.3.0",
-  "description": "BetterDesk Console - Professional Web Management Panel for RustDesk Server",
+  "description": "Yomie Console - Professional Web Management Panel for RustDesk Server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,7 +13,7 @@
   },
   "keywords": [
     "rustdesk",
-    "betterdesk",
+    "yomie",
     "remote-desktop",
     "management-console"
   ],

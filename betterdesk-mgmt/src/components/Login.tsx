@@ -113,7 +113,7 @@ export default function Login() {
         <div class="login-screen">
             <div class="login-card">
                 <div class="login-header">
-                    <img src={bdIcon} alt="BetterDesk" class="login-logo" />
+                    <img src={bdIcon} alt="Yomie" class="login-logo" />
                     <Show when={!tfaMode()} fallback={
                         <>
                             <div class="login-title">{t('login.totp_title')}</div>

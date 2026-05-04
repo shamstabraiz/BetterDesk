@@ -1,4 +1,4 @@
-// Package crypto provides cryptographic utilities for the BetterDesk server.
+// Package crypto provides cryptographic utilities for the Yomie server.
 // Includes AddrMangle (address encoding/decoding) and Ed25519 key management.
 package crypto
 

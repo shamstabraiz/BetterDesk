@@ -1,5 +1,5 @@
 #!/bin/sh
-# Docker Entrypoint for BetterDesk Console (Node.js)
+# Docker Entrypoint for Yomie Console (Node.js)
 # ---------------------------------------------------
 # The Node.js application handles all database initialization,
 # migration, and admin user creation automatically on startup.
@@ -7,7 +7,7 @@
 set -e
 
 echo "========================================"
-echo "  BetterDesk Console - Container Startup"
+echo "  Yomie Console - Container Startup"
 echo "  Version: 2.4.0 (Node.js)"
 echo "========================================"
 
@@ -16,7 +16,7 @@ echo ""
 echo "Configuration:"
 echo "  NODE_ENV:        ${NODE_ENV:-production}"
 echo "  PORT:            ${PORT:-5000}"
-echo "  SERVER_BACKEND:  ${SERVER_BACKEND:-betterdesk}"
+echo "  SERVER_BACKEND:  ${SERVER_BACKEND:-yomie}"
 echo "  DB_TYPE:         ${DB_TYPE:-sqlite}"
 echo "  RUSTDESK_PATH:   ${RUSTDESK_PATH:-/opt/rustdesk}"
 echo "  DATA_DIR:        ${DATA_DIR:-/app/data}"
@@ -64,15 +64,15 @@ if [ "${DB_TYPE:-sqlite}" = "sqlite" ]; then
     fi
 fi
 
-# Wait for BetterDesk server (hbbs) to be available if using betterdesk backend
-if [ "${SERVER_BACKEND}" = "betterdesk" ] && [ -n "${HBBS_API_URL}" ]; then
-    echo "Waiting for BetterDesk server..."
+# Wait for Yomie server (hbbs) to be available if using yomie backend
+if [ "${SERVER_BACKEND}" = "yomie" ] && [ -n "${HBBS_API_URL}" ]; then
+    echo "Waiting for Yomie server..."
     RETRIES=0
     MAX_RETRIES=30
     while [ "$RETRIES" -lt "$MAX_RETRIES" ]; do
         if curl -sf "${HBBS_API_URL}/health" >/dev/null 2>&1 || \
            curl -sf "${BETTERDESK_API_URL:-${HBBS_API_URL}}" >/dev/null 2>&1; then
-            echo "  BetterDesk server is ready"
+            echo "  Yomie server is ready"
             break
         fi
         RETRIES=$((RETRIES + 1))
@@ -80,7 +80,7 @@ if [ "${SERVER_BACKEND}" = "betterdesk" ] && [ -n "${HBBS_API_URL}" ]; then
         sleep 2
     done
     if [ "$RETRIES" -ge "$MAX_RETRIES" ]; then
-        echo "  WARNING: BetterDesk server not reachable after ${MAX_RETRIES} attempts"
+        echo "  WARNING: Yomie server not reachable after ${MAX_RETRIES} attempts"
         echo "  Starting console anyway (some features may be unavailable)..."
     fi
 fi
@@ -109,7 +109,7 @@ if [ "${DB_TYPE}" = "postgresql" ] && [ -n "${DATABASE_URL}" ]; then
 fi
 
 echo ""
-echo "Starting BetterDesk Console..."
+echo "Starting Yomie Console..."
 echo "  Web Interface: http://localhost:${PORT:-5000}"
 echo "  Client API:    port ${API_PORT:-21121}"
 echo ""

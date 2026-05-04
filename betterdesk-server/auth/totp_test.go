@@ -70,11 +70,11 @@ func TestValidateTOTPBadLength(t *testing.T) {
 }
 
 func TestTOTPUri(t *testing.T) {
-	uri := TOTPUri("ABCDEFGH", "BetterDesk", "admin")
+	uri := TOTPUri("ABCDEFGH", "Yomie", "admin")
 	if uri == "" {
 		t.Error("URI should not be empty")
 	}
-	expected := "otpauth://totp/BetterDesk:admin?secret=ABCDEFGH&issuer=BetterDesk&digits=6&period=30"
+	expected := "otpauth://totp/Yomie:admin?secret=ABCDEFGH&issuer=Yomie&digits=6&period=30"
 	if uri != expected {
 		t.Errorf("URI mismatch:\n  got:  %s\n  want: %s", uri, expected)
 	}

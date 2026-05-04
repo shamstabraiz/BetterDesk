@@ -1,6 +1,6 @@
-/// BetterDesk Agent — Command Channel
+/// Yomie Agent — Command Channel
 ///
-/// Polls the BetterDesk server for pending remote commands and
+/// Polls the Yomie server for pending remote commands and
 /// executes them using the ScriptRunner.  Results are uploaded
 /// back to the server.
 

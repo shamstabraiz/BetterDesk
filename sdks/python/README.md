@@ -1,11 +1,11 @@
-# BetterDesk CDAP Python SDK
+# Yomie CDAP Python SDK
 
 Build CDAP device bridges in Python for IoT sensors, industrial equipment, and automation systems.
 
 ## Installation
 
 ```bash
-pip install betterdesk-cdap
+pip install yomie-cdap
 # or from source
 pip install -e sdks/python/
 ```

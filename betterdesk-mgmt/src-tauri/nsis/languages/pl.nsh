@@ -1,4 +1,4 @@
-; BetterDesk NSIS Polish Translation
+; Yomie NSIS Polish Translation
 ; Custom Tauri messages for Polish installer
 
 LangString addOrReinstall ${LANG_POLISH} "Dodaj/Zainstaluj ponownie komponenty"

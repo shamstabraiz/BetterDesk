@@ -1,4 +1,4 @@
-/// BetterDesk Agent — File Sender
+/// Yomie Agent — File Sender
 ///
 /// Reads a local file and streams it as binary frames over the
 /// WebSocket relay to the remote peer.  Supports chunked transfer,
@@ -196,7 +196,7 @@ mod tests {
         let dir = std::env::temp_dir();
         let path = dir.join("betterdesk_test_sender.txt");
         let mut f = std::fs::File::create(&path).unwrap();
-        f.write_all(b"Hello, BetterDesk!").unwrap();
+        f.write_all(b"Hello, Yomie!").unwrap();
         drop(f);
 
         let sender = FileSender::new(&path).unwrap();

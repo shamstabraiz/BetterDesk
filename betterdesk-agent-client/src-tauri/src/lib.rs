@@ -1,4 +1,4 @@
-//! BetterDesk Agent Client — lightweight endpoint device agent.
+//! Yomie Agent Client — lightweight endpoint device agent.
 //!
 //! Architecture:
 //! - `config`          — Persistent settings (server address, device identity, preferences)
@@ -190,7 +190,7 @@ pub fn run() {
         .init();
 
     info!(
-        "BetterDesk Agent v{} (pid={}) — boot",
+        "Yomie Agent v{} (pid={}) — boot",
         env!("CARGO_PKG_VERSION"),
         std::process::id()
     );
@@ -350,7 +350,7 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("Failed to start BetterDesk Agent");
+        .expect("Failed to start Yomie Agent");
 }
 
 /// System tray setup.
@@ -405,9 +405,9 @@ fn setup_tray(
     let mut tray_builder = TrayIconBuilder::new()
         .menu(&menu)
         .tooltip(if is_admin {
-            "BetterDesk Agent (admin)"
+            "Yomie Agent (admin)"
         } else {
-            "BetterDesk Agent"
+            "Yomie Agent"
         });
 
     if let Some(icon) = icon {

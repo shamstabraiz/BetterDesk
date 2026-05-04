@@ -1,4 +1,4 @@
-// Package crypto — Ed25519 key pair management for the BetterDesk server.
+// Package crypto — Ed25519 key pair management for the Yomie server.
 // Generates, loads, saves, and uses Ed25519 keys for signing IdPk messages.
 // Compatible with RustDesk client key verification.
 package crypto
@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	pb "github.com/unitronix/betterdesk-server/proto"
+	pb "github.com/unitronix/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

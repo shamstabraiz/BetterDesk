@@ -6,7 +6,7 @@ const os = require('os');
 const { createMessage, parseMessage, authApiKey, authDeviceToken, authUserPassword } = require('./protocol');
 
 /**
- * CDAPBridge — connects a Node.js process to BetterDesk CDAP Gateway.
+ * CDAPBridge — connects a Node.js process to Yomie CDAP Gateway.
  *
  * @fires CDAPBridge#connected
  * @fires CDAPBridge#disconnected
@@ -191,7 +191,7 @@ class CDAPBridge extends EventEmitter {
   async _connectOnce() {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(this.server, 'cdap', {
-        headers: { 'User-Agent': `betterdesk-cdap-nodejs/${this.bridgeVersion}` },
+        headers: { 'User-Agent': `yomie-cdap-nodejs/${this.bridgeVersion}` },
         handshakeTimeout: 10000,
       });
 

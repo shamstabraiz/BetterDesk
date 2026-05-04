@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Device Detail Panel
+ * Yomie Console - Device Detail Panel
  * Enterprise-grade slide-over panel for device management.
  *
  * Usage:

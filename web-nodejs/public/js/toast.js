@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Toast Notification System (Phase 13)
+ * Yomie Console — Toast Notification System (Phase 13)
  * Animated toast notifications with auto-dismiss and progress bar.
  *
  * Usage:

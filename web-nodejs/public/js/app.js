@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Main Application
+ * Yomie Console - Main Application
  */
 
 (function() {

@@ -1,7 +1,7 @@
-//! BetterDesk native E2E encryption for relay sessions.
+//! Yomie native E2E encryption for relay sessions.
 //!
 //! Uses X25519 Diffie-Hellman + XSalsa20-Poly1305 to establish a shared
-//! symmetric key between two BetterDesk desktop clients.  The server
+//! symmetric key between two Yomie desktop clients.  The server
 //! never sees the plaintext.
 //!
 //! Protocol (over the relay WebSocket):
@@ -9,7 +9,7 @@
 //!   2. Initiator sends: { "type": "key_exchange", "pk": base64(32 bytes) }
 //!   3. Target sends:    { "type": "key_exchange", "pk": base64(32 bytes) }
 //!   4. Both compute: shared_secret = X25519(our_sk, their_pk)
-//!   5. Derive key:   symmetric_key = SHA256(shared_secret ‖ "BetterDesk-E2E-v1")
+//!   5. Derive key:   symmetric_key = SHA256(shared_secret ‖ "Yomie-E2E-v1")
 //!   6. All subsequent binary frames: nonce(24) ‖ ciphertext(N+16)
 //!
 //! The relay server sees only opaque binary blobs.
@@ -24,7 +24,7 @@ use xsalsa20poly1305::{
     Nonce, XSalsa20Poly1305,
 };
 
-const DOMAIN_SEPARATOR: &[u8] = b"BetterDesk-E2E-v1";
+const DOMAIN_SEPARATOR: &[u8] = b"Yomie-E2E-v1";
 
 /// E2E encryption context for a relay session.
 pub struct BdE2E {
@@ -165,7 +165,7 @@ mod tests {
         assert!(bob.is_ready());
 
         // Alice encrypts, Bob decrypts
-        let plaintext = b"Hello from BetterDesk!";
+        let plaintext = b"Hello from Yomie!";
         let encrypted = alice.encrypt(plaintext).unwrap();
         let decrypted = bob.decrypt(&encrypted).unwrap();
         assert_eq!(decrypted, plaintext);

@@ -1,4 +1,4 @@
-// Package crypto — secure TCP handshake for the BetterDesk signal server.
+// Package crypto — secure TCP handshake for the Yomie signal server.
 //
 // Implements the RustDesk "secure TCP" protocol used by newer clients (≥1.2.x):
 //
@@ -32,8 +32,8 @@ import (
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
 
-	"github.com/unitronix/betterdesk-server/codec"
-	pb "github.com/unitronix/betterdesk-server/proto"
+	"github.com/unitronix/yomie-server/codec"
+	pb "github.com/unitronix/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

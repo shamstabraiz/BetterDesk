@@ -1,7 +1,7 @@
-//! BetterDesk native WebSocket relay client.
+//! Yomie native WebSocket relay client.
 //!
-//! Connects to the BetterDesk console relay endpoint (`/ws/bd-relay`) for
-//! E2E-encrypted data transfer between two BetterDesk desktop clients.
+//! Connects to the Yomie console relay endpoint (`/ws/bd-relay`) for
+//! E2E-encrypted data transfer between two Yomie desktop clients.
 //!
 //! Flow:
 //!   1. POST /api/bd/connect → get session_id + token
@@ -52,7 +52,7 @@ struct ConnectResponse {
 //  Relay connection
 // ---------------------------------------------------------------------------
 
-/// Active relay connection to a remote BetterDesk client.
+/// Active relay connection to a remote Yomie client.
 pub struct BdRelayConnection {
     /// Outgoing binary frames to send to the peer.
     pub tx: mpsc::Sender<Vec<u8>>,

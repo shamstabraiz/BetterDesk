@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Organization Detail Page JavaScript
+ * Yomie Console — Organization Detail Page JavaScript
  *
  * Handles org detail view with tabs: Users, Devices, Invitations, Settings.
  * Uses Modal.show() for form inputs, i18n for all strings.
@@ -21,7 +21,7 @@
     //  Helpers
     // -----------------------------------------------------------------------
     async function api(method, path, body) {
-        const csrfToken = window.BetterDesk?.csrfToken || '';
+        const csrfToken = window.Yomie?.csrfToken || '';
         const opts = {
             method,
             headers: { 'Content-Type': 'application/json' },

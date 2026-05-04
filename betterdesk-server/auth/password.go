@@ -1,4 +1,4 @@
-// Package auth provides authentication primitives for the BetterDesk server:
+// Package auth provides authentication primitives for the Yomie server:
 // password hashing (PBKDF2-HMAC-SHA256), JWT tokens (HS256), and TOTP 2FA (RFC 6238).
 package auth
 

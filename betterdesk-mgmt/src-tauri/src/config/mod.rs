@@ -1,4 +1,4 @@
-//! Configuration module — persistent settings for the BetterDesk client.
+//! Configuration module — persistent settings for the Yomie client.
 
 mod secure_store;
 mod settings;

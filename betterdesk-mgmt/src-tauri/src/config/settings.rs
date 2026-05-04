@@ -1,9 +1,9 @@
 //! Persistent application settings.
 //!
 //! Stored as JSON in the platform-specific config directory:
-//!   - Windows: %APPDATA%/BetterDesk/config.json
-//!   - Linux:   ~/.config/betterdesk/config.json
-//!   - macOS:   ~/Library/Application Support/BetterDesk/config.json
+//!   - Windows: %APPDATA%/Yomie/config.json
+//!   - Linux:   ~/.config/yomie/config.json
+//!   - macOS:   ~/Library/Application Support/Yomie/config.json
 
 use anyhow::{Context, Result};
 use log::warn;
@@ -31,11 +31,11 @@ pub struct Settings {
     pub relay_address: String,
     /// Server public key (base64-encoded Ed25519)
     pub server_key: String,
-    /// API port for BetterDesk HTTP API
+    /// API port for Yomie HTTP API
     pub api_port: u16,
     /// Whether to use RustDesk-compatible protocol
     pub rustdesk_compat: bool,
-    /// Whether to use BetterDesk native protocol (enhanced security)
+    /// Whether to use Yomie native protocol (enhanced security)
     pub native_protocol: bool,
     /// Whether to force relay (no direct P2P)
     pub force_relay: bool,
@@ -59,9 +59,9 @@ pub struct Settings {
     pub device_password: String,
     /// Trusted server certificates (PEM, for certificate pinning)
     pub pinned_certificates: Vec<String>,
-    /// BetterDesk console URL (e.g. http://192.168.0.110:5000)
+    /// Yomie console URL (e.g. http://192.168.0.110:5000)
     pub console_url: String,
-    /// Access token for BetterDesk API authentication
+    /// Access token for Yomie API authentication
     pub access_token: Option<String>,
 }
 
@@ -94,7 +94,7 @@ impl Default for Settings {
 impl Settings {
     /// Get the config file path.
     pub fn config_path() -> Result<PathBuf> {
-        let dirs = directories::ProjectDirs::from("com", "BetterDesk", "BetterDesk")
+        let dirs = directories::ProjectDirs::from("com", "Yomie", "Yomie")
             .context("Cannot determine config directory")?;
         let config_dir = dirs.config_dir();
         fs::create_dir_all(config_dir)
@@ -214,7 +214,7 @@ impl Settings {
         }
     }
 
-    /// Get the BetterDesk console API base URL (for native protocol).
+    /// Get the Yomie console API base URL (for native protocol).
     ///
     /// Uses `console_url` if set, otherwise derives from `server_address`.
     pub fn bd_api_url(&self) -> String {
@@ -257,7 +257,7 @@ impl Settings {
         }
     }
 
-    /// Get `host:port` for WebSocket connections to the BetterDesk console.
+    /// Get `host:port` for WebSocket connections to the Yomie console.
     ///
     /// Used to build `ws://{server_ws_host()}/ws/chat/...` and similar URLs.
     pub fn server_ws_host(&self) -> String {

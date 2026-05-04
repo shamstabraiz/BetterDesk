@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * BetterDesk Console - Password Reset Script
+ * Yomie Console - Password Reset Script
  * Usage: node reset-password.js <new-password> [username]
  * 
  * Resets the password for a user. If username is not provided, defaults to 'admin'.
@@ -175,11 +175,11 @@ function findDataDir() {
     const possiblePaths = [
         process.env.RUSTDESK_DATA,
         process.env.DATA_DIR,
-        // BetterDesk Console standard data directories (Windows)
+        // Yomie Console standard data directories (Windows)
         'C:\\BetterDeskConsole\\data',
-        'C:\\BetterDesk\\BetterDeskConsole\\data',
-        'C:\\BetterDesk\\data',
-        // BetterDesk Console standard data directories (Linux)
+        'C:\\Yomie\\BetterDeskConsole\\data',
+        'C:\\Yomie\\data',
+        // Yomie Console standard data directories (Linux)
         '/opt/BetterDeskConsole/data',
         // Legacy paths
         '/opt/rustdesk',

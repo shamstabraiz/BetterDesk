@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/codec"
-	"github.com/unitronix/betterdesk-server/config"
-	pb "github.com/unitronix/betterdesk-server/proto"
+	"github.com/unitronix/yomie-server/codec"
+	"github.com/unitronix/yomie-server/config"
+	pb "github.com/unitronix/yomie-server/proto"
 )
 
 func TestRelayPairing(t *testing.T) {

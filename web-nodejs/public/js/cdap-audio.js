@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — CDAP Audio Stream Widget
+ * Yomie Console — CDAP Audio Stream Widget
  * Provides bidirectional audio streaming from CDAP devices via WebSocket.
  * Decodes Opus/PCM audio and renders using Web Audio API.
  */
@@ -33,7 +33,7 @@
         const levelBar = widgetEl.querySelector('.cdap-audio-level-fill');
 
         if (statusEl) {
-            statusEl.textContent = window.BetterDesk?.t?.('cdap.audio_connecting') || 'Connecting...';
+            statusEl.textContent = window.Yomie?.t?.('cdap.audio_connecting') || 'Connecting...';
             statusEl.className = 'cdap-audio-status connecting';
         }
 
@@ -108,7 +108,7 @@
                 session.connected = true;
                 initAudioContext(session);
                 if (session.statusEl) {
-                    session.statusEl.textContent = window.BetterDesk?.t?.('cdap.audio_streaming') || 'Streaming';
+                    session.statusEl.textContent = window.Yomie?.t?.('cdap.audio_streaming') || 'Streaming';
                     session.statusEl.className = 'cdap-audio-status streaming';
                 }
                 // Start level meter
@@ -337,7 +337,7 @@
             session.audioCtx = null;
         }
         if (session.statusEl) {
-            session.statusEl.textContent = window.BetterDesk?.t?.('cdap.disconnected') || 'Disconnected';
+            session.statusEl.textContent = window.Yomie?.t?.('cdap.disconnected') || 'Disconnected';
             session.statusEl.className = 'cdap-audio-status disconnected';
         }
         if (session.levelBar) {

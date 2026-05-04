@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — DataGuard / DLP API Routes
+ * Yomie Console — DataGuard / DLP API Routes
  *
  * Manages Data Loss Prevention policies for USB device control and
  * file-operation monitoring.  Desktop agents fetch policies and

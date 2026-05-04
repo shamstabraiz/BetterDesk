@@ -6,7 +6,7 @@ Use this checklist before every tagged release to ensure quality and stability.
 
 ## 1. Go Server
 
-- [ ] **Build**: `cd betterdesk-server && go build -o betterdesk-server .` — exits 0
+- [ ] **Build**: `cd yomie-server && go build -o yomie-server .` — exits 0
 - [ ] **Vet**: `go vet ./...` — no warnings
 - [ ] **Tests**: `go test ./...` — all pass
 - [ ] **Cross-compile**: `GOOS=linux GOARCH=amd64`, `GOOS=linux GOARCH=arm64`, `GOOS=windows GOARCH=amd64`
@@ -26,7 +26,7 @@ Use this checklist before every tagged release to ensure quality and stability.
 
 ## 3. Desktop Client (Tauri)
 
-- [ ] **Install deps**: `cd betterdesk-mgmt && pnpm install`
+- [ ] **Install deps**: `cd yomie-mgmt && pnpm install`
 - [ ] **Frontend build**: `pnpm build` — no errors
 - [ ] **Tauri build**: `cargo tauri build` — NSIS + MSI produced
 - [ ] **Installer runs**: installs and launches without crash
@@ -34,14 +34,14 @@ Use this checklist before every tagged release to ensure quality and stability.
 
 ## 4. Agent Client (Tauri)
 
-- [ ] **Install deps**: `cd betterdesk-agent-client && pnpm install`
+- [ ] **Install deps**: `cd yomie-agent-client && pnpm install`
 - [ ] **Build**: `cargo tauri build` — NSIS produced
 - [ ] **Setup wizard**: 5-step onboarding completes successfully
 - [ ] **Registration**: device appears in server peer list
 
 ## 5. Native Agent (Go)
 
-- [ ] **Build**: `cd betterdesk-agent && go build -o betterdesk-agent .`
+- [ ] **Build**: `cd yomie-agent && go build -o yomie-agent .`
 - [ ] **Connection**: connects to CDAP gateway, manifests registers
 - [ ] **Heartbeat**: metrics flow (CPU / Memory / Disk)
 
@@ -55,11 +55,11 @@ Use this checklist before every tagged release to ensure quality and stability.
 
 ## 7. Installer Scripts
 
-- [ ] **Linux fresh**: `sudo ./betterdesk.sh --auto` on clean Ubuntu/Debian
-- [ ] **Linux update**: `sudo ./betterdesk.sh` option 2 preserves DB + config
-- [ ] **Windows fresh**: `.\betterdesk.ps1 -Auto` on clean Windows Server
-- [ ] **Windows update**: `.\betterdesk.ps1` option 2 preserves DB + config
-- [ ] **Docker script**: `./betterdesk-docker.sh` option 1 installs successfully
+- [ ] **Linux fresh**: `sudo ./yomie.sh --auto` on clean Ubuntu/Debian
+- [ ] **Linux update**: `sudo ./yomie.sh` option 2 preserves DB + config
+- [ ] **Windows fresh**: `.\yomie.ps1 -Auto` on clean Windows Server
+- [ ] **Windows update**: `.\yomie.ps1` option 2 preserves DB + config
+- [ ] **Docker script**: `./yomie-docker.sh` option 1 installs successfully
 
 ## 8. Documentation & Release
 

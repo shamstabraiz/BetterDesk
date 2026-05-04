@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Dashboard Routes
+ * Yomie Console - Dashboard Routes
  */
 
 const express = require('express');
@@ -54,7 +54,7 @@ router.get('/api/stats', requireAuth, async (req, res) => {
 
 /**
  * GET /api/server/status - Get server status
- * In betterdesk mode: probes the Go server /api/health (single binary serves all).
+ * In yomie mode: probes the Go server /api/health (single binary serves all).
  * In rustdesk mode: probes hbbs (health) + hbbr (TCP connect).
  * Returns a unified shape consumed by dashboard.js.
  */
@@ -66,7 +66,7 @@ router.get('/api/server/status', requireAuth, async (req, res) => {
         const hbbsHealth = await serverBackend.getHealth();
         const apiRunning = hbbsHealth && hbbsHealth.status === 'running';
 
-        // In BetterDesk mode, all services run in a single binary.
+        // In Yomie mode, all services run in a single binary.
         // If the API health check passes, signal + relay are also running.
         // Raw TCP probes on signal/relay ports would cause spurious
         // NaCl handshake failure log entries in the Go server.
@@ -114,7 +114,7 @@ router.get('/api/server/status', requireAuth, async (req, res) => {
         res.json({
             success: true,
             data: {
-                backend: isBD ? 'betterdesk' : 'rustdesk',
+                backend: isBD ? 'yomie' : 'rustdesk',
                 uptime: Math.floor(process.uptime()),
                 // Main status indicators
                 hbbs: apiRunning ? { status: 'running' } : { status: 'stopped' },

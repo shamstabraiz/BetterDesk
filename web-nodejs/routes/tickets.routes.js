@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Helpdesk / Ticketing API Routes
+ * Yomie Console — Helpdesk / Ticketing API Routes
  *
  * Full CRUD for tickets, comments, attachments, and statistics.
  * Tickets can be created from the web console (admin/operator) or

@@ -43,7 +43,7 @@ impl SessionRecorder {
     pub fn new() -> Self {
         let recordings_dir = dirs::document_dir()
             .unwrap_or_else(|| std::env::temp_dir())
-            .join("BetterDesk")
+            .join("Yomie")
             .join("recordings");
 
         let _ = std::fs::create_dir_all(&recordings_dir);

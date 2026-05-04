@@ -5,9 +5,9 @@ fn main() {
     tauri_build::build();
 }
 
-/// Compile the `betterdesk-agent` Go binary and place it in
+/// Compile the `yomie-agent` Go binary and place it in
 /// `src-tauri/binaries/` using the Tauri externalBin naming convention:
-/// `betterdesk-agent-<target-triple>[.exe]`.
+/// `yomie-agent-<target-triple>[.exe]`.
 ///
 /// Silently skips if Go is not installed or the agent source is missing —
 /// the developer can still run using the system-installed binary via PATH
@@ -15,16 +15,16 @@ fn main() {
 fn build_go_sidecar() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
-    // The agent lives two levels up: <repo>/betterdesk-agent/
+    // The agent lives two levels up: <repo>/yomie-agent/
     let agent_dir = manifest_dir
         .parent()
         .and_then(|p| p.parent())
-        .map(|p| p.join("betterdesk-agent"))
+        .map(|p| p.join("yomie-agent"))
         .unwrap_or_default();
 
     if !agent_dir.exists() {
         println!(
-            "cargo:warning=[sidecar] betterdesk-agent not found at {:?} — skipping Go build",
+            "cargo:warning=[sidecar] yomie-agent not found at {:?} — skipping Go build",
             agent_dir
         );
         return;
@@ -46,9 +46,9 @@ fn build_go_sidecar() {
     };
 
     let bin_name = if goos == "windows" {
-        format!("betterdesk-agent-{}.exe", target_triple)
+        format!("yomie-agent-{}.exe", target_triple)
     } else {
-        format!("betterdesk-agent-{}", target_triple)
+        format!("yomie-agent-{}", target_triple)
     };
 
     let binaries_dir = manifest_dir.join("binaries");

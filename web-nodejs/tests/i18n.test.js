@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - i18n Routes Tests
+ * Yomie Console - i18n Routes Tests
  */
 
 const request = require('supertest');

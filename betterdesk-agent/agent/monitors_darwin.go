@@ -62,5 +62,5 @@ func enumerateMonitors() []MonitorInfo {
 
 // desktopCaptureHint returns guidance for fixing screen capture on macOS.
 func desktopCaptureHint() string {
-	return "Grant 'Screen Recording' permission to BetterDesk in System Settings → Privacy & Security → Screen Recording, then restart the agent."
+	return "Grant 'Screen Recording' permission to Yomie in System Settings → Privacy & Security → Screen Recording, then restart the agent."
 }

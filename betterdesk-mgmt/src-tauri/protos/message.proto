@@ -821,7 +821,7 @@ message MessageQuery {
   int32 switch_display = 1;
 }
 
-// BetterDesk: controlling peer requests flashlight/torch on/off on controlled device (mobile).
+// Yomie: controlling peer requests flashlight/torch on/off on controlled device (mobile).
 message ToggleFlashCustom {
   bool on = 1;
 }

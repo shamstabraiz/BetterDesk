@@ -1,10 +1,10 @@
-# BetterDesk - Building from Source
+# Yomie - Building from Source
 
-This guide explains how to build BetterDesk enhanced binaries from source code.
+This guide explains how to build Yomie enhanced binaries from source code.
 
 ## Overview
 
-BetterDesk is built on top of the official RustDesk Server with additional modifications:
+Yomie is built on top of the official RustDesk Server with additional modifications:
 - HTTP API for device management
 - Real-time online status tracking
 - Device banning capabilities
@@ -15,19 +15,19 @@ BetterDesk is built on top of the official RustDesk Server with additional modif
 ### Linux
 ```bash
 # Interactive build
-./build-betterdesk.sh
+./build-yomie.sh
 
 # Automatic build with defaults
-./build-betterdesk.sh --auto
+./build-yomie.sh --auto
 ```
 
 ### Windows
 ```powershell
 # Interactive build
-.\build-betterdesk.ps1
+.\build-yomie.ps1
 
 # Automatic build with defaults
-.\build-betterdesk.ps1 -Auto
+.\build-yomie.ps1 -Auto
 ```
 
 ---
@@ -63,7 +63,7 @@ cd rustdesk-server
 git submodule update --init --recursive
 ```
 
-### Step 2: Apply BetterDesk Modifications
+### Step 2: Apply Yomie Modifications
 
 Copy the modification files from `hbbs-patch-v2/src/` to the RustDesk source:
 
@@ -136,14 +136,14 @@ cross build --release --target x86_64-pc-windows-gnu -p hbbr
 |------|---------|
 | `main.rs` | Entry point with `--api-port` argument, HTTP API startup |
 | `http_api.rs` | Full HTTP API implementation (list, online status, ban) |
-| `database.rs` | Database operations with BetterDesk extensions |
+| `database.rs` | Database operations with Yomie extensions |
 | `peer.rs` | Peer management with additional fields |
 
 ### Key Modifications in main.rs
 
 ```rust
 // Added command-line argument
-#[arg(long, value_name = "PORT", help = "HTTP API port for BetterDesk Console")]
+#[arg(long, value_name = "PORT", help = "HTTP API port for Yomie Console")]
 api_port: Option<u16>,
 
 // API startup in main()
@@ -176,7 +176,7 @@ The project includes automated builds via GitHub Actions.
 
 ### Manual Trigger
 1. Go to Actions tab in GitHub
-2. Select "Build BetterDesk Binaries"
+2. Select "Build Yomie Binaries"
 3. Click "Run workflow"
 4. Optionally select RustDesk version and release options
 
@@ -187,7 +187,7 @@ Built binaries are available as workflow artifacts for 30 days.
 
 ## Build Script Options
 
-### Linux (build-betterdesk.sh)
+### Linux (build-yomie.sh)
 
 | Option | Description |
 |--------|-------------|
@@ -197,7 +197,7 @@ Built binaries are available as workflow artifacts for 30 days.
 | `--platform PLATFORM` | Target: linux-x64, linux-arm64, windows-x64 |
 | `--help` | Show help |
 
-### Windows (build-betterdesk.ps1)
+### Windows (build-yomie.ps1)
 
 | Option | Description |
 |--------|-------------|
@@ -233,7 +233,7 @@ sudo apt-get install libssl-dev pkg-config
 
 ### Axum Version Mismatch
 
-BetterDesk uses axum 0.5.x. If upgrading RustDesk base version, check Cargo.toml for axum version changes.
+Yomie uses axum 0.5.x. If upgrading RustDesk base version, check Cargo.toml for axum version changes.
 
 ### Cross-Compilation Fails
 
@@ -261,7 +261,7 @@ export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 
 Should show:
 ```
---api-port <PORT>    HTTP API port for BetterDesk Console
+--api-port <PORT>    HTTP API port for Yomie Console
 ```
 
 ### Test API Functionality
@@ -292,7 +292,7 @@ See [CONTRIBUTING.md](../development/CONTRIBUTING.md) for full guidelines.
 | Component | Version |
 |-----------|---------|
 | RustDesk Server Base | 1.1.14 |
-| BetterDesk HTTP API | 2.0.1 |
+| Yomie HTTP API | 2.0.1 |
 | Install Scripts | 1.5.x |
 
 When updating RustDesk base version:

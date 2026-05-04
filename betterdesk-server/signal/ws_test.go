@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/crypto"
-	"github.com/unitronix/betterdesk-server/db"
-	pb "github.com/unitronix/betterdesk-server/proto"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/crypto"
+	"github.com/unitronix/yomie-server/db"
+	pb "github.com/unitronix/yomie-server/proto"
 	"google.golang.org/protobuf/proto"
 )
 

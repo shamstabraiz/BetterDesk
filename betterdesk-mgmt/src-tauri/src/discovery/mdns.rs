@@ -1,4 +1,4 @@
-//! mDNS/DNS-SD discovery for BetterDesk servers on the local network.
+//! mDNS/DNS-SD discovery for Yomie servers on the local network.
 //!
 //! Discovers servers advertising `_betterdesk._tcp.local.` via mDNS.
 //! This complements the UDP broadcast scanner for environments where
@@ -22,7 +22,7 @@ use tokio::time::Duration;
 const SERVICE_TYPE: &str = "_betterdesk._tcp.local.";
 const BROWSE_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// A BetterDesk server discovered via mDNS.
+/// A Yomie server discovered via mDNS.
 #[derive(Debug, Clone, Serialize)]
 pub struct MdnsServer {
     pub name: String,
@@ -37,7 +37,7 @@ pub struct MdnsServer {
     pub server_address: String,
 }
 
-/// Browse for BetterDesk servers via mDNS for `timeout` duration.
+/// Browse for Yomie servers via mDNS for `timeout` duration.
 /// Returns a list of discovered servers.
 pub fn browse_mdns_servers(timeout: Duration) -> Vec<MdnsServer> {
     let servers: Arc<Mutex<HashMap<String, MdnsServer>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -88,7 +88,7 @@ pub fn browse_mdns_servers(timeout: Duration) -> Vec<MdnsServer> {
                 let server_address = format!("{}:21116", host);
 
                 let server = MdnsServer {
-                    name: info.get_fullname().split('.').next().unwrap_or("BetterDesk").to_string(),
+                    name: info.get_fullname().split('.').next().unwrap_or("Yomie").to_string(),
                     host: host.clone(),
                     port: info.get_port(),
                     addresses,

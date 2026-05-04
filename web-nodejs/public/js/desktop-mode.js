@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Desktop Mode (BETA)
+ * Yomie Console - Desktop Mode (BETA)
  * Windows-like desktop environment with floating windows, taskbar, and app icons.
  * Available on viewports >= 1200px.
  * 
@@ -96,8 +96,8 @@
 
     function getApps() {
         var t = typeof _ === 'function' ? _ : function(k) { return k; };
-        var isAdmin = window.BetterDesk && window.BetterDesk.user &&
-                      window.BetterDesk.user.role === 'admin';
+        var isAdmin = window.Yomie && window.Yomie.user &&
+                      window.Yomie.user.role === 'admin';
         var apps = [
             // Main
             { id: 'dashboard',     icon: 'dashboard',        route: '/',              color: '#58a6ff',  name: t('nav.dashboard'),      category: 'main' },
@@ -138,7 +138,7 @@
     // ============ Initialization ============
 
     function init() {
-        if (window.BetterDesk && window.BetterDesk.embed) return;
+        if (window.Yomie && window.Yomie.embed) return;
         
         // Initialize foldable device detection
         initFoldableDetection();
@@ -202,7 +202,7 @@
         
         // Log foldable detection status
         if (isFoldableDevice) {
-            console.log('BetterDesk: Foldable device detected, posture:', devicePosture);
+            console.log('Yomie: Foldable device detected, posture:', devicePosture);
         }
     }
     

@@ -1,8 +1,8 @@
 //! Dual logging system — writes to both stderr (console) and a rotating log file.
 //!
-//! Log file location: `<config_dir>/logs/betterdesk-mgmt.log`
-//! - Windows: `%APPDATA%\BetterDesk\BetterDesk\logs\betterdesk-mgmt.log`
-//! - Linux:   `~/.config/BetterDesk/logs/betterdesk-mgmt.log`
+//! Log file location: `<config_dir>/logs/yomie-mgmt.log`
+//! - Windows: `%APPDATA%\Yomie\Yomie\logs\yomie-mgmt.log`
+//! - Linux:   `~/.config/Yomie/logs/yomie-mgmt.log`
 //!
 //! Features:
 //! - Dual target (stderr + file) for both --console and headless operation
@@ -92,7 +92,7 @@ pub fn init(is_console: bool) {
     };
 
     // Create log directory and file
-    let log_path = get_log_dir().join("betterdesk-mgmt.log");
+    let log_path = get_log_dir().join("yomie-mgmt.log");
     if let Some(parent) = log_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
@@ -124,7 +124,7 @@ pub fn init(is_console: bool) {
 
 /// Get the log directory path.
 fn get_log_dir() -> PathBuf {
-    directories::ProjectDirs::from("com", "BetterDesk", "BetterDesk")
+    directories::ProjectDirs::from("com", "Yomie", "Yomie")
         .map(|d| d.config_dir().join("logs"))
         .unwrap_or_else(|| PathBuf::from("logs"))
 }

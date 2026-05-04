@@ -1,6 +1,6 @@
-# BetterDesk Console - Project Structure
+# Yomie Console - Project Structure
 
-This document describes the organization of the BetterDesk Console project.
+This document describes the organization of the Yomie Console project.
 
 ## 📁 Directory Structure
 
@@ -21,7 +21,7 @@ BetterDeskConsole/
 │   ├── app.py                      # Flask backend with ban management
 │   ├── app_demo.py                 # Demo version (no database)
 │   ├── requirements.txt            # Python dependencies
-│   ├── betterdesk.service          # Systemd service file
+│   ├── yomie.service          # Systemd service file
 │   ├── templates/                  # HTML templates
 │   │   └── index.html             # Main dashboard
 │   └── static/                     # Static assets

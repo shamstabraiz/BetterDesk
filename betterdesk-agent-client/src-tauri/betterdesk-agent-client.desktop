@@ -7,5 +7,5 @@ StartupWMClass={{name}}
 Type=Application
 Terminal=false
 Categories=Network;RemoteAccess;System;
-Keywords=remote;desktop;agent;management;betterdesk;
+Keywords=remote;desktop;agent;management;yomie;
 NoDisplay=false

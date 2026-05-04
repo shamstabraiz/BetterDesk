@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Chat E2E Encryption (Phase 2)
+ * Yomie Console — Chat E2E Encryption (Phase 2)
  *
  * Provides end-to-end encryption for chat messages using:
  *   - X25519 (ECDH) for key exchange
@@ -139,7 +139,7 @@
             'raw', sharedBits, 'HKDF', false, ['deriveKey']
         );
 
-        var info = new TextEncoder().encode('betterdesk-chat-e2e-' + (conversationId || 'default'));
+        var info = new TextEncoder().encode('yomie-chat-e2e-' + (conversationId || 'default'));
         var salt = new Uint8Array(16); // Fixed salt (conversations are identified by ID)
 
         var aesKey = await crypto.subtle.deriveKey(

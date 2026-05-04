@@ -22,10 +22,10 @@ If you experience any of these issues, you likely have a key mismatch problem:
 ### "Remote desktop is offline"
 - Intermittent connectivity issues
 - Some devices work, others don't
-- Connection was working before BetterDesk installation
+- Connection was working before Yomie installation
 
 ### Public Key Mismatch in WebConsole
-- Key displayed in BetterDesk console doesn't match your records
+- Key displayed in Yomie console doesn't match your records
 - Multiple `.pub` files exist in RustDesk directory
 - Key file has unexpected name
 
@@ -87,7 +87,7 @@ cat /opt/rustdesk/id_ed25519.pub
 ```
 
 **Compare this with:**
-- What's shown in BetterDesk WebConsole
+- What's shown in Yomie WebConsole
 - What's configured in your RustDesk clients
 
 ### Step 3: Check for Backups
@@ -117,7 +117,7 @@ journalctl -u rustdesksignal -n 50 --no-pager | grep -i "key\|error"
 
 ### Solution 1: Keys Were Accidentally Changed
 
-**Scenario**: BetterDesk installation regenerated your keys
+**Scenario**: Yomie installation regenerated your keys
 
 **Fix**: Restore from backup
 
@@ -158,7 +158,7 @@ sudo chmod 644 /opt/rustdesk/id_ed25519.pub
 sudo chown root:root /opt/rustdesk/id_ed25519*
 
 # Restart services
-sudo systemctl restart rustdesksignal rustdeskrelay betterdesk
+sudo systemctl restart rustdesksignal rustdeskrelay yomie
 ```
 
 **Verify it works:**
@@ -235,7 +235,7 @@ cat /opt/rustdesk/id_ed25519.pub
 
 ### Best Practices
 
-1. **Always Backup Before Installing BetterDesk**
+1. **Always Backup Before Installing Yomie**
    ```bash
    sudo cp -r /opt/rustdesk /opt/rustdesk-backup-$(date +%Y%m%d)
    ```
@@ -253,19 +253,19 @@ cat /opt/rustdesk/id_ed25519.pub
 
 4. **Verify After Installation**
    ```bash
-   # After BetterDesk installation
+   # After Yomie installation
    cat /opt/rustdesk/id_ed25519.pub
    # Compare with your saved copy
    ```
 
-5. **Use BetterDesk v9+ Installation Script**
+5. **Use Yomie v9+ Installation Script**
    - Newer versions include key protection
    - Automatically detects and preserves existing keys
    - Warns before any key changes
 
-### During BetterDesk Installation
+### During Yomie Installation
 
-When installing BetterDesk, **always**:
+When installing Yomie, **always**:
 
 ✅ Choose **Option 1**: "Create automatic backup"  
 ✅ Select **Option 1**: "Keep existing keys" (when prompted)  
@@ -297,7 +297,7 @@ When installing BetterDesk, **always**:
    - Click **OK**
    - Test connection
 
-### Scenario: BetterDesk Shows Wrong Key
+### Scenario: Yomie Shows Wrong Key
 
 **If WebConsole displays different key than expected:**
 
@@ -315,7 +315,7 @@ echo "=== WebConsole shows ==="
 # (copy from web interface)
 ```
 
-**Fix**: BetterDesk v9+ automatically scans for any `.pub` file. Update to latest version:
+**Fix**: Yomie v9+ automatically scans for any `.pub` file. Update to latest version:
 ```bash
 cd /path/to/Rustdesk-FreeConsole
 git pull
@@ -351,7 +351,7 @@ $(journalctl -u rustdesksignal -n 30 --no-pager 2>&1)
 --- Backups Available ---
 $(ls -d /opt/rustdesk-backup-* 2>&1)
 
---- BetterDesk Version ---
+--- Yomie Version ---
 $(grep "VERSION=" /opt/BetterDeskConsole/app.py 2>&1)
 
 EOF'
@@ -371,7 +371,7 @@ cat ~/rustdesk_diagnostics.txt
 
 - [RustDesk Official Docs](https://rustdesk.com/docs/)
 - [SSH Key Generation Guide](https://www.ssh.com/academy/ssh/keygen)
-- [BetterDesk Installation Guide](INSTALLATION_V8.md)
+- [Yomie Installation Guide](INSTALLATION_V8.md)
 - [Project Documentation](PROJECT_STRUCTURE.md)
 
 ---

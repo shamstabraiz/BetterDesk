@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Database Adapter
+ * Yomie Console — Database Adapter
  *
  * Provides a unified async interface over SQLite (better-sqlite3) and
  * PostgreSQL (pg).  Every public method returns a Promise so that callers
@@ -10,7 +10,7 @@
  *   DB_TYPE=postgres  (enterprise, multi-user, multiple operators)
  *
  * PostgreSQL connection string:
- *   DATABASE_URL=postgres://user:pass@host:5432/betterdesk
+ *   DATABASE_URL=postgres://user:pass@host:5432/yomie
  *
  * The adapter exposes higher-level domain methods (peers, users, tokens, …)
  * instead of raw SQL, so the rest of the codebase stays database-agnostic.

@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Keys Routes
+ * Yomie Console - Keys Routes
  */
 
 const express = require('express');

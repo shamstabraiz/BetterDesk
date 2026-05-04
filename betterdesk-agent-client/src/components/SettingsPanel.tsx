@@ -28,7 +28,7 @@ const SettingsPanel: Component<SettingsPanelProps> = (props) => {
     if (typeof window === "undefined") {
       return false;
     }
-    return window.sessionStorage.getItem("betterdesk-agent-settings-auth") === "1";
+    return window.sessionStorage.getItem("yomie-agent-settings-auth") === "1";
   };
 
   // Non-admin users must authenticate via sudo before accessing settings.
@@ -115,7 +115,7 @@ const SettingsPanel: Component<SettingsPanelProps> = (props) => {
           onCancel={goBack}
           onSuccess={() => {
             if (typeof window !== "undefined") {
-              window.sessionStorage.setItem("betterdesk-agent-settings-auth", "1");
+              window.sessionStorage.setItem("yomie-agent-settings-auth", "1");
             }
             setAuthed(true);
           }}

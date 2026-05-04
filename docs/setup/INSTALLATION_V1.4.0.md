@@ -1,4 +1,4 @@
-# 🚀 BetterDesk Console v1.4.0 - Installation & Update Guide
+# 🚀 Yomie Console v1.4.0 - Installation & Update Guide
 
 ## 📋 What's New in v1.4.0
 
@@ -108,7 +108,7 @@ sudo cp web/static/script.js /opt/BetterDeskConsole/static/
 sudo python3 migrations/v1.4.0_auth_system.py
 
 # 5. Restart service
-sudo systemctl restart betterdesk
+sudo systemctl restart yomie
 ```
 
 ---
@@ -220,7 +220,7 @@ sudo ufw allow 21116/udp
 sudo cp /opt/rustdesk/db_v2.sqlite3 /backup/db_v2.sqlite3.$(date +%Y%m%d)
 
 # Backup web console
-sudo tar -czf /backup/betterdesk-$(date +%Y%m%d).tar.gz /opt/BetterDeskConsole
+sudo tar -czf /backup/yomie-$(date +%Y%m%d).tar.gz /opt/BetterDeskConsole
 ```
 
 ---
@@ -274,7 +274,7 @@ sudo tar -czf /backup/betterdesk-$(date +%Y%m%d).tar.gz /opt/BetterDeskConsole
 
 **Check logs:**
 ```bash
-sudo journalctl -u betterdesk -n 50 --no-pager
+sudo journalctl -u yomie -n 50 --no-pager
 ```
 
 **Common issues:**
@@ -312,7 +312,7 @@ If you need to rollback:
 
 ```bash
 # Stop service
-sudo systemctl stop betterdesk
+sudo systemctl stop yomie
 
 # Restore backup
 sudo rm -rf /opt/BetterDeskConsole
@@ -322,7 +322,7 @@ sudo cp -r /opt/BetterDeskConsole.backup /opt/BetterDeskConsole
 sudo cp /opt/rustdesk/db_v2.sqlite3.backup /opt/rustdesk/db_v2.sqlite3
 
 # Restart service
-sudo systemctl start betterdesk
+sudo systemctl start yomie
 ```
 
 ---

@@ -2,9 +2,9 @@
 //!
 //! Wraps `tauri-plugin-autostart` so that our persisted `config.autostart`
 //! preference is always mirrored to the operating system:
-//! - Linux: `~/.config/autostart/betterdesk-agent-client.desktop`
+//! - Linux: `~/.config/autostart/yomie-agent-client.desktop`
 //! - Windows: HKCU `Software\Microsoft\Windows\CurrentVersion\Run` entry
-//! - macOS: `~/Library/LaunchAgents/com.betterdesk.agent.plist`
+//! - macOS: `~/Library/LaunchAgents/com.yomie.agent.plist`
 //!
 //! The plugin launches the app with the `--autostart` CLI flag so the window
 //! stays hidden on boot and only the tray icon is shown.

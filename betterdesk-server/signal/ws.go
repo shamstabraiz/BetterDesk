@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/unitronix/betterdesk-server/codec"
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/peer"
-	pb "github.com/unitronix/betterdesk-server/proto"
+	"github.com/unitronix/yomie-server/codec"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/peer"
+	pb "github.com/unitronix/yomie-server/proto"
 )
 
 // serveWS starts the WebSocket signal listener (e.g., port 21118).

@@ -1,4 +1,4 @@
-// BetterDesk Server — Clean-room RustDesk-compatible signal + relay server
+// Yomie Server — Clean-room RustDesk-compatible signal + relay server
 // Single binary replacing both hbbs and hbbr
 package main
 
@@ -17,21 +17,21 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/admin"
-	"github.com/unitronix/betterdesk-server/api"
-	"github.com/unitronix/betterdesk-server/audit"
-	"github.com/unitronix/betterdesk-server/auth"
-	"github.com/unitronix/betterdesk-server/cdap"
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/crypto"
-	"github.com/unitronix/betterdesk-server/db"
-	"github.com/unitronix/betterdesk-server/logging"
-	"github.com/unitronix/betterdesk-server/metrics"
-	"github.com/unitronix/betterdesk-server/ratelimit"
-	"github.com/unitronix/betterdesk-server/relay"
-	"github.com/unitronix/betterdesk-server/reload"
-	"github.com/unitronix/betterdesk-server/security"
-	sigServer "github.com/unitronix/betterdesk-server/signal"
+	"github.com/unitronix/yomie-server/admin"
+	"github.com/unitronix/yomie-server/api"
+	"github.com/unitronix/yomie-server/audit"
+	"github.com/unitronix/yomie-server/auth"
+	"github.com/unitronix/yomie-server/cdap"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/crypto"
+	"github.com/unitronix/yomie-server/db"
+	"github.com/unitronix/yomie-server/logging"
+	"github.com/unitronix/yomie-server/metrics"
+	"github.com/unitronix/yomie-server/ratelimit"
+	"github.com/unitronix/yomie-server/relay"
+	"github.com/unitronix/yomie-server/reload"
+	"github.com/unitronix/yomie-server/security"
+	sigServer "github.com/unitronix/yomie-server/signal"
 )
 
 var (
@@ -47,7 +47,7 @@ func main() {
 	defer logCleanup()
 
 	log.Printf("========================================")
-	log.Printf("  BetterDesk Server %s", Version)
+	log.Printf("  Yomie Server %s", Version)
 	log.Printf("  Build: %s", BuildDate)
 	log.Printf("========================================")
 	log.Printf("  Mode:       %s", cfg.Mode)
@@ -563,7 +563,7 @@ func parseFlags() *config.Config {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("betterdesk-server %s (built %s)\n", Version, BuildDate)
+		fmt.Printf("yomie-server %s (built %s)\n", Version, BuildDate)
 		os.Exit(0)
 	}
 

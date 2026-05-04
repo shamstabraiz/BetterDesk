@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains comprehensive documentation for BetterDesk Console, organized by topic.
+This directory contains comprehensive documentation for Yomie Console, organized by topic.
 
 ## Setup & Installation
 
@@ -29,8 +29,8 @@ This directory contains comprehensive documentation for BetterDesk Console, orga
 ## Architecture
 
 - **[Project Structure](architecture/PROJECT_STRUCTURE.md)** — Codebase overview
-- **[BetterDesk Client](architecture/BETTERDESK_CLIENT_ARCHITECTURE.md)** — Desktop client architecture
-- **[BetterDesk v3 Overview](architecture/BETTERDESK_v3_OVERVIEW.md)** — v3 architecture summary
+- **[Yomie Client](architecture/BETTERDESK_CLIENT_ARCHITECTURE.md)** — Desktop client architecture
+- **[Yomie v3 Overview](architecture/BETTERDESK_v3_OVERVIEW.md)** — v3 architecture summary
 - **[CDAP Protocol](architecture/CDAP_PROTOCOL.md)** — CDAP wire protocol specification
 - **[CDAP Implementation](architecture/CDAP_IMPLEMENTATION_PLAN.md)** — CDAP implementation plan
 - **[Port Security](architecture/PORT_SECURITY.md)** — Port configuration & security
@@ -68,4 +68,4 @@ This directory contains comprehensive documentation for BetterDesk Console, orga
 
 ---
 
-> **Note:** The original Rust-based HBBS patch has been replaced by the [Go server](../betterdesk-server/) and moved to `archive/`. See the main [README](../README.md) for current architecture.
+> **Note:** The original Rust-based HBBS patch has been replaced by the [Go server](../yomie-server/) and moved to `archive/`. See the main [README](../README.md) for current architecture.

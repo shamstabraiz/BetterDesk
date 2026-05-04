@@ -1,5 +1,5 @@
 # ============================================================
-# BetterDesk Console — .gitignore
+# Yomie Console — .gitignore
 # Organized by category, no duplicate patterns
 # ============================================================
 
@@ -143,46 +143,47 @@ _write_readme.py
 web-nodejs/_test_*.sh
 web-nodejs/_fix_*.sh
 
-# --- BetterDesk MGMT Client (Tauri + SolidJS, build artifacts) ---
-betterdesk-mgmt/node_modules/
-betterdesk-mgmt/dist/
-betterdesk-mgmt/src-tauri/target/
-# betterdesk-mgmt/src-tauri/Cargo.lock  # committed for reproducible builds
+# --- Yomie MGMT Client (Tauri + SolidJS, build artifacts) ---
+yomie-mgmt/node_modules/
+yomie-mgmt/dist/
+yomie-mgmt/src-tauri/target/
+# yomie-mgmt/src-tauri/Cargo.lock  # committed for reproducible builds
 
-# --- BetterDesk Agent Client (Tauri + SolidJS, build artifacts) ---
-betterdesk-agent-client/node_modules/
-betterdesk-agent-client/dist/
-betterdesk-agent-client/src-tauri/target/
-# betterdesk-agent-client/src-tauri/Cargo.lock  # committed for reproducible builds
+# --- Yomie Agent Client (Tauri + SolidJS, build artifacts) ---
+yomie-agent-client/node_modules/
+yomie-agent-client/dist/
+yomie-agent-client/src-tauri/target/
+# yomie-agent-client/src-tauri/Cargo.lock  # committed for reproducible builds
 
-# --- BetterDesk Agent binaries & config (compiled locally) ---
-betterdesk-agent/betterdesk-agent
-betterdesk-agent/betterdesk-agent-*
-betterdesk-agent/*.exe
-betterdesk-agent/deploy-config.json
-betterdesk-agent/*.json
-betterdesk-agent/create_key.py
-betterdesk-agent/fix_devid.py
-betterdesk-agent/fix_type.py
-betterdesk-agent/update_config.py
-!betterdesk-agent/package.json
+# --- Yomie Agent binaries & config (compiled locally) ---
+yomie-agent/yomie-agent
+yomie-agent/yomie-agent-*
+yomie-agent/*.exe
+yomie-agent/deploy-config.json
+yomie-agent/*.json
+yomie-agent/create_key.py
+yomie-agent/fix_devid.py
+yomie-agent/fix_type.py
+yomie-agent/update_config.py
+!yomie-agent/package.json
 
-# --- BetterDesk Go server binaries (compiled locally) ---
-betterdesk-server/betterdesk-server
-betterdesk-server/betterdesk-server-*
-betterdesk-server/*.exe
-betterdesk-server/*.key
-betterdesk-server/*.pem
-betterdesk-server/id_ed25519*
-betterdesk-server/test_*.go
-betterdesk-server/_test_*
+# --- Yomie Go server binaries (compiled locally) ---
+yomie-server/yomie-server
+yomie-server/yomie-server-*
+yomie-server/*.exe
+yomie-server/*.key
+yomie-server/*.pem
+yomie-server/id_ed25519*
+yomie-server/test_*.go
+yomie-server/_test_*
 
 # --- Root-level image duplicates (originals in web-nodejs/public/img/) ---
-/betterdesk.png
+/yomie.png
 /betterdesk_icon.png
 /betterdesk_wallpaper.png
 
 # Local Docker dev stack data (docker-compose.dev.yml)
+.yomie-dev-data/
 .betterdesk-dev-data/
 
 # --- Screenshots ---

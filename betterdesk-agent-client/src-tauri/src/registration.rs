@@ -92,7 +92,7 @@ fn warn_self_signed_once() {
     static WARNED: AtomicBool = AtomicBool::new(false);
     if !WARNED.swap(true, Ordering::SeqCst) {
         warn!(
-            "TLS certificate validation is DISABLED for BetterDesk API calls. \
+            "TLS certificate validation is DISABLED for Yomie API calls. \
              This is insecure against MITM. Set BETTERDESK_STRICT_TLS=1 to enforce \
              strict validation once the server has a proper certificate."
         );
@@ -254,7 +254,7 @@ async fn try_resolve_api_endpoint(address: &str) -> Result<ResolvedApiEndpoint> 
                 && register_status_body.get("device_id").is_some()
             {
                 info!(
-                    "Resolved BetterDesk Go API endpoint: {}://{}:{}",
+                    "Resolved Yomie Go API endpoint: {}://{}:{}",
                     scheme, host, port
                 );
                 return Ok(ResolvedApiEndpoint {
@@ -267,7 +267,7 @@ async fn try_resolve_api_endpoint(address: &str) -> Result<ResolvedApiEndpoint> 
     }
 
     Err(anyhow!(
-        "Could not find BetterDesk Go API for {}. Use the server host or select a discovered LAN server.",
+        "Could not find Yomie Go API for {}. Use the server host or select a discovered LAN server.",
         address.trim()
     ))
 }
@@ -334,7 +334,7 @@ pub async fn normalize_server_origin_best_effort(config: &mut AgentConfig) {
     }
 
     info!(
-        "Normalized BetterDesk server origin for API/CDAP: {} -> {}",
+        "Normalized Yomie server origin for API/CDAP: {} -> {}",
         current,
         origin
     );
@@ -399,7 +399,7 @@ async fn check_availability(address: &str) -> Result<String> {
     }
 }
 
-/// Step 2: Verify the server speaks BetterDesk protocol.
+/// Step 2: Verify the server speaks Yomie protocol.
 async fn check_protocol(address: &str) -> Result<String> {
     let api_url = resolve_api_base_url(address).await?;
     let url = format!("{}/server/stats", api_url);
@@ -408,14 +408,14 @@ async fn check_protocol(address: &str) -> Result<String> {
 
     let resp = client.get(&url).send().await?;
     let body: serde_json::Value = resp.json().await.map_err(|_| {
-        anyhow!("Server response is not valid JSON — not a BetterDesk server")
+        anyhow!("Server response is not valid JSON — not a Yomie server")
     })?;
 
-    // BetterDesk Go server /api/server/stats returns {"peers_count": N, ...}
+    // Yomie Go server /api/server/stats returns {"peers_count": N, ...}
     if body.get("peers_count").is_some() || body.get("version").is_some() {
-        Ok("BetterDesk protocol confirmed".to_string())
+        Ok("Yomie protocol confirmed".to_string())
     } else {
-        Err(anyhow!("Server does not appear to be a BetterDesk server"))
+        Err(anyhow!("Server does not appear to be a Yomie server"))
     }
 }
 
@@ -436,7 +436,7 @@ async fn check_registration_open(address: &str) -> Result<String> {
             Err(anyhow!("Server has closed registration"))
         }
         Ok(r) => {
-            // Some BetterDesk deployments do not expose a dedicated probe here.
+            // Some Yomie deployments do not expose a dedicated probe here.
             info!("login-options returned {}, assuming open", r.status());
             Ok("Server accepts registrations".to_string())
         }
@@ -486,7 +486,7 @@ pub struct EnrollmentStatus {
     pub message: String,
 }
 
-/// Register this device with the BetterDesk server.
+/// Register this device with the Yomie server.
 /// Returns `Ok(EnrollmentStatus)` — callers can distinguish "approved" from
 /// "pending" without catching an error, enabling the UI to show a proper
 /// "waiting for operator approval" state rather than an error message.
@@ -629,7 +629,7 @@ pub async fn poll_enrollment_status(address: &str, device_id: &str) -> Result<En
     })
 }
 
-/// Register this device with the BetterDesk server.
+/// Register this device with the Yomie server.
 pub async fn register(config: &mut AgentConfig) -> Result<String> {
     // AGENT-H3: reject malformed / private addresses before touching the network.
     validate_address(&config.server_address)?;
@@ -643,7 +643,7 @@ pub async fn register(config: &mut AgentConfig) -> Result<String> {
     let device_uid = machine_uid::get().unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
 
     // Keep the operator-facing device ID within the legacy 16-char limit used
-    // across the BetterDesk/RustDesk surfaces. The full machine UUID still
+    // across the Yomie/RustDesk surfaces. The full machine UUID still
     // travels separately in `uuid`, so enrollment keeps a stable high-entropy
     // anchor while the visible ID stays readable in the panel.
     let id_hash = {
@@ -785,7 +785,7 @@ pub async fn discover_lan_servers() -> Result<Vec<DiscoveredLanServer>> {
     socket.set_broadcast(true)?;
 
     let probe = serde_json::json!({
-        "type": "betterdesk-discover",
+        "type": "yomie-discover",
         "version": 1,
     });
     let probe_bytes = serde_json::to_vec(&probe)?;
@@ -809,7 +809,7 @@ pub async fn discover_lan_servers() -> Result<Vec<DiscoveredLanServer>> {
                     Err(_) => continue,
                 };
 
-                if response.msg_type != "betterdesk-announce" {
+                if response.msg_type != "yomie-announce" {
                     continue;
                 }
 

@@ -1,10 +1,10 @@
-# Contributing Translations to BetterDesk Console
+# Contributing Translations to Yomie Console
 
-This guide explains how to add new language translations to the BetterDesk Console web interface.
+This guide explains how to add new language translations to the Yomie Console web interface.
 
 ## Overview
 
-BetterDesk uses a JSON-based internationalization (i18n) system that allows community members to easily add support for new languages without modifying any code.
+Yomie uses a JSON-based internationalization (i18n) system that allows community members to easily add support for new languages without modifying any code.
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ Each language file is a JSON object with nested categories:
     "language": "English",
     "code": "en",
     "direction": "ltr",
-    "author": "BetterDesk Team",
+    "author": "Yomie Team",
     "version": "1.0.0"
   },
   "common": {
@@ -143,7 +143,7 @@ You can validate at: https://jsonlint.com/
 
 ### 6. Test Locally (Optional)
 
-1. Start the BetterDesk console
+1. Start the Yomie console
 2. Open browser at `http://localhost:5000`
 3. Your language should appear in the language selector
 
@@ -249,4 +249,4 @@ The i18n system provides these API endpoints:
 - Check existing translations for reference
 - Join community discussions
 
-Thank you for helping make BetterDesk accessible to more users! 🌍
+Thank you for helping make Yomie accessible to more users! 🌍

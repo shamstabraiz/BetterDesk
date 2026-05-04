@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Alert Rules Engine
+ * Yomie Console — Alert Rules Engine
  *
  * Evaluates alert rules against incoming telemetry / activity data
  * and triggers notifications when conditions are met.

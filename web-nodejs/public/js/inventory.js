@@ -1,20 +1,20 @@
 /**
- * BetterDesk Console - Inventory Page Script
+ * Yomie Console - Inventory Page Script
  */
 
 (function () {
     'use strict';
 
-    const _ = window.BetterDesk?.translations
+    const _ = window.Yomie?.translations
         ? (key) => {
             const keys = key.split('.');
-            let val = window.BetterDesk.translations;
+            let val = window.Yomie.translations;
             for (const k of keys) { val = val?.[k]; }
             return val || key;
         }
         : (key) => key;
 
-    const csrfToken = window.BetterDesk?.csrfToken || '';
+    const csrfToken = window.Yomie?.csrfToken || '';
 
     // State
     let allDevices = [];
@@ -261,7 +261,7 @@
     }
 
     function showToast(message, type) {
-        if (window.BetterDesk?.notify) { window.BetterDesk.notify(message, type); return; }
+        if (window.Yomie?.notify) { window.Yomie.notify(message, type); return; }
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');

@@ -1,4 +1,4 @@
-// Package peer provides a concurrent in-memory peer map for the BetterDesk signal server.
+// Package peer provides a concurrent in-memory peer map for the Yomie signal server.
 // It tracks connected peers, their addresses, heartbeats, and NAT types.
 // The status tracking system uses a 4-tier model:
 //

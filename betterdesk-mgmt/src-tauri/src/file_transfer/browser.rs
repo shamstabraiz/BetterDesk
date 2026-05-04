@@ -1,4 +1,4 @@
-/// BetterDesk Agent — Remote File Browser
+/// Yomie Agent — Remote File Browser
 ///
 /// Provides directory listing and file metadata for the remote
 /// file browser feature.  Used by the admin console to navigate

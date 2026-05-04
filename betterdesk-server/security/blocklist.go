@@ -1,4 +1,4 @@
-// Package security provides IP/ID blocklist management for the BetterDesk server.
+// Package security provides IP/ID blocklist management for the Yomie server.
 // Supports loading from files, runtime additions, and both IP and ID blocking.
 package security
 
@@ -278,7 +278,7 @@ func (b *Blocklist) SaveToFile(path string) error {
 	defer f.Close()
 
 	w := bufio.NewWriter(f)
-	w.WriteString("# BetterDesk Blocklist (auto-generated)\n")
+	w.WriteString("# Yomie Blocklist (auto-generated)\n")
 	w.WriteString("# Format: IP, CIDR, or id:DEVICE_ID [,reason]\n\n")
 
 	for _, e := range b.ips {

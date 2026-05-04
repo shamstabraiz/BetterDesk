@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Desktop Login Screen (Phase 46)
+ * Yomie Console — Desktop Login Screen (Phase 46)
  * Windows 11-style full-screen login with lock screen, TOTP 2FA, and multi-user selector.
  */
 
@@ -22,7 +22,7 @@
     // ============ Session Expiry Detection ============
 
     function checkSessionExpired() {
-        if (window.BetterDesk && window.BetterDesk.sessionExpired) {
+        if (window.Yomie && window.Yomie.sessionExpired) {
             // Skip lock screen, go straight to login form with message
             var lockScreen = document.getElementById('dl-lock-screen');
             var loginLayer = document.getElementById('dl-login-layer');
@@ -139,7 +139,7 @@
 
         if (!form) return;
 
-        var csrfToken = (window.BetterDesk && window.BetterDesk.csrfToken) || '';
+        var csrfToken = (window.Yomie && window.Yomie.csrfToken) || '';
 
         // Password toggle
         if (passwordToggle && passwordInput) {
@@ -244,7 +244,7 @@
 
         if (!form) return;
 
-        var csrfToken = (window.BetterDesk && window.BetterDesk.csrfToken) || '';
+        var csrfToken = (window.Yomie && window.Yomie.csrfToken) || '';
 
         // Digit input navigation + auto-submit on 6th digit
         var digits = form.querySelectorAll('.dl-totp-digit');
@@ -349,7 +349,7 @@
     function renderUserChips() {
         var container = document.getElementById('dl-users');
         if (!container) return;
-        var users = (window.BetterDesk && window.BetterDesk.users) || [];
+        var users = (window.Yomie && window.Yomie.users) || [];
         if (!users.length) return;
 
         var html = '';
@@ -400,9 +400,9 @@
     // ============ Helpers ============
 
     function _t(key) {
-        if (window.BetterDesk && window.BetterDesk.translations) {
+        if (window.Yomie && window.Yomie.translations) {
             var keys = key.split('.');
-            var val = window.BetterDesk.translations;
+            var val = window.Yomie.translations;
             for (var i = 0; i < keys.length; i++) {
                 if (val && typeof val === 'object') val = val[keys[i]];
                 else return key;

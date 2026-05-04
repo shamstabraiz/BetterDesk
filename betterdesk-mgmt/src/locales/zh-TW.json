@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "BetterDesk MGMT",
+    "name": "Yomie MGMT",
     "version": "v2.0.0"
   },
   "login": {
     "title": "登入",
-    "subtitle": "連線到您的 BetterDesk 伺服器",
+    "subtitle": "連線到您的 Yomie 伺服器",
     "server_address": "伺服器位址",
     "server_placeholder": "https://your-server:5000",
     "username": "使用者名稱",

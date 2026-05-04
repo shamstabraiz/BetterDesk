@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""BetterDesk CDAP — Modbus TCP/RTU Bridge.
+"""Yomie CDAP — Modbus TCP/RTU Bridge.
 
 Polls Modbus registers/coils at a configurable interval and pushes values
-to BetterDesk via CDAP.  Incoming commands (toggle, slider set) are written
+to Yomie via CDAP.  Incoming commands (toggle, slider set) are written
 back to the Modbus target.
 
 Usage:
-    pip install betterdesk-cdap pymodbus
+    pip install yomie-cdap pymodbus
     python bridge_modbus.py --config config.json
 """
 
@@ -236,7 +236,7 @@ class ModbusBridge:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="BetterDesk CDAP Modbus Bridge")
+    parser = argparse.ArgumentParser(description="Yomie CDAP Modbus Bridge")
     parser.add_argument("--config", "-c", default="config.json", help="Path to config file")
     parser.add_argument("--log-level", "-l", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()

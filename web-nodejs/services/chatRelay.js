@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Instant Chat WebSocket Relay (v2)
+ * Yomie Console — Instant Chat WebSocket Relay (v2)
  *
  * Bridges agent WebSocket connections with server-side persistent storage.
  * Messages are persisted via the Go server REST API so they survive restarts.

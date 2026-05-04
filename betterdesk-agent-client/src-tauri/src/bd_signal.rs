@@ -1,4 +1,4 @@
-//! BetterDesk signal/introspection WebSocket client.
+//! Yomie signal/introspection WebSocket client.
 //!
 //! Connects to the Node.js console at `/ws/bd-signal?device_id=X&token=Y`
 //! and answers operator-initiated requests (`services.list`, `processes.list`,

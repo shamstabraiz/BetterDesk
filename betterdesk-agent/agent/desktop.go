@@ -17,7 +17,7 @@ import (
 )
 
 // MonitorInfo describes a single display attached to the agent's machine.
-// JSON shape mirrors betterdesk-server/cdap/media_control.go MonitorInfo.
+// JSON shape mirrors yomie-server/cdap/media_control.go MonitorInfo.
 type MonitorInfo struct {
 	Index   int    `json:"index"`
 	Name    string `json:"name"`
@@ -520,7 +520,7 @@ func streamFallback(ctx context.Context, a *Agent, s *DesktopStreamer, fps, _ in
 	}
 }
 
-// frameHeaderSize must match betterdesk-server/cdap/desktop.go's
+// frameHeaderSize must match yomie-server/cdap/desktop.go's
 // frameHeaderSize. The agent zero-pads the session ID to this size and
 // prepends it to every binary JPEG frame.
 const frameHeaderSize = 64

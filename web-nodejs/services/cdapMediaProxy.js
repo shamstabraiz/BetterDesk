@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — CDAP Media WebSocket Proxy
+ * Yomie Console — CDAP Media WebSocket Proxy
  * Proxies desktop/video/file-browser WebSocket connections from the
  * browser to the Go server's CDAP endpoints.
  *

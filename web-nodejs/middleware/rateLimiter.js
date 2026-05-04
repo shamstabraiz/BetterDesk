@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Rate Limiter Middleware
+ * Yomie Console - Rate Limiter Middleware
  */
 
 const rateLimit = require('express-rate-limit');

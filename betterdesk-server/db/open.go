@@ -12,7 +12,7 @@ import "strings"
 // Examples:
 //
 //	db.Open("db_v2.sqlite3")                            // SQLite (default)
-//	db.Open("postgres://user:pass@localhost/betterdesk") // PostgreSQL
+//	db.Open("postgres://user:pass@localhost/yomie") // PostgreSQL
 func Open(dsn string) (Database, error) {
 	lower := strings.ToLower(dsn)
 	if strings.HasPrefix(lower, "postgres://") || strings.HasPrefix(lower, "postgresql://") {

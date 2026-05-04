@@ -1,4 +1,4 @@
-//! Instant chat service — persistent WebSocket connection to the BetterDesk
+//! Instant chat service — persistent WebSocket connection to the Yomie
 //! server chat endpoint.
 //!
 //! Server endpoint: `ws://<host>:<port>/ws/chat/<device_id>`

@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — CDAP Terminal Widget
+ * Yomie Console — CDAP Terminal Widget
  * Provides interactive terminal access to CDAP devices via WebSocket.
  * Dynamically loads xterm.js + xterm-addon-fit when a terminal widget is opened.
  */

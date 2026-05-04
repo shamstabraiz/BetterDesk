@@ -5,7 +5,7 @@ Scope: web-based remote desktop client at `web-nodejs/public/js/rdclient/` (5,44
 
 ## Summary
 
-RDClient is the **browser viewer** that talks to a peer device through the BetterDesk relay using a RustDesk-compatible signal/relay protocol. It is **not** a full RustDesk port — it focuses on browser-feasible features. The native CDAP/bd-signal channel covers some gaps (services, processes, events, files, screenshot, terminal) but does not yet provide a continuous video pipeline.
+RDClient is the **browser viewer** that talks to a peer device through the Yomie relay using a RustDesk-compatible signal/relay protocol. It is **not** a full RustDesk port — it focuses on browser-feasible features. The native CDAP/bd-signal channel covers some gaps (services, processes, events, files, screenshot, terminal) but does not yet provide a continuous video pipeline.
 
 Symbols below: ✅ working, ⚠️ partial / behind a feature flag, ❌ missing.
 
@@ -43,7 +43,7 @@ Symbols below: ✅ working, ⚠️ partial / behind a feature flag, ❌ missing.
 
 | Severity | Item | Where to fix |
 |---|---|---|
-| **CRITICAL** | No remote-desktop pipeline through bd-signal — operators only get JPEG snapshots when the RustDesk relay is unavailable. | `betterdesk-agent-client/src-tauri/src/bd_signal.rs` + new `remote-cdap.ejs` |
+| **CRITICAL** | No remote-desktop pipeline through bd-signal — operators only get JPEG snapshots when the RustDesk relay is unavailable. | `yomie-agent-client/src-tauri/src/bd_signal.rs` + new `remote-cdap.ejs` |
 | **HIGH** | No input injection in agent (mouse/keyboard) — agent is read-only. | `bd_signal.rs` (`input.mouse`, `input.key` handlers) + `enigo` crate |
 | **HIGH** | No file write/delete/rename in agent. | `bd_signal.rs` add `files.write`, `files.delete`, `files.rename` |
 | **HIGH** | RDClient over plain HTTP cannot use WebCodecs → falls back to JMuxer (single-codec H.264, no AV1, no hw decode). | Force HTTPS in deployment; documented in DEPLOY.md |
@@ -83,6 +83,6 @@ This does **not** replace the RustDesk relay-based pipeline — it provides a *f
 
 - `web-nodejs/public/js/rdclient/client.js` — main browser client
 - `web-nodejs/public/js/rdclient/protocol.js` — RustDesk protocol layer
-- `betterdesk-agent-client/src-tauri/src/bd_signal.rs` — agent signal/control channel
-- `betterdesk-agent-client/src-tauri/src/cdap_client.rs` — CDAP gateway client
+- `yomie-agent-client/src-tauri/src/bd_signal.rs` — agent signal/control channel
+- `yomie-agent-client/src-tauri/src/cdap_client.rs` — CDAP gateway client
 - Upstream RustDesk: <https://github.com/rustdesk/rustdesk>

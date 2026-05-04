@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Settings Routes
+ * Yomie Console - Settings Routes
  */
 
 const express = require('express');
@@ -234,7 +234,7 @@ router.get('/api/settings/branding/export', requireAuth, requirePermission('bran
     try {
         const preset = brandingService.exportPreset();
         res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Content-Disposition', 'attachment; filename="betterdesk-theme.json"');
+        res.setHeader('Content-Disposition', 'attachment; filename="yomie-theme.json"');
         res.json(preset);
     } catch (err) {
         console.error('Export branding error:', err);
@@ -278,7 +278,7 @@ router.get('/api/settings/themes', requireAuth, (req, res) => {
                 if (!file.endsWith('.json')) continue;
                 try {
                     const data = JSON.parse(fs.readFileSync(path.join(themesDir, file), 'utf8'));
-                    if (data.type === 'betterdesk-theme' && data.branding) {
+                    if (data.type === 'yomie-theme' && data.branding) {
                         themes.push({
                             id: file.replace('.json', ''),
                             name: data.branding.appName || file.replace('.json', ''),
@@ -456,7 +456,7 @@ router.get('/api/settings/backup', requireAuth, requirePermission('server.config
     try {
         const backup = await backupService.createBackup();
         const json = JSON.stringify(backup, null, 2);
-        const filename = `betterdesk-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        const filename = `yomie-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
         await db.logAction(req.session?.userId, 'backup_created', `Backup downloaded (${(json.length / 1024).toFixed(1)} KB)`, req.ip);
 
@@ -638,7 +638,7 @@ router.post('/api/settings/updates/install', requireAuth, requirePermission('ser
         // Restart Go server if changes detected and component selected
         if (result.needsServerRestart && (components || []).includes('server')) {
             const svc = updateService.restartService(
-                process.platform === 'win32' ? 'BetterDeskServer' : 'betterdesk-server'
+                process.platform === 'win32' ? 'BetterDeskServer' : 'yomie-server'
             );
             if (svc.success) result.servicesRestarted.push('server');
             else result.servicesFailed.push({ service: 'server', error: svc.error });

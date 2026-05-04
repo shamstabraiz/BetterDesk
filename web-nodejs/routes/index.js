@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Routes Index
+ * Yomie Console - Routes Index
  * Mounts all route modules
  */
 

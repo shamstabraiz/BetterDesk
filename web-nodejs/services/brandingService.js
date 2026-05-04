@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Branding Service
+ * Yomie Console - Branding Service
  * Manages white-label branding configuration (name, logo, colors, favicon)
  * Stored in auth.db branding_config table
  */
@@ -39,10 +39,10 @@ function sanitizeSvg(svg) {
     return sanitized;
 }
 
-// Default branding (BetterDesk original theme)
+// Default branding (Yomie original theme)
 const DEFAULT_BRANDING = {
     // Brand identity
-    appName: 'BetterDesk',
+    appName: 'Yomie',
     appDescription: 'RustDesk Server Management',
     
     // Logo configuration
@@ -277,7 +277,7 @@ function exportPreset() {
     const branding = getBranding();
     return {
         version: '1.0',
-        type: 'betterdesk-theme',
+        type: 'yomie-theme',
         branding
     };
 }
@@ -288,7 +288,7 @@ function exportPreset() {
  * @returns {boolean} Success
  */
 async function importPreset(preset) {
-    if (!preset || preset.type !== 'betterdesk-theme' || !preset.branding) {
+    if (!preset || preset.type !== 'yomie-theme' || !preset.branding) {
         return false;
     }
     

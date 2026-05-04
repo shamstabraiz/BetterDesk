@@ -1,7 +1,7 @@
 {
-  "name": "betterdesk-cdap",
+  "name": "yomie-cdap",
   "version": "1.0.0",
-  "description": "Node.js SDK for BetterDesk CDAP (Connected Device Automation Protocol)",
+  "description": "Node.js SDK for Yomie CDAP (Connected Device Automation Protocol)",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
@@ -11,7 +11,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["betterdesk", "cdap", "iot", "scada", "bridge", "remote-management"],
+  "keywords": ["yomie", "cdap", "iot", "scada", "bridge", "remote-management"],
   "license": "MIT",
   "dependencies": {
     "ws": "^8.18.0"

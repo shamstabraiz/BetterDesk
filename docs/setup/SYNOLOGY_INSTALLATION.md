@@ -1,6 +1,6 @@
-# BetterDesk Installation on Synology DSM
+# Yomie Installation on Synology DSM
 
-This guide covers installing BetterDesk on Synology NAS devices using Docker (Container Manager).
+This guide covers installing Yomie on Synology NAS devices using Docker (Container Manager).
 
 ## Prerequisites
 
@@ -23,21 +23,21 @@ If you have Portainer installed on your Synology:
    - Volume: `/docker/portainer:/data`
 5. Start the container and access Portainer at `http://[NAS-IP]:9000`
 
-### Step 2: Deploy BetterDesk Stack
+### Step 2: Deploy Yomie Stack
 
 1. In Portainer, go to **Stacks** → **Add stack**
-2. Name: `betterdesk`
+2. Name: `yomie`
 3. Paste the following docker-compose configuration:
 
 ```yaml
 version: '3.8'
 
 services:
-  betterdesk:
+  yomie:
     build:
       context: https://github.com/shamstabraiz/Rustdesk-FreeConsole.git
       dockerfile: Dockerfile
-    container_name: betterdesk
+    container_name: yomie
     restart: unless-stopped
     ports:
       - "21114:21114"   # HTTP API
@@ -49,7 +49,7 @@ services:
       - "21119:21119"   # WebSocket relay
       - "5000:5000"     # Web Console
     volumes:
-      - /volume1/docker/betterdesk/data:/opt/betterdesk/data
+      - /volume1/docker/yomie/data:/opt/yomie/data
     environment:
       - ADMIN_PASSWORD=YourSecurePassword123!
       - DB_TYPE=sqlite
@@ -79,8 +79,8 @@ services:
 ssh admin@[NAS-IP]
 
 # Create directory
-sudo mkdir -p /volume1/docker/betterdesk
-cd /volume1/docker/betterdesk
+sudo mkdir -p /volume1/docker/yomie
+cd /volume1/docker/yomie
 
 # Clone repository
 git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git .
@@ -90,15 +90,15 @@ git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git .
 
 ```bash
 # Build the single container image
-cd /volume1/docker/betterdesk
-sudo docker build -t betterdesk:latest -f Dockerfile .
+cd /volume1/docker/yomie
+sudo docker build -t yomie:latest -f Dockerfile .
 ```
 
 ### Step 4: Create Container in Container Manager
 
 1. Go to **Container Manager** → **Container** → **Create**
-2. Image: `betterdesk:latest`
-3. Container name: `betterdesk`
+2. Image: `yomie:latest`
+3. Container name: `yomie`
 4. Enable auto-restart: **Yes**
 5. Port Settings:
    | Local Port | Container Port | Type |
@@ -115,7 +115,7 @@ sudo docker build -t betterdesk:latest -f Dockerfile .
 6. Volume Settings:
    | Folder | Mount Path |
    |--------|------------|
-   | /volume1/docker/betterdesk/data | /opt/betterdesk/data |
+   | /volume1/docker/yomie/data | /opt/yomie/data |
 
 7. Environment Variables:
    | Variable | Value |
@@ -136,8 +136,8 @@ sudo docker build -t betterdesk:latest -f Dockerfile .
 ssh admin@[NAS-IP]
 
 # Create directories
-sudo mkdir -p /volume1/docker/betterdesk/data
-cd /volume1/docker/betterdesk
+sudo mkdir -p /volume1/docker/yomie/data
+cd /volume1/docker/yomie
 
 # Clone repository
 git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git .
@@ -150,15 +150,15 @@ cat > docker-compose.synology.yml << 'EOF'
 version: '3.8'
 
 services:
-  betterdesk:
+  yomie:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: betterdesk
+    container_name: yomie
     restart: unless-stopped
     network_mode: host
     volumes:
-      - ./data:/opt/betterdesk/data
+      - ./data:/opt/yomie/data
     environment:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - DB_TYPE=sqlite
@@ -176,7 +176,7 @@ export ADMIN_PASSWORD='YourSecurePassword123!'
 sudo docker-compose -f docker-compose.synology.yml up -d --build
 
 # Check logs
-sudo docker logs -f betterdesk
+sudo docker logs -f yomie
 ```
 
 ---
@@ -214,17 +214,17 @@ Configure your RustDesk clients to connect:
 
 ---
 
-## Updating BetterDesk
+## Updating Yomie
 
 ### Via SSH:
 ```bash
-cd /volume1/docker/betterdesk
+cd /volume1/docker/yomie
 git pull
 sudo docker-compose -f docker-compose.synology.yml up -d --build
 ```
 
 ### Via Portainer:
-1. Go to **Stacks** → `betterdesk`
+1. Go to **Stacks** → `yomie`
 2. Click **Pull and redeploy**
 
 ---
@@ -234,7 +234,7 @@ sudo docker-compose -f docker-compose.synology.yml up -d --build
 ### Container won't start
 ```bash
 # Check logs
-sudo docker logs betterdesk
+sudo docker logs yomie
 
 # Verify ports are free
 sudo netstat -tlnp | grep -E '21114|21115|21116|21117|21118|21119|5000'
@@ -243,7 +243,7 @@ sudo netstat -tlnp | grep -E '21114|21115|21116|21117|21118|21119|5000'
 ### Permission issues
 ```bash
 # Fix data directory permissions
-sudo chown -R 1000:1000 /volume1/docker/betterdesk/data
+sudo chown -R 1000:1000 /volume1/docker/yomie/data
 ```
 
 ### Can't connect from RustDesk client

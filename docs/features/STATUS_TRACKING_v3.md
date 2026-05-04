@@ -1,4 +1,4 @@
-# BetterDesk Server v3.0 - Ulepszony System Statusu
+# Yomie Server v3.0 - Ulepszony System Statusu
 
 ## Przegląd Zmian
 
@@ -233,7 +233,7 @@ cp hbbs-patch-v2/src/http_api_v3.rs hbbs-patch-v2/src/http_api.rs
 
 Następnie skompiluj:
 ```bash
-./build-betterdesk.sh --auto
+./build-yomie.sh --auto
 ```
 
 ---

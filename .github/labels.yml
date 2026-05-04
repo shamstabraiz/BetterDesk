@@ -1,4 +1,4 @@
-# GitHub Labels for BetterDesk
+# GitHub Labels for Yomie
 # Apply with: gh label create <name> --color <color> --description "<desc>"
 # Or use a tool like github-label-sync
 
@@ -39,7 +39,7 @@
 # Component labels
 - name: "component: go-server"
   color: "00ADD8"
-  description: "BetterDesk Go server (signal/relay/API)"
+  description: "Yomie Go server (signal/relay/API)"
 
 - name: "component: web-console"
   color: "f1e05a"

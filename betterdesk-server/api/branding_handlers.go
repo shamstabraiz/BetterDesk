@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitronix/betterdesk-server/db"
-	"github.com/unitronix/betterdesk-server/events"
+	"github.com/unitronix/yomie-server/db"
+	"github.com/unitronix/yomie-server/events"
 )
 
 // ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ var defaultSyncModes = []SyncModeOption{
 // GET /api/branding
 func (s *Server) handleGetBranding(w http.ResponseWriter, r *http.Request) {
 	cfg := BrandingConfig{
-		CompanyName:    "BetterDesk",
+		CompanyName:    "Yomie",
 		AccentColor:    "#4f6ef7",
 		SupportContact: "",
 		SyncModes:      defaultSyncModes,
@@ -112,14 +112,14 @@ func (s *Server) handleSaveBranding(w http.ResponseWriter, r *http.Request) {
 //  Device enrollment — desktop client self-registration
 // ---------------------------------------------------------------------------
 
-// EnrollmentRequest is sent by the BetterDesk desktop client on first connect.
+// EnrollmentRequest is sent by the Yomie desktop client on first connect.
 type EnrollmentRequest struct {
 	DeviceID   string `json:"device_id"`
 	UUID       string `json:"uuid"`
 	Hostname   string `json:"hostname"`
 	Platform   string `json:"platform"`
 	Version    string `json:"version"`
-	DeviceType string `json:"device_type,omitempty"` // "betterdesk", "rustdesk", "os_agent", etc.
+	DeviceType string `json:"device_type,omitempty"` // "yomie", "rustdesk", "os_agent", etc.
 	PublicKey  string `json:"public_key,omitempty"`
 	Token      string `json:"token,omitempty"` // Optional enrollment token
 }
@@ -557,7 +557,7 @@ func (s *Server) buildEnrollmentResponse(status, deviceID, syncMode, displayName
 
 	// Inline branding
 	branding := &BrandingConfig{
-		CompanyName:    "BetterDesk",
+		CompanyName:    "Yomie",
 		AccentColor:    "#4f6ef7",
 		SupportContact: "",
 		SyncModes:      defaultSyncModes,
@@ -615,7 +615,7 @@ func (s *Server) issueEnrollmentDeviceToken(deviceID string) (string, error) {
 func (s *Server) createPeerFromEnrollment(req *EnrollmentRequest, clientIP string) {
 	devType := req.DeviceType
 	if devType == "" {
-		devType = "betterdesk"
+		devType = "yomie"
 	}
 
 	s.db.UpsertPeer(&db.Peer{

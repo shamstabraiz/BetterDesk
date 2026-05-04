@@ -42,7 +42,7 @@ logger = logging.getLogger("betterdesk_cdap")
 
 
 class CDAPBridge:
-    """Python bridge that connects to a BetterDesk CDAP gateway."""
+    """Python bridge that connects to a Yomie CDAP gateway."""
 
     def __init__(
         self,

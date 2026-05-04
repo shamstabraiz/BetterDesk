@@ -1,4 +1,4 @@
-/// BetterDesk Agent — DataGuard (DLP) Module
+/// Yomie Agent — DataGuard (DLP) Module
 ///
 /// Provides USB device monitoring, file operation logging, and
 /// policy enforcement for data loss prevention.

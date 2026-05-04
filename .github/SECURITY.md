@@ -10,7 +10,7 @@
 
 ## Reporting a Vulnerability
 
-We take the security of BetterDesk seriously. If you discover a security vulnerability, please report it responsibly.
+We take the security of Yomie seriously. If you discover a security vulnerability, please report it responsibly.
 
 ### How to Report
 
@@ -45,17 +45,17 @@ We take the security of BetterDesk seriously. If you discover a security vulnera
 
 The following components are in scope:
 
-- **BetterDesk Go Server** (`betterdesk-server/`) — signal, relay, API, database
+- **Yomie Go Server** (`yomie-server/`) — signal, relay, API, database
 - **Node.js Web Console** (`web-nodejs/`) — Express.js app, routes, middleware
-- **Desktop Client** (`betterdesk-client/`) — Tauri app, Rust backend, TypeScript frontend
-- **CDAP Agent** (`betterdesk-agent/`) — Go agent binary
-- **Installer Scripts** (`betterdesk.sh`, `betterdesk.ps1`, `betterdesk-docker.sh`)
+- **Desktop Client** (`yomie-client/`) — Tauri app, Rust backend, TypeScript frontend
+- **CDAP Agent** (`yomie-agent/`) — Go agent binary
+- **Installer Scripts** (`yomie.sh`, `yomie.ps1`, `yomie-docker.sh`)
 - **Docker Images** (`Dockerfile*`, `docker-compose*.yml`)
 - **SDKs** (`sdks/python/`, `sdks/nodejs/`)
 
 ### Out of Scope
 
-- Third-party dependencies (report to upstream maintainers, but notify us if it affects BetterDesk)
+- Third-party dependencies (report to upstream maintainers, but notify us if it affects Yomie)
 - Social engineering attacks
 - Denial of service via network flooding (volumetric attacks)
 - Issues in archived components (`archive/`)
@@ -75,4 +75,4 @@ We gratefully acknowledge security researchers who report vulnerabilities respon
 4. Rotate API keys regularly
 5. Enable TOTP 2FA for all admin accounts
 6. Review audit logs periodically
-7. Keep BetterDesk updated to the latest supported version
+7. Keep Yomie updated to the latest supported version

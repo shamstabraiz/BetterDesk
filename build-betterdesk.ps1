@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    BetterDesk Server - Interactive Build Script for Windows
+    Yomie Server - Interactive Build Script for Windows
 
 .DESCRIPTION
-    This script automates building BetterDesk enhanced binaries from source.
-    It handles downloading RustDesk sources, applying BetterDesk modifications,
+    This script automates building Yomie enhanced binaries from source.
+    It handles downloading RustDesk sources, applying Yomie modifications,
     and compiling the final binaries.
 
 .PARAMETER Auto
@@ -17,15 +17,15 @@
     Specify RustDesk version (default: 1.1.14)
 
 .EXAMPLE
-    .\build-betterdesk.ps1
+    .\build-yomie.ps1
     Interactive build
 
 .EXAMPLE
-    .\build-betterdesk.ps1 -Auto
+    .\build-yomie.ps1 -Auto
     Build with defaults
 
 .EXAMPLE
-    .\build-betterdesk.ps1 -Version 1.1.15
+    .\build-yomie.ps1 -Version 1.1.15
     Build specific version
 #>
 
@@ -95,9 +95,9 @@ function Write-Step {
 }
 
 function Show-HelpMessage {
-    Write-Host "BetterDesk Server - Build Script"
+    Write-Host "Yomie Server - Build Script"
     Write-Host ""
-    Write-Host "Usage: .\build-betterdesk.ps1 [OPTIONS]"
+    Write-Host "Usage: .\build-yomie.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Auto          Non-interactive mode (use default settings)"
@@ -106,9 +106,9 @@ function Show-HelpMessage {
     Write-Host "  -Help          Show this help message"
     Write-Host ""
     Write-Host "Examples:"
-    Write-Host "  .\build-betterdesk.ps1                 # Interactive build"
-    Write-Host "  .\build-betterdesk.ps1 -Auto           # Build with defaults"
-    Write-Host "  .\build-betterdesk.ps1 -Version 1.1.15 # Build specific version"
+    Write-Host "  .\build-yomie.ps1                 # Interactive build"
+    Write-Host "  .\build-yomie.ps1 -Auto           # Build with defaults"
+    Write-Host "  .\build-yomie.ps1 -Version 1.1.15 # Build specific version"
     Write-Host ""
 }
 
@@ -287,11 +287,11 @@ function Download-RustDesk {
 }
 
 # ============================================================================
-# Apply BetterDesk Modifications
+# Apply Yomie Modifications
 # ============================================================================
 
 function Apply-Modifications {
-    Write-Header "Applying BetterDesk Modifications"
+    Write-Header "Applying Yomie Modifications"
     
     $sourceDir = Join-Path $Script:BuildDir "rustdesk-server-$Script:RustDeskVersion"
     
@@ -314,7 +314,7 @@ function Apply-Modifications {
             "rendezvous_server_core.rs"
         )
         
-        Write-Step "Copying BetterDesk modifications..."
+        Write-Step "Copying Yomie modifications..."
         
         foreach ($file in $patchFiles) {
             $srcPath = Join-Path $Script:PatchesDir $file
@@ -354,7 +354,7 @@ function Apply-Modifications {
             Write-Info "Cargo.toml already has required dependencies"
         }
         
-        Write-Success "BetterDesk modifications applied successfully"
+        Write-Success "Yomie modifications applied successfully"
         return $true
     } catch {
         Write-Error2 "Failed to apply modifications: $_"
@@ -369,7 +369,7 @@ function Apply-Modifications {
 # ============================================================================
 
 function Build-Binaries {
-    Write-Header "Building BetterDesk Binaries"
+    Write-Header "Building Yomie Binaries"
     
     $sourceDir = Join-Path $Script:BuildDir "rustdesk-server-$Script:RustDeskVersion"
     
@@ -436,11 +436,11 @@ function Generate-Checksums {
         $dateNow = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         
         $content = @"
-# BetterDesk Server - Binary Checksums
+# Yomie Server - Binary Checksums
 
 Generated: $dateNow
 RustDesk Base Version: $Script:RustDeskVersion
-BetterDesk Version: 2.0.1
+Yomie Version: 2.0.1
 
 ## SHA256 Checksums
 
@@ -507,7 +507,7 @@ function Main {
     
     Write-Host ""
     Write-Host "  ========================================================" -ForegroundColor Cyan
-    Write-Host "  BetterDesk Server - Build Script (Windows)              " -ForegroundColor Cyan
+    Write-Host "  Yomie Server - Build Script (Windows)              " -ForegroundColor Cyan
     Write-Host "  ========================================================" -ForegroundColor Cyan
     Write-Host ""
     
@@ -547,8 +547,8 @@ function Main {
     Write-Host "     .\hbbs-windows-x86_64.exe --help"
     Write-Host "     .\hbbr-windows-x86_64.exe --help"
     Write-Host ""
-    Write-Host "  2. Install using betterdesk.ps1:"
-    Write-Host "     .\betterdesk.ps1"
+    Write-Host "  2. Install using yomie.ps1:"
+    Write-Host "     .\yomie.ps1"
     Write-Host ""
 }
 

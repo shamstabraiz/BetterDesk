@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console  Database Service (Facade)
+ * Yomie Console  Database Service (Facade)
  *
  * This module is a backward-compatible async facade over dbAdapter.js.
  * It re-exports all adapter methods using the legacy API names so that

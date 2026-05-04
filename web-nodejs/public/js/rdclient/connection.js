@@ -1,5 +1,5 @@
 /**
- * BetterDesk Web Remote Client - Connection Manager
+ * Yomie Web Remote Client - Connection Manager
  * Handles WebSocket connections to hbbs (rendezvous) and hbbr (relay)
  * via the Node.js WS proxy endpoints.
  */
@@ -8,7 +8,7 @@
 class RDConnection {
     /**
      * @param {Object} opts
-     * @param {string} opts.baseUrl  - Base URL of the BetterDesk server (auto-detected)
+     * @param {string} opts.baseUrl  - Base URL of the Yomie server (auto-detected)
      */
     constructor(opts = {}) {
         const loc = window.location;

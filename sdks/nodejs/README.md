@@ -1,13 +1,13 @@
-# BetterDesk CDAP — Node.js SDK
+# Yomie CDAP — Node.js SDK
 
 Node.js SDK for the **Connected Device Automation Protocol (CDAP)** used by
-BetterDesk server. Build custom bridges, IoT gateways, or automation agents
-that expose widgets and handle commands through the BetterDesk web panel.
+Yomie server. Build custom bridges, IoT gateways, or automation agents
+that expose widgets and handle commands through the Yomie web panel.
 
 ## Installation
 
 ```bash
-npm install betterdesk-cdap
+npm install yomie-cdap
 # or from local path
 npm install ./sdks/nodejs
 ```
@@ -15,10 +15,10 @@ npm install ./sdks/nodejs
 ## Quick Start
 
 ```js
-const { CDAPBridge, gauge, toggle } = require('betterdesk-cdap');
+const { CDAPBridge, gauge, toggle } = require('yomie-cdap');
 
 const bridge = new CDAPBridge({
-  server: 'ws://your-betterdesk-server:21122/cdap',
+  server: 'ws://your-yomie-server:21122/cdap',
   apiKey: 'YOUR_API_KEY',
   deviceName: 'Room Sensor',
   deviceType: 'sensor',
@@ -110,7 +110,7 @@ bridge.onCommand('restart', async ({ params }) => {
 ### Widget Helpers
 
 ```js
-const { gauge, toggle, button, textWidget, led, slider, select, chart, table } = require('betterdesk-cdap');
+const { gauge, toggle, button, textWidget, led, slider, select, chart, table } = require('yomie-cdap');
 ```
 
 All helpers accept `(id, label, opts?)` and return a `Widget` object.
@@ -118,7 +118,7 @@ All helpers accept `(id, label, opts?)` and return a `Widget` object.
 ## Requirements
 
 - Node.js >= 18.0.0
-- BetterDesk server with CDAP enabled (port 21122)
+- Yomie server with CDAP enabled (port 21122)
 
 ## License
 

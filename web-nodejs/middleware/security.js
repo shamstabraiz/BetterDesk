@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Security Middleware
+ * Yomie Console - Security Middleware
  * Configures Helmet and custom security headers
  */
 

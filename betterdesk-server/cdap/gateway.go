@@ -1,6 +1,6 @@
 // Package cdap implements the Custom Device Automation Protocol (CDAP) gateway.
 // CDAP enables non-RustDesk devices (SCADA, IoT, OS agents, custom hardware) to
-// connect to BetterDesk via a WebSocket-based JSON protocol and appear as
+// connect to Yomie via a WebSocket-based JSON protocol and appear as
 // manageable devices in the admin panel alongside standard RustDesk peers.
 package cdap
 
@@ -17,14 +17,14 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/unitronix/betterdesk-server/audit"
-	"github.com/unitronix/betterdesk-server/auth"
-	"github.com/unitronix/betterdesk-server/config"
-	"github.com/unitronix/betterdesk-server/db"
-	"github.com/unitronix/betterdesk-server/events"
-	"github.com/unitronix/betterdesk-server/peer"
-	"github.com/unitronix/betterdesk-server/ratelimit"
-	"github.com/unitronix/betterdesk-server/security"
+	"github.com/unitronix/yomie-server/audit"
+	"github.com/unitronix/yomie-server/auth"
+	"github.com/unitronix/yomie-server/config"
+	"github.com/unitronix/yomie-server/db"
+	"github.com/unitronix/yomie-server/events"
+	"github.com/unitronix/yomie-server/peer"
+	"github.com/unitronix/yomie-server/ratelimit"
+	"github.com/unitronix/yomie-server/security"
 )
 
 // Gateway is the CDAP WebSocket server.

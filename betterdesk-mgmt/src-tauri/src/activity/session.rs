@@ -1,4 +1,4 @@
-//! BetterDesk Activity Session — aggregation logic
+//! Yomie Activity Session — aggregation logic
 //!
 //! Collects foreground snapshots into contiguous sessions:
 //! when the same app + window stays in focus, the session duration grows.

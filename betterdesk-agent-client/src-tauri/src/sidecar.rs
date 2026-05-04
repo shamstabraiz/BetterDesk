@@ -1,4 +1,4 @@
-//! Sidecar manager — runs `betterdesk-agent` (Go binary) as a managed child
+//! Sidecar manager — runs `yomie-agent` (Go binary) as a managed child
 //! process inside the Tauri app.
 //!
 //! Architecture rationale
@@ -13,7 +13,7 @@
 //! Lifecycle
 //! ─────────
 //! 1. `SidecarManager::start()` writes a Go-format JSON config to the app data
-//!    dir and spawns `betterdesk-agent -config <path>`.
+//!    dir and spawns `yomie-agent -config <path>`.
 //! 2. A monitor task (tokio::spawn) polls the child every 5 s. On exit it
 //!    increments `restart_count`, applies exponential backoff (5 s × 2^n, max
 //!    5 min), then restarts.
@@ -26,8 +26,8 @@
 //! The binary is searched in this order:
 //!   1. `$BETTERDESK_AGENT_BIN` env var (developer override).
 //!   2. Same directory as the Tauri executable
-//!      (`<exe-dir>/betterdesk-agent[.exe]`).
-//!   3. App data dir (`<data>/betterdesk-agent[.exe]`).
+//!      (`<exe-dir>/yomie-agent[.exe]`).
+//!   3. App data dir (`<data>/yomie-agent[.exe]`).
 //!   4. System PATH (allows system-installed agent to be managed by Tauri).
 
 use anyhow::{anyhow, Context, Result};
@@ -67,7 +67,7 @@ pub struct SidecarStatus {
 // ── Go agent JSON config ──────────────────────────────────────────────────
 
 /// JSON config written to disk for the Go agent binary.
-/// Fields match `betterdesk-agent/agent/config.go`.
+/// Fields match `yomie-agent/agent/config.go`.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct GoAgentConfig {
     server: String,       // ws://host:21122/cdap
@@ -276,7 +276,7 @@ impl SidecarManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .with_context(|| format!("spawn betterdesk-agent from {}", binary.display()))?;
+            .with_context(|| format!("spawn yomie-agent from {}", binary.display()))?;
 
         // Take the stdin handle so we can write consent responses later.
         let child_stdin = child.stdin.take();
@@ -284,7 +284,7 @@ impl SidecarManager {
         *self.inner.child.lock().unwrap() = Some(child);
         *self.inner.child_stdin.lock().unwrap() = child_stdin;
         self.inner.running.store(true, Ordering::SeqCst);
-        info!("[sidecar] Spawned betterdesk-agent (pid={})", pid);
+        info!("[sidecar] Spawned yomie-agent (pid={})", pid);
         Ok(())
     }
 
@@ -438,13 +438,13 @@ impl Drop for Inner {
 
 // ── Binary discovery ──────────────────────────────────────────────────────
 
-/// Find the `betterdesk-agent` binary.
+/// Find the `yomie-agent` binary.
 /// Search order: env var → exe dir → data dir → PATH.
 fn find_binary(data_dir: &PathBuf) -> Result<PathBuf> {
     let bin_name = if cfg!(windows) {
-        "betterdesk-agent.exe"
+        "yomie-agent.exe"
     } else {
-        "betterdesk-agent"
+        "yomie-agent"
     };
 
     // 1. Developer override.
@@ -473,9 +473,9 @@ fn find_binary(data_dir: &PathBuf) -> Result<PathBuf> {
     // 4. System PATH.
     if let Ok(output) = Command::new(if cfg!(windows) { "where" } else { "which" })
         .arg(if cfg!(windows) {
-            "betterdesk-agent.exe"
+            "yomie-agent.exe"
         } else {
-            "betterdesk-agent"
+            "yomie-agent"
         })
         .output()
     {
@@ -496,9 +496,9 @@ fn find_binary(data_dir: &PathBuf) -> Result<PathBuf> {
     }
 
     Err(anyhow!(
-        "betterdesk-agent binary not found. Searched: \
+        "yomie-agent binary not found. Searched: \
          $BETTERDESK_AGENT_BIN, exe dir, {}, PATH. \
-         Download from https://github.com/shamstabraiz/BetterDesk/releases \
+         Download from https://github.com/shamstabraiz/Yomie/releases \
          or install via the ALL-IN-ONE installer.",
         data_dir.display()
     ))
@@ -506,7 +506,7 @@ fn find_binary(data_dir: &PathBuf) -> Result<PathBuf> {
 
 // ── Config writer ──────────────────────────────────────────────────────────
 
-/// Write the Go-format JSON config file consumed by betterdesk-agent.
+/// Write the Go-format JSON config file consumed by yomie-agent.
 fn write_go_config(path: &PathBuf, cfg: &SidecarConfig) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok();

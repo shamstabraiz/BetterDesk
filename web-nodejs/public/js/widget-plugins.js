@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console — Widget Plugin System
+ * Yomie Console — Widget Plugin System
  * Registry + 12 built-in widget types for the desktop dashboard.
  * Depends: desktop-widgets.js, Utils, _ (i18n)
  */
@@ -817,7 +817,7 @@
                         } else if (action === 'toggle-ban' && id) {
                             var isBanned = row.classList.contains('banned');
                             var url = '/api/devices/' + encodeURIComponent(id) + (isBanned ? '/unban' : '/ban');
-                            fetch(url, { method: 'POST', headers: { 'X-CSRF-Token': (window.BetterDesk || {}).csrfToken || '' } })
+                            fetch(url, { method: 'POST', headers: { 'X-CSRF-Token': (window.Yomie || {}).csrfToken || '' } })
                                 .then(function () { btn.closest('.widget-qc-row').classList.toggle('banned'); })
                                 .catch(function () {});
                         }
@@ -1619,7 +1619,7 @@
             if (output) output.textContent = 'Running...';
             fetch('/api/system/exec', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (window.BetterDesk || {}).csrfToken || '' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (window.Yomie || {}).csrfToken || '' },
                 credentials: 'same-origin',
                 body: JSON.stringify({ command: cmd })
             }).then(function (r) { return r.json(); }).then(function (data) {

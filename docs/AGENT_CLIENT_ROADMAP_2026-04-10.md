@@ -1,7 +1,7 @@
 # Agent Client — naprawa i domknięcie funkcji (2026-04-10)
 
-> Autor: GitHub Copilot · Kontekst: pełny audyt `betterdesk-agent-client/` (Tauri)
-> + `betterdesk-agent/` (Go) + serwer CDAP (`betterdesk-server/cdap/`).
+> Autor: GitHub Copilot · Kontekst: pełny audyt `yomie-agent-client/` (Tauri)
+> + `yomie-agent/` (Go) + serwer CDAP (`yomie-server/cdap/`).
 >
 > Źródła wejściowe: [AUDIT_BETTERDESK_2026-04-17.md](AUDIT_BETTERDESK_2026-04-17.md),
 > [PATCH_PLAN_2026-04-18.md](PATCH_PLAN_2026-04-18.md),
@@ -12,7 +12,7 @@
 
 ## 1. Stan faktyczny (po inspekcji plików)
 
-### 1.1 `betterdesk-agent-client/` (Tauri + SolidJS)
+### 1.1 `yomie-agent-client/` (Tauri + SolidJS)
 
 7 plików Rust: `commands.rs`, `config.rs`, `registration.rs`, `sysinfo_collect.rs`,
 `privileges.rs`, `lib.rs`, `main.rs`. 4 widoki TSX: `StatusPanel`, `SetupWizard`,
@@ -25,7 +25,7 @@ Co działa:
 - Rejestracja urządzenia przez `POST /api/heartbeat` (Go server, port 21114).
 - Synchronizacja sysinfo przez `POST /api/sysinfo`.
 - Tray icon + autostart + single-instance + helpdesk.
-- Lokalny zapis konfiguracji JSON + keyring wpisu `betterdesk-agent` dla tokenu
+- Lokalny zapis konfiguracji JSON + keyring wpisu `yomie-agent` dla tokenu
   (metody istnieją, ale **nie są wywoływane z `registration::register()`**).
 
 Co **NIE** działa / czego brakuje:
@@ -52,7 +52,7 @@ Co **NIE** działa / czego brakuje:
 
 Wniosek: **klient Tauri to dziś UI rejestracji + heartbeat, nie prawdziwy agent.**
 
-### 1.2 `betterdesk-agent/` (natywny Go)
+### 1.2 `yomie-agent/` (natywny Go)
 
 Pełny klient CDAP WS, reconnect z backoffem, pty terminal, file browser z
 `safePath()`, clipboard (set), jednorazowy screenshot JPEG, gopsutil telemetria,
@@ -72,7 +72,7 @@ Zaimplementowane handlery (`agent.go`):
 **Pokrycie: ~50%. Bezpieczny kod, bez SQL injection/path traversal, ale brak
 kluczowych capabilities do prawdziwego remote desktop.**
 
-### 1.3 Serwer CDAP (`betterdesk-server/cdap/`)
+### 1.3 Serwer CDAP (`yomie-server/cdap/`)
 
 Moduły gotowe i wolne: `desktop.go`, `video.go`, `audio.go`, `media_control.go`,
 `clipboard.go`, `filebrowser.go`, `terminal.go`, `crypto.go` (NaCl box E2E),
@@ -109,8 +109,8 @@ mosty CDAP — klient Tauri nie łączy się wcale.
 ### P1 — funkcjonalna kompletność agenta (tydzień 2-3)
 
 6. **Tauri: osadź natywnego Go agenta jako sidecar child-process** — najmniejszą
-   drogą do kompletnego CDAP jest uruchomienie `betterdesk-agent` z
-   `betterdesk-agent-client/` przez `tauri-plugin-shell`. Tauri nadzoruje
+   drogą do kompletnego CDAP jest uruchomienie `yomie-agent` z
+   `yomie-agent-client/` przez `tauri-plugin-shell`. Tauri nadzoruje
    konfigurację, token, tray — Go robi heavy lifting (terminal / file / clipboard
    / telemetry / autoreconnect). Dzięki temu mamy P0+P1 funkcji **bez**
    przepisywania 40 k LOC w Rust.
@@ -127,7 +127,7 @@ mosty CDAP — klient Tauri nie łączy się wcale.
    macOS + Wayland/X11) albo `screenshots` + `captrs`. Loop 30 fps → kolejka
    Tokio → encoder.
 10. **H.264 encode** — `openh264-sys2` + `openh264` crate (już używane w
-    `betterdesk-mgmt` dekoderze — można re-użyć pipeline). Fallback JPEG jeśli
+    `yomie-mgmt` dekoderze — można re-użyć pipeline). Fallback JPEG jeśli
     openh264 niedostępne.
 11. **Input injection** — crate `enigo` (Windows SendInput / macOS CGEventPost
     / Linux XTest/uinput). Mapowanie klawiszy i buttonów z protobuf.
@@ -195,16 +195,16 @@ dni). D-H to osobne fazy (Phase 55+, łącznie 4-6 tygodni dla jednej osoby).
 
 ```bash
 # 1. Device ID entropia — potwierdź długość 32 znaków po rejestracji
-cat "$(dirname "$(dirname "$(python3 -c 'import directories' 2>/dev/null || echo .)")")/config/com.betterdesk.agent/agent-config.json" \
+cat "$(dirname "$(dirname "$(python3 -c 'import directories' 2>/dev/null || echo .)")")/config/com.yomie.agent/agent-config.json" \
   | jq .device_id
 
 # 2. URL scheme whitelist — powinno odrzucić private IP
 BETTERDESK_ALLOW_PRIVATE_IPS=0 \
-  cargo run -p betterdesk-agent-client
+  cargo run -p yomie-agent-client
 # Wpisz 192.168.1.10:21114 → "Private IP ranges are blocked..."
 
 # 3. Keyring — potwierdź wpis po rejestracji
-secret-tool lookup service betterdesk-agent account BD-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+secret-tool lookup service yomie-agent account BD-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # 4. Native Go agent clipboard_get
 # Z konsoli web wywołaj clipboard read na urządzeniu → agent odpowiada 'clipboard_data'

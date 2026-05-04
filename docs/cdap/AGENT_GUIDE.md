@@ -1,21 +1,21 @@
 # Building a CDAP Agent
 
-This guide walks through building a custom CDAP agent that connects to a BetterDesk server.
+This guide walks through building a custom CDAP agent that connects to a Yomie server.
 
 ## Prerequisites
 
-- BetterDesk server running with CDAP enabled (`--cdap` flag or `CDAP_ENABLED=true`)
+- Yomie server running with CDAP enabled (`--cdap` flag or `CDAP_ENABLED=true`)
 - API key created via `POST /api/keys` or the web console
 - WebSocket library for your language
 
 ## Quick Start (Go)
 
-The reference agent is at `betterdesk-agent/`. It demonstrates the full lifecycle:
+The reference agent is at `yomie-agent/`. It demonstrates the full lifecycle:
 
 ```bash
-cd betterdesk-agent
-go build -o betterdesk-agent .
-./betterdesk-agent \
+cd yomie-agent
+go build -o yomie-agent .
+./yomie-agent \
     --server ws://your-server:21122/cdap \
     --auth-method api_key \
     --api-key YOUR_KEY \
@@ -26,10 +26,10 @@ go build -o betterdesk-agent .
 
 ## Quick Start (Python)
 
-Using the BetterDesk Python SDK:
+Using the Yomie Python SDK:
 
 ```bash
-pip install betterdesk-cdap   # or: pip install -e sdks/python/
+pip install yomie-cdap   # or: pip install -e sdks/python/
 ```
 
 ```python
@@ -79,11 +79,11 @@ asyncio.run(MyAgent().run())
 ## Quick Start (Node.js)
 
 ```bash
-npm install betterdesk-cdap   # or: npm install ./sdks/nodejs/
+npm install yomie-cdap   # or: npm install ./sdks/nodejs/
 ```
 
 ```javascript
-const { CDAPBridge, Widget } = require('betterdesk-cdap');
+const { CDAPBridge, Widget } = require('yomie-cdap');
 
 const agent = new CDAPBridge({
     serverUrl: 'ws://your-server:21122/cdap',

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 /// Get or create a persistent 9-digit device ID.
 ///
-/// Stored at `<config_dir>/betterdesk/id`.
+/// Stored at `<config_dir>/yomie/id`.
 pub fn get_or_create_device_id() -> Result<String> {
     let id_path = id_file_path()?;
 
@@ -70,7 +70,7 @@ fn machine_fingerprint() -> String {
     };
 
     format!(
-        "betterdesk:{}:{}:{}:{}:{}",
+        "yomie:{}:{}:{}:{}:{}",
         hostname, username, os, arch, random_seed
     )
 }
@@ -82,7 +82,7 @@ fn is_valid_id(id: &str) -> bool {
 
 /// Path to the device ID file.
 fn id_file_path() -> Result<PathBuf> {
-    let config_dir = directories::ProjectDirs::from("com", "betterdesk", "BetterDesk")
+    let config_dir = directories::ProjectDirs::from("com", "yomie", "Yomie")
         .context("Failed to determine config directory")?
         .config_dir()
         .to_path_buf();

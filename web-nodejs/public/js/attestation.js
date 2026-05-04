@@ -71,7 +71,7 @@
   async function verify(deviceId) {
     if (!confirm('Mark this device as verified?')) return;
     try {
-      const csrfToken = window.BetterDesk?.csrfToken || '';
+      const csrfToken = window.Yomie?.csrfToken || '';
       const resp = await fetch(`/api/panel/attestation/${encodeURIComponent(deviceId)}`, {
         method: 'PUT',
         headers: {
@@ -92,7 +92,7 @@
   async function revoke(deviceId) {
     if (!confirm('Revoke attestation for this device?')) return;
     try {
-      const csrfToken = window.BetterDesk?.csrfToken || '';
+      const csrfToken = window.Yomie?.csrfToken || '';
       const resp = await fetch(`/api/panel/attestation/${encodeURIComponent(deviceId)}`, {
         method: 'PUT',
         headers: {

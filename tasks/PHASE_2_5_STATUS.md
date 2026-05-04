@@ -40,7 +40,7 @@ Agent client needs a signal WS module that:
 3. Dispatches to capability handlers and replies with
    `{type: 'command_response', request_id, ok, data?, error?}`.
 
-Recommended Rust modules under `betterdesk-agent-client/src-tauri/src/`:
+Recommended Rust modules under `yomie-agent-client/src-tauri/src/`:
 
 | Module             | Responsibility                                          |
 | ------------------ | ------------------------------------------------------- |

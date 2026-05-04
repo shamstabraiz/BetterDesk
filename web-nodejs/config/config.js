@@ -1,5 +1,5 @@
 /**
- * BetterDesk Console - Configuration
+ * Yomie Console - Configuration
  * Loads settings from environment variables with sensible defaults
  */
 
@@ -54,16 +54,16 @@ function resolveKeysPath() {
     if (fromEnv) return fromEnv;
     if (isDocker) return '/opt/rustdesk';
     if (isWindows) {
-        // Prefer C:\BetterDesk, fall back to C:\RustDesk for legacy installs
-        if (fs.existsSync('C:\\BetterDesk\\id_ed25519')) return 'C:\\BetterDesk';
+        // Prefer C:\Yomie, fall back to C:\RustDesk for legacy installs
+        if (fs.existsSync('C:\\Yomie\\id_ed25519')) return 'C:\\Yomie';
         if (fs.existsSync('C:\\RustDesk\\id_ed25519')) return 'C:\\RustDesk';
-        return 'C:\\BetterDesk';
+        return 'C:\\Yomie';
     }
-    // Linux: check both paths, prefer /opt/betterdesk (new), fall back to /opt/rustdesk (legacy)
-    if (fs.existsSync('/opt/betterdesk/id_ed25519')) return '/opt/betterdesk';
+    // Linux: check both paths, prefer /opt/yomie (new), fall back to /opt/rustdesk (legacy)
+    if (fs.existsSync('/opt/yomie/id_ed25519')) return '/opt/yomie';
     if (fs.existsSync('/opt/rustdesk/id_ed25519')) return '/opt/rustdesk';
     // Neither exists yet — use new default
-    return '/opt/betterdesk';
+    return '/opt/yomie';
 }
 const KEYS_PATH = resolveKeysPath();
 const RUSTDESK_DIR = KEYS_PATH;
@@ -158,15 +158,15 @@ module.exports = {
     pubKeyPath: PUB_KEY_PATH,
     apiKeyPath: API_KEY_PATH,
 
-    // Server backend (BetterDesk Go server)
-    serverBackend: 'betterdesk',
+    // Server backend (Yomie Go server)
+    serverBackend: 'yomie',
 
-    // BetterDesk Go Server API
+    // Yomie Go Server API
     hbbsApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
     hbbsApiKey: apiKey,
     hbbsApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT || process.env.HBBS_API_TIMEOUT, 10) || 3000,
 
-    // BetterDesk Go Server API (preferred names)
+    // Yomie Go Server API (preferred names)
     betterdeskApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
     betterdeskApiKey: process.env.BETTERDESK_API_KEY || apiKey,
     betterdeskApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT, 10) || 5000,
@@ -212,6 +212,6 @@ module.exports = {
     databaseUrl: process.env.DATABASE_URL || '',
 
     // App info
-    appName: 'BetterDesk Console',
+    appName: 'Yomie Console',
     appVersion: pkgVersion
 };
