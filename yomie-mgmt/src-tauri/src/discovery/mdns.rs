@@ -1,6 +1,6 @@
 //! mDNS/DNS-SD discovery for Yomie servers on the local network.
 //!
-//! Discovers servers advertising `_betterdesk._tcp.local.` via mDNS.
+//! Discovers servers advertising `_yomie._tcp.local.` via mDNS.
 //! This complements the UDP broadcast scanner for environments where
 //! broadcast is blocked but mDNS works (e.g., some Wi-Fi networks).
 //!
@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::watch;
 use tokio::time::Duration;
 
-const SERVICE_TYPE: &str = "_betterdesk._tcp.local.";
+const SERVICE_TYPE: &str = "_yomie._tcp.local.";
 const BROWSE_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// A Yomie server discovered via mDNS.

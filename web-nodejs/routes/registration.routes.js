@@ -28,7 +28,7 @@ const fs = require('fs');
 const db = require('../services/database');
 const config = require('../config/config');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const betterdeskApi = require('../services/betterdeskApi');
+const yomieApi = require('../services/yomieApi');
 
 // ---------------------------------------------------------------------------
 //  Helpers
@@ -335,7 +335,7 @@ router.delete('/api/registrations/:id', requireAuth, requireRole('admin'), async
  */
 router.get('/api/enrollment/pending', requireAuth, requireRole('operator'), async (req, res) => {
     try {
-        const result = await betterdeskApi.getEnrollmentPending();
+        const result = await yomieApi.getEnrollmentPending();
         res.json(result);
     } catch (err) {
         console.error('Get enrollment pending error:', err);
@@ -351,7 +351,7 @@ router.post('/api/enrollment/approve/:id', requireAuth, requireRole('operator'),
     try {
         const deviceId = req.params.id;
         const { display_name, sync_mode } = req.body;
-        const result = await betterdeskApi.approveEnrollment(deviceId, display_name, sync_mode);
+        const result = await yomieApi.approveEnrollment(deviceId, display_name, sync_mode);
 
         if (result.success) {
             try {
@@ -377,7 +377,7 @@ router.post('/api/enrollment/approve/:id', requireAuth, requireRole('operator'),
 router.post('/api/enrollment/reject/:id', requireAuth, requireRole('operator'), async (req, res) => {
     try {
         const deviceId = req.params.id;
-        const result = await betterdeskApi.rejectEnrollment(deviceId);
+        const result = await yomieApi.rejectEnrollment(deviceId);
 
         if (result.success) {
             try {

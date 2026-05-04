@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_header_generation() {
         let dir = std::env::temp_dir();
-        let path = dir.join("betterdesk_test_sender.txt");
+        let path = dir.join("yomie_test_sender.txt");
         let mut f = std::fs::File::create(&path).unwrap();
         f.write_all(b"Hello, Yomie!").unwrap();
         drop(f);
@@ -202,7 +202,7 @@ mod tests {
         let sender = FileSender::new(&path).unwrap();
         let header = sender.header().unwrap();
         assert_eq!(header.size, 18);
-        assert_eq!(header.filename, "betterdesk_test_sender.txt");
+        assert_eq!(header.filename, "yomie_test_sender.txt");
         assert_eq!(header.total_chunks, 1);
 
         std::fs::remove_file(&path).ok();

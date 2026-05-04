@@ -22,7 +22,7 @@ from typing import Any
 import aiohttp
 from aiohttp import web
 
-from betterdesk_cdap import CDAPBridge, gauge, toggle, textWidget
+from yomie_cdap import CDAPBridge, gauge, toggle, textWidget
 
 logger = logging.getLogger("bridge_rest")
 

@@ -852,7 +852,7 @@ pip install yomie-cdap
 ```
 
 ```python
-from betterdesk_cdap import CDAPBridge, Widget, WidgetType
+from yomie_cdap import CDAPBridge, Widget, WidgetType
 
 bridge = CDAPBridge(
     server="ws://yomie.example.com:21122",

@@ -5,7 +5,7 @@ const router = express.Router();
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
 let apiClient;
-try { apiClient = require('../services/betterdeskApi'); } catch (e) { apiClient = null; }
+try { apiClient = require('../services/yomieApi'); } catch (e) { apiClient = null; }
 
 function goApiProxy(req, res, method, path, body) {
   if (!apiClient || !apiClient[method]) {

@@ -705,7 +705,7 @@ Auto-linking algorithm:
 | `services/authService.js` | **NEW** | 3 | Auth delegation to Go server |
 | `lang/en.json` | Modify | 2+ | CDAP i18n keys |
 | `lang/pl.json` | Modify | 2+ | CDAP i18n keys |
-| `services/betterdeskApi.js` | Modify | 2 | Add CDAP API methods |
+| `services/yomieApi.js` | Modify | 2 | Add CDAP API methods |
 
 ### ALL-IN-ONE Scripts
 

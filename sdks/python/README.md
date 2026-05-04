@@ -14,7 +14,7 @@ pip install -e sdks/python/
 
 ```python
 import asyncio
-from betterdesk_cdap import CDAPBridge, gauge, toggle, button
+from yomie_cdap import CDAPBridge, gauge, toggle, button
 
 # Create bridge
 bridge = CDAPBridge(

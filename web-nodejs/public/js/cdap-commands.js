@@ -76,7 +76,7 @@
         const __ = window.Yomie?.translations || {};
         const title = __?.cdap?.confirm_command || 'Confirm Command';
 
-        if (!window.BetterDeskModal) {
+        if (!window.YomieModal) {
             if (confirm(confirmMsg || title)) {
                 return send(deviceId, widgetId, action, value);
             }
@@ -84,7 +84,7 @@
         }
 
         return new Promise((resolve) => {
-            window.BetterDeskModal.confirm({
+            window.YomieModal.confirm({
                 title: title,
                 message: confirmMsg || `${action} → ${widgetId}?`,
                 confirmText: __?.common?.confirm || 'Confirm',
@@ -164,8 +164,8 @@
     }
 
     function showToast(message, type) {
-        if (window.BetterDeskNotifications?.show) {
-            window.BetterDeskNotifications.show(message, type);
+        if (window.YomieNotifications?.show) {
+            window.YomieNotifications.show(message, type);
         }
     }
 

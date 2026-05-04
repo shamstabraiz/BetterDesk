@@ -147,10 +147,10 @@ COMMON_RUSTDESK_PATHS=(
 )
 
 COMMON_CONSOLE_PATHS=(
-    "/opt/BetterDeskConsole"
+    "/opt/YomieConsole"
     "/opt/yomie"
     "/var/lib/yomie"
-    "$HOME/BetterDeskConsole"
+    "$HOME/YomieConsole"
 )
 
 # Colors
@@ -166,7 +166,7 @@ BOLD='\033[1m'
 DIM='\033[2m'
 
 # Logging
-LOG_FILE="/tmp/betterdesk_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="/tmp/yomie_$(date +%Y%m%d_%H%M%S).log"
 
 #===============================================================================
 # Helper Functions
@@ -678,7 +678,7 @@ auto_detect_paths() {
     
     # Default Console path if not found
     if [ -z "$CONSOLE_PATH" ]; then
-        CONSOLE_PATH="/opt/BetterDeskConsole"
+        CONSOLE_PATH="/opt/YomieConsole"
     fi
     
     # Update DB_PATH based on detected RUSTDESK_PATH
@@ -741,7 +741,7 @@ configure_paths() {
             ;;
         3)
             echo ""
-            echo -n "Enter Console path (e.g., /opt/BetterDeskConsole): "
+            echo -n "Enter Console path (e.g., /opt/YomieConsole): "
             read -r new_path
             if [ -n "$new_path" ]; then
                 if [ -d "$new_path" ]; then
@@ -761,7 +761,7 @@ configure_paths() {
             ;;
         4)
             RUSTDESK_PATH="/opt/yomie"
-            CONSOLE_PATH="/opt/BetterDeskConsole"
+            CONSOLE_PATH="/opt/YomieConsole"
             DB_PATH="$RUSTDESK_PATH/db_v2.sqlite3"
             print_success "Paths reset to defaults"
             press_enter
@@ -1458,7 +1458,7 @@ install_nodejs_console() {
     cd "$CONSOLE_PATH"
     
     # Install npm dependencies with proper error handling
-    local npm_log="/tmp/betterdesk_npm_install.log"
+    local npm_log="/tmp/yomie_npm_install.log"
     if ! npm install --production > "$npm_log" 2>&1; then
         print_error "npm install failed! Check log:"
         tail -20 "$npm_log"
@@ -2965,7 +2965,7 @@ do_backup() {
 }
 
 do_backup_silent() {
-    local backup_name="betterdesk_backup_$(date +%Y%m%d_%H%M%S)"
+    local backup_name="yomie_backup_$(date +%Y%m%d_%H%M%S)"
     local backup_path="$BACKUP_DIR/$backup_name"
     
     mkdir -p "$backup_path"
@@ -3392,7 +3392,7 @@ do_build_legacy_rust() {
     print_info "Rust: $(cargo --version)"
     echo ""
 
-    local build_dir="/tmp/betterdesk_build_$$"
+    local build_dir="/tmp/yomie_build_$$"
     mkdir -p "$build_dir"
     cd "$build_dir"
 

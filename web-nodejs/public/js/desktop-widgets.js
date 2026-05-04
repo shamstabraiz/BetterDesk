@@ -1323,7 +1323,7 @@
         // Help button — start desktop tutorial
         var helpBtn = nav.querySelector('#topnav-help');
         if (helpBtn) helpBtn.addEventListener('click', function () {
-            if (window.BetterDeskTutorial) window.BetterDeskTutorial.start('desktop');
+            if (window.YomieTutorial) window.YomieTutorial.start('desktop');
         });
         // Exit desktop mode
         var exitBtn = nav.querySelector('#topnav-exit');

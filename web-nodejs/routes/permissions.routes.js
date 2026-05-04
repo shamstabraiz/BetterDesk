@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requirePermission } = require('../middleware/auth');
-const betterdeskApi = require('../services/betterdeskApi');
+const yomieApi = require('../services/yomieApi');
 
 // ── Page Route ───────────────────────────────────
 
@@ -28,7 +28,7 @@ router.get('/permissions', requireAuth, requirePermission('server.config'), (req
  */
 router.get('/api/panel/roles', requireAuth, requirePermission('user.view'), async (req, res) => {
     try {
-        const result = await betterdeskApi.listRoles();
+        const result = await yomieApi.listRoles();
         if (!result.success) {
             return res.status(500).json({ success: false, error: result.error });
         }
@@ -44,7 +44,7 @@ router.get('/api/panel/roles', requireAuth, requirePermission('user.view'), asyn
  */
 router.get('/api/panel/roles/:role/permissions', requireAuth, requirePermission('user.view'), async (req, res) => {
     try {
-        const result = await betterdeskApi.getRolePermissions(req.params.role);
+        const result = await yomieApi.getRolePermissions(req.params.role);
         if (!result.success) {
             return res.status(500).json({ success: false, error: result.error });
         }
@@ -60,7 +60,7 @@ router.get('/api/panel/roles/:role/permissions', requireAuth, requirePermission(
  */
 router.get('/api/panel/role-permissions', requireAuth, requirePermission('server.config'), async (req, res) => {
     try {
-        const result = await betterdeskApi.listRolePermissionOverrides(req.query.role);
+        const result = await yomieApi.listRolePermissionOverrides(req.query.role);
         if (!result.success) {
             return res.status(500).json({ success: false, error: result.error });
         }
@@ -80,7 +80,7 @@ router.post('/api/panel/role-permissions', requireAuth, requirePermission('serve
         if (!role || !permission || typeof granted !== 'boolean') {
             return res.status(400).json({ success: false, error: 'Missing required fields: role, permission, granted' });
         }
-        const result = await betterdeskApi.setRolePermission(role, permission, granted);
+        const result = await yomieApi.setRolePermission(role, permission, granted);
         if (!result.success) {
             return res.status(400).json({ success: false, error: result.error || 'Failed to set permission' });
         }
@@ -96,7 +96,7 @@ router.post('/api/panel/role-permissions', requireAuth, requirePermission('serve
  */
 router.delete('/api/panel/role-permissions/:role/:permission', requireAuth, requirePermission('server.config'), async (req, res) => {
     try {
-        const result = await betterdeskApi.deleteRolePermission(req.params.role, req.params.permission);
+        const result = await yomieApi.deleteRolePermission(req.params.role, req.params.permission);
         if (!result.success) {
             return res.status(400).json({ success: false, error: result.error || 'Failed to delete override' });
         }

@@ -311,7 +311,7 @@
     "backend_original": "Original",
     "backend_enhanced": "Erweitert",
     "backend_rustdesk_desc": "Standard RustDesk Signal- und Relay-Server (hbbs + hbbr). Basis-HTTP-API mit eingeschränkten Endpunkten.",
-    "backend_betterdesk_desc": "Erweiterter Go-basierter Server mit vollständiger REST-API, JWT-Authentifizierung, Sperrliste, Tags, Echtzeit-WebSocket-Events und Audit-Protokollierung.",
+    "backend_yomie_desc": "Erweiterter Go-basierter Server mit vollständiger REST-API, JWT-Authentifizierung, Sperrliste, Tags, Echtzeit-WebSocket-Events und Audit-Protokollierung.",
     "backend_feature_signal": "Signal-Server (ID-Registrierung)",
     "backend_feature_relay": "Relay-Server (Verbindungsweiterleitung)",
     "backend_feature_basic_api": "Basis-REST-API",

@@ -89,7 +89,7 @@ If you prefer manual update:
 
 ```bash
 # 1. Backup
-sudo cp -r /opt/BetterDeskConsole /opt/BetterDeskConsole.backup
+sudo cp -r /opt/YomieConsole /opt/YomieConsole.backup
 sudo cp /opt/rustdesk/db_v2.sqlite3 /opt/rustdesk/db_v2.sqlite3.backup
 
 # 2. Install dependencies
@@ -97,12 +97,12 @@ sudo pip3 install bcrypt markupsafe --break-system-packages
 
 # 3. Copy new files
 cd /path/to/Rustdesk-FreeConsole
-sudo cp web/auth.py /opt/BetterDeskConsole/
-sudo cp web/app.py /opt/BetterDeskConsole/
-sudo cp web/templates/login.html /opt/BetterDeskConsole/templates/
-sudo cp web/templates/index.html /opt/BetterDeskConsole/templates/
-sudo cp web/static/style.css /opt/BetterDeskConsole/static/
-sudo cp web/static/script.js /opt/BetterDeskConsole/static/
+sudo cp web/auth.py /opt/YomieConsole/
+sudo cp web/app.py /opt/YomieConsole/
+sudo cp web/templates/login.html /opt/YomieConsole/templates/
+sudo cp web/templates/index.html /opt/YomieConsole/templates/
+sudo cp web/static/style.css /opt/YomieConsole/static/
+sudo cp web/static/script.js /opt/YomieConsole/static/
 
 # 4. Run migration
 sudo python3 migrations/v1.4.0_auth_system.py
@@ -129,7 +129,7 @@ Password: <randomly-generated-password>
 **⚠️ IMPORTANT:**
 1. **Save these credentials** in a secure location
 2. **Login immediately** and change the password
-3. **Delete credentials file**: `sudo rm /opt/BetterDeskConsole/admin_credentials.txt`
+3. **Delete credentials file**: `sudo rm /opt/YomieConsole/admin_credentials.txt`
 
 ### Accessing the Console
 
@@ -151,7 +151,7 @@ ssh -L 8080:localhost:5000 user@your-server
 You can create additional users via Python console:
 
 ```python
-cd /opt/BetterDeskConsole/web
+cd /opt/YomieConsole/web
 python3 -c "
 from auth import create_user, ROLE_ADMIN, ROLE_OPERATOR, ROLE_VIEWER
 
@@ -220,7 +220,7 @@ sudo ufw allow 21116/udp
 sudo cp /opt/rustdesk/db_v2.sqlite3 /backup/db_v2.sqlite3.$(date +%Y%m%d)
 
 # Backup web console
-sudo tar -czf /backup/yomie-$(date +%Y%m%d).tar.gz /opt/BetterDeskConsole
+sudo tar -czf /backup/yomie-$(date +%Y%m%d).tar.gz /opt/YomieConsole
 ```
 
 ---
@@ -232,10 +232,10 @@ sudo tar -czf /backup/yomie-$(date +%Y%m%d).tar.gz /opt/BetterDeskConsole
 **Problem:** "Invalid username or password"
 
 **Solutions:**
-1. Check credentials file: `sudo cat /opt/BetterDeskConsole/admin_credentials.txt`
+1. Check credentials file: `sudo cat /opt/YomieConsole/admin_credentials.txt`
 2. Reset admin password:
    ```python
-   cd /opt/BetterDeskConsole/web
+   cd /opt/YomieConsole/web
    python3 -c "
    from auth import reset_password
    reset_password(1, 'NewPassword123')  # User ID 1 is admin
@@ -315,8 +315,8 @@ If you need to rollback:
 sudo systemctl stop yomie
 
 # Restore backup
-sudo rm -rf /opt/BetterDeskConsole
-sudo cp -r /opt/BetterDeskConsole.backup /opt/BetterDeskConsole
+sudo rm -rf /opt/YomieConsole
+sudo cp -r /opt/YomieConsole.backup /opt/YomieConsole
 
 # Restore database
 sudo cp /opt/rustdesk/db_v2.sqlite3.backup /opt/rustdesk/db_v2.sqlite3

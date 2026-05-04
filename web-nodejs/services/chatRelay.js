@@ -45,7 +45,7 @@ const HISTORY_LIMIT = 500; // in-memory fallback
 // device_id → { agentWs, operatorWss, messages (fallback ring buffer) }
 const rooms = new Map();
 
-// Reference to betterdeskApi for Go server calls
+// Reference to yomieApi for Go server calls
 let goApi = null;
 
 function getRoom(deviceId) {
@@ -487,10 +487,10 @@ function handleOperatorConnection(ws, deviceId, operatorName) {
 
 // --- Init ---
 
-function initChatRelay(server, sessionMiddleware, betterdeskApi) {
+function initChatRelay(server, sessionMiddleware, yomieApi) {
     // Store API reference for persistence
-    if (betterdeskApi) {
-        goApi = betterdeskApi;
+    if (yomieApi) {
+        goApi = yomieApi;
         log.info('Chat persistence enabled via Go server API');
     }
 

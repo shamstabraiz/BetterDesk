@@ -470,7 +470,7 @@ docker logs yomie-hbbs --tail 100
 
 ```bash
 sudo cp -r /opt/rustdesk /opt/rustdesk-backup
-sudo cp -r /opt/BetterDeskConsole /opt/BetterDeskConsole-backup
+sudo cp -r /opt/YomieConsole /opt/YomieConsole-backup
 ```
 
 ### 2. Stop Native Services

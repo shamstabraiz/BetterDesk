@@ -16,7 +16,7 @@ const { loginLimiter, passwordChangeLimiter } = require('../middleware/rateLimit
  * (detected via localStorage preference or explicit ?desktop=1 query param).
  */
 router.get('/login', guestOnly, async (req, res) => {
-    const useDesktop = req.query.desktop === '1' || req.cookies.betterdesk_desktop_mode === 'true';
+    const useDesktop = req.query.desktop === '1' || req.cookies.yomie_desktop_mode === 'true';
 
     if (useDesktop) {
         // Fetch user list for multi-user selector (usernames + roles only, no secrets)

@@ -11,7 +11,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ServiceName = "BetterDeskAgent"
+$ServiceName = "YomieAgent"
 $NSSMUrl = "https://nssm.cc/release/nssm-2.24.zip"
 
 function Test-Admin {

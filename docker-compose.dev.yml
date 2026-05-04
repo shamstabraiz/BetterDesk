@@ -16,7 +16,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: yomie
-      POSTGRES_PASSWORD: betterdesk123
+      POSTGRES_PASSWORD: yomie123
       POSTGRES_DB: yomie
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
@@ -50,7 +50,7 @@ services:
     environment:
       - RELAY_SERVERS=${RELAY_SERVERS:-127.0.0.1}
       - INIT_ADMIN_PASS=${INIT_ADMIN_PASS:-dev-admin-change-me}
-      - DB_URL=postgres://yomie:betterdesk123@postgres:5432/yomie?sslmode=disable
+      - DB_URL=postgres://yomie:yomie123@postgres:5432/yomie?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,7 +101,7 @@ services:
       - WS_HBBR_PORT=21117
       - DOCKER=true
       - DB_TYPE=postgresql
-      - DATABASE_URL=postgres://yomie:betterdesk123@postgres:5432/yomie?sslmode=disable
+      - DATABASE_URL=postgres://yomie:yomie123@postgres:5432/yomie?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy

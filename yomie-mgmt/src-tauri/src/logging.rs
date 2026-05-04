@@ -46,9 +46,9 @@ impl Log for DualLogger {
         let now = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
         let level = record.level();
         let target = record.target();
-        // Shorten module paths: betterdesk_mgmt_lib::commands → commands
+        // Shorten module paths: yomie_mgmt_lib::commands → commands
         let short_target = target
-            .strip_prefix("betterdesk_mgmt_lib::")
+            .strip_prefix("yomie_mgmt_lib::")
             .unwrap_or(target);
 
         let line = format!("{} [{}] {} — {}\n", now, level, short_target, record.args());

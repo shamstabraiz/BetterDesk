@@ -88,7 +88,7 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
         const role = req._cdapUserRole || req.session?.user?.role || req.session?.role || 'admin';
         console.log(`[CDAP ${label}] Proxy started for device ${deviceId} by ${username} (role=${role})`);
 
-        const goApiBase = config.betterdeskApiUrl || 'http://localhost:21114/api';
+        const goApiBase = config.yomieApiUrl || 'http://localhost:21114/api';
         const goWsUrl = goApiBase
             .replace(/^http/, 'ws')
             .replace(/\/api\/?$/, '') +
@@ -96,7 +96,7 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
 
         const goWs = new WebSocket(goWsUrl, [subprotocol], {
             headers: {
-                'X-API-Key': config.betterdeskApiKey || '',
+                'X-API-Key': config.yomieApiKey || '',
                 'X-Username': username,
                 'X-Role': role
             },

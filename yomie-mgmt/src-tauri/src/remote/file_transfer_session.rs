@@ -92,7 +92,7 @@ impl FileTransferSession {
     pub fn new() -> Self {
         let download_dir = dirs::download_dir()
             .unwrap_or_else(|| std::env::temp_dir())
-            .join("betterdesk_transfers");
+            .join("yomie_transfers");
         let _ = std::fs::create_dir_all(&download_dir);
 
         Self {

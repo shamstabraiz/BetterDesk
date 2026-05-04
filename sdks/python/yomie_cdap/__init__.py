@@ -1,7 +1,7 @@
 """Yomie CDAP Python SDK — bridge framework for IoT and automation devices."""
 
-from betterdesk_cdap.bridge import CDAPBridge
-from betterdesk_cdap.widgets import (
+from yomie_cdap.bridge import CDAPBridge
+from yomie_cdap.widgets import (
     Widget,
     gauge,
     toggle,

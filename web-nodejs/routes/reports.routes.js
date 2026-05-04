@@ -102,7 +102,7 @@ router.post('/generate/csv', requireSession, async (req, res) => {
         }
 
         const csv = toCsv(rows);
-        const filename = `betterdesk_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
+        const filename = `yomie_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.send(csv);

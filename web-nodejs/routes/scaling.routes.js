@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requirePermission } = require('../middleware/auth');
-const { apiClient } = require('../services/betterdeskApi');
+const { apiClient } = require('../services/yomieApi');
 
 // ---------------------------------------------------------------------------
 // Helper — proxy to Go server

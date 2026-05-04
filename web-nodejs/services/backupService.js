@@ -44,7 +44,7 @@ async function createBackup() {
 
     // --- Go server data (best-effort) ---
     let goServer = null;
-    if (serverBackend.isBetterDesk()) {
+    if (serverBackend.isYomie()) {
         goServer = await fetchGoServerData();
     }
 
@@ -74,12 +74,12 @@ async function createBackup() {
  */
 async function fetchGoServerData() {
     try {
-        const betterdeskApi = require('./betterdeskApi');
+        const yomieApi = require('./yomieApi');
         const [peersRes, blocklistRes, auditRes, healthRes] = await Promise.all([
-            betterdeskApi.getAllPeers().catch(() => []),
-            betterdeskApi.getBlocklist().catch(() => []),
-            betterdeskApi.getAuditEvents(500).catch(() => []),
-            betterdeskApi.getHealth().catch(() => ({}))
+            yomieApi.getAllPeers().catch(() => []),
+            yomieApi.getBlocklist().catch(() => []),
+            yomieApi.getAuditEvents(500).catch(() => []),
+            yomieApi.getHealth().catch(() => ({}))
         ]);
 
         return {

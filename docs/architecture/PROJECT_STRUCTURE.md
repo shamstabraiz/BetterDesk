@@ -5,7 +5,7 @@ This document describes the organization of the Yomie Console project.
 ## 📁 Directory Structure
 
 ```
-BetterDeskConsole/
+YomieConsole/
 │
 ├── 📄 README.md                    # Main project documentation
 ├── 📄 LICENSE                      # Apache-2.0 License

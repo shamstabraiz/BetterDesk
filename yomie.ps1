@@ -105,7 +105,7 @@ $script:HBBR_WINDOWS_X86_64_SHA256 = "368C71E8D3AEF4C5C65177FBBBB99EA045661697A8
 
 # Default paths
 $script:RUSTDESK_PATH = if ($env:RUSTDESK_PATH) { $env:RUSTDESK_PATH } else { "C:\Yomie" }
-$script:CONSOLE_PATH = if ($env:CONSOLE_PATH) { $env:CONSOLE_PATH } else { "C:\BetterDeskConsole" }
+$script:CONSOLE_PATH = if ($env:CONSOLE_PATH) { $env:CONSOLE_PATH } else { "C:\YomieConsole" }
 $script:BACKUP_DIR = if ($env:BACKUP_DIR) { $env:BACKUP_DIR } else { "C:\Yomie-Backups" }
 $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
 
@@ -123,16 +123,16 @@ $script:COMMON_RUSTDESK_PATHS = @(
 )
 
 $script:COMMON_CONSOLE_PATHS = @(
-    "C:\BetterDeskConsole",
-    "C:\Program Files\BetterDeskConsole",
-    "$env:LOCALAPPDATA\BetterDeskConsole"
+    "C:\YomieConsole",
+    "C:\Program Files\YomieConsole",
+    "$env:LOCALAPPDATA\YomieConsole"
 )
 
 # Service names
-$script:SERVER_SERVICE = "BetterDeskServer"    # Go server (replaces HBBS + HBBR)
-$script:HBBS_SERVICE = "BetterDeskSignal"      # Legacy Rust signal
-$script:HBBR_SERVICE = "BetterDeskRelay"       # Legacy Rust relay
-$script:CONSOLE_SERVICE = "BetterDeskConsole"
+$script:SERVER_SERVICE = "YomieServer"    # Go server (replaces HBBS + HBBR)
+$script:HBBS_SERVICE = "YomieSignal"      # Legacy Rust signal
+$script:HBBR_SERVICE = "YomieRelay"       # Legacy Rust relay
+$script:CONSOLE_SERVICE = "YomieConsole"
 
 # Status variables
 $script:INSTALL_STATUS = "none"
@@ -146,7 +146,7 @@ $script:CONSOLE_TYPE = "none"  # none, nodejs
 $script:SERVER_TYPE = "none"    # none, go, rust
 
 # Logging
-$script:LOG_FILE = "$env:TEMP\betterdesk_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$script:LOG_FILE = "$env:TEMP\yomie_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
 
 #===============================================================================
 # Helper Functions
@@ -430,7 +430,7 @@ function Auto-DetectPaths {
     }
     
     if (-not $consoleFound) {
-        $script:CONSOLE_PATH = "C:\BetterDeskConsole"
+        $script:CONSOLE_PATH = "C:\YomieConsole"
     }
     
     # Update DB_PATH
@@ -1559,8 +1559,8 @@ function Setup-Services {
     & $nssm remove $script:CONSOLE_SERVICE confirm 2>$null
     
     # Remove legacy Flask API service (deprecated in v2.3.0)
-    & $nssm stop "BetterDeskAPI" 2>$null
-    & $nssm remove "BetterDeskAPI" confirm 2>$null
+    & $nssm stop "YomieAPI" 2>$null
+    & $nssm remove "YomieAPI" confirm 2>$null
     
     Start-Sleep -Seconds 2
     
@@ -2278,7 +2278,7 @@ function Do-InstallMinimal {
     
     # Start server
     Print-Step "Starting Yomie server..."
-    $svcName = "BetterDeskServer"
+    $svcName = "YomieServer"
     if (Get-Service $svcName -ErrorAction SilentlyContinue) {
         Start-Service $svcName -ErrorAction SilentlyContinue
     } elseif (Get-Command nssm -ErrorAction SilentlyContinue) {
@@ -2334,7 +2334,7 @@ function Setup-ServicesMinimal {
     }
     
     # Remove old services
-    foreach ($oldSvc in @("RustDeskSignal", "RustDeskRelay", "BetterDeskAPI", "BetterDeskGo", "BetterDeskConsole")) {
+    foreach ($oldSvc in @("RustDeskSignal", "RustDeskRelay", "YomieAPI", "YomieGo", "YomieConsole")) {
         if (Get-Service $oldSvc -ErrorAction SilentlyContinue) {
             Stop-Service $oldSvc -Force -ErrorAction SilentlyContinue
             if (Get-Command nssm -ErrorAction SilentlyContinue) {
@@ -2351,7 +2351,7 @@ function Setup-ServicesMinimal {
     }
     
     # Create server service via NSSM
-    $svcName = "BetterDeskServer"
+    $svcName = "YomieServer"
     if (Get-Service $svcName -ErrorAction SilentlyContinue) {
         nssm remove $svcName confirm 2>$null
     }
@@ -2922,7 +2922,7 @@ function Do-Backup {
 }
 
 function Do-BackupSilent {
-    $backupName = "betterdesk_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    $backupName = "yomie_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
     $backupPath = Join-Path $script:BACKUP_DIR $backupName
     
     if (-not (Test-Path $script:BACKUP_DIR)) {
@@ -3621,7 +3621,7 @@ function Configure-Paths {
         }
         "3" {
             Write-Host ""
-            $newPath = Read-Host "Enter Console path (e.g., C:\BetterDeskConsole)"
+            $newPath = Read-Host "Enter Console path (e.g., C:\YomieConsole)"
             if ($newPath) {
                 if (Test-Path $newPath) {
                     $script:CONSOLE_PATH = $newPath
@@ -3640,7 +3640,7 @@ function Configure-Paths {
         }
         "4" {
             $script:RUSTDESK_PATH = "C:\Yomie"
-            $script:CONSOLE_PATH = "C:\BetterDeskConsole"
+            $script:CONSOLE_PATH = "C:\YomieConsole"
             $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
             Print-Success "Paths reset to defaults"
             Press-Enter
@@ -3835,7 +3835,7 @@ function Do-BuildLegacyRust {
     Print-Info "Rust: $rustVersion"
     Write-Host ""
 
-    $buildDir = Join-Path $env:TEMP "betterdesk_build_$((Get-Date).Ticks)"
+    $buildDir = Join-Path $env:TEMP "yomie_build_$((Get-Date).Ticks)"
     New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
 
     Push-Location $buildDir

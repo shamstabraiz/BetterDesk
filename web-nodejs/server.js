@@ -27,7 +27,7 @@ const db = require('./services/database');
 const { initWsProxy } = require('./services/wsRelay');
 const { initBdRelay } = require('./services/bdRelay');
 const { initChatRelay } = require('./services/chatRelay');
-const { apiClient: goApiClient } = require('./services/betterdeskApi');
+const { apiClient: goApiClient } = require('./services/yomieApi');
 const { initRemoteRelay } = require('./services/remoteRelay');
 const { initCdapTerminalProxy } = require('./services/cdapTerminalProxy');
 const { initCdapMediaProxies } = require('./services/cdapMediaProxy');
@@ -454,7 +454,7 @@ async function startServer() {
         initCdapMediaProxies(server, sessionMiddleware);
 
         // Initialize real-time device status push (Go event bus → browser)
-        initDeviceStatusPush(server, sessionMiddleware, config.betterdeskApiUrl, config.betterdeskApiKey);
+        initDeviceStatusPush(server, sessionMiddleware, config.yomieApiUrl, config.yomieApiKey);
 
         // Start LAN Discovery UDP service
         startDiscoveryService();

@@ -1046,8 +1046,8 @@
         });
     }
 
-    window.BetterDeskDevices = window.BetterDeskDevices || {};
-    window.BetterDeskDevices.showEditModal = showEditModal;
+    window.YomieDevices = window.YomieDevices || {};
+    window.YomieDevices.showEditModal = showEditModal;
     
     /**
      * Render pagination
@@ -1261,7 +1261,7 @@
             const response = await Utils.api('/api/folders');
             folders = response.folders || [];
             // Expose folders globally for DeviceDetail panel
-            window._betterdesk_folders = folders;
+            window._yomie_folders = folders;
             renderFolders();
             updateBulkMoveSelect();
         } catch (error) {

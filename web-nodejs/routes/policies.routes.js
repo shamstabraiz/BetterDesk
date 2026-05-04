@@ -32,7 +32,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { apiClient } = require('../services/betterdeskApi');
+const { apiClient } = require('../services/yomieApi');
 
 // ---------------------------------------------------------------------------
 //  Auth middleware

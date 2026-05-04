@@ -16,8 +16,8 @@
 
     // ============ Constants ============
 
-    var STORAGE_SEEN = 'betterdesk_tutorial_seen';
-    var STORAGE_DISABLED = 'betterdesk_tutorial_disabled';
+    var STORAGE_SEEN = 'yomie_tutorial_seen';
+    var STORAGE_DISABLED = 'yomie_tutorial_disabled';
     
     // ============ State ============
 
@@ -718,7 +718,7 @@
     };
 
     // Backward compatibility alias
-    window.BetterDeskTutorial = window.Tutorial;
+    window.YomieTutorial = window.Tutorial;
 
     // ============ Floating Help Button ============
 

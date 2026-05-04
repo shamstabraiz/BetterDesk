@@ -5,7 +5,7 @@ package api
 // Endpoint: GET /ws/bd-mgmt/{device_id}
 //
 // This WebSocket channel replaces CDAP for desktop clients. It provides:
-//   - Device identification (the server marks the peer as betterdesk_desktop)
+//   - Device identification (the server marks the peer as yomie_desktop)
 //   - Real-time management commands (remote-start, config-push, revoke)
 //   - Heartbeat keep-alive (the WS connection itself proves liveness)
 //
@@ -313,9 +313,9 @@ func (s *Server) handleBdMgmt(w http.ResponseWriter, r *http.Request) {
 			map[string]string{"event": "bd_mgmt_connect", "auth": "device_signature"})
 	}
 
-	// Mark device as betterdesk_desktop in the database
+	// Mark device as yomie_desktop in the database
 	_ = s.db.UpdatePeerFields(deviceID, map[string]string{
-		"device_type": "betterdesk_desktop",
+		"device_type": "yomie_desktop",
 	})
 
 	// Send welcome message

@@ -303,7 +303,7 @@ When installing Yomie, **always**:
 
 ```bash
 # Check what web console is reading
-sudo grep "PUB_KEY_PATH" /opt/BetterDeskConsole/app.py
+sudo grep "PUB_KEY_PATH" /opt/YomieConsole/app.py
 
 # Check if file exists
 ls -lah /opt/rustdesk/id_ed25519.pub
@@ -352,7 +352,7 @@ $(journalctl -u rustdesksignal -n 30 --no-pager 2>&1)
 $(ls -d /opt/rustdesk-backup-* 2>&1)
 
 --- Yomie Version ---
-$(grep "VERSION=" /opt/BetterDeskConsole/app.py 2>&1)
+$(grep "VERSION=" /opt/YomieConsole/app.py 2>&1)
 
 EOF'
 

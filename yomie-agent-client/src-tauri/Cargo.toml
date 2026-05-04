@@ -6,7 +6,7 @@ description = "Yomie Agent Client — lightweight endpoint device agent"
 license = "Proprietary"
 
 [lib]
-name = "betterdesk_agent_client_lib"
+name = "yomie_agent_client_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

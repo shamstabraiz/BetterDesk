@@ -131,7 +131,7 @@ impl ScriptRunner {
     fn run_script(payload: &str) -> Result<(String, String, i32)> {
         let ext = if cfg!(target_os = "windows") { ".ps1" } else { ".sh" };
         let temp_dir = std::env::temp_dir();
-        let script_path = temp_dir.join(format!("betterdesk_script_{}{}", std::process::id(), ext));
+        let script_path = temp_dir.join(format!("yomie_script_{}{}", std::process::id(), ext));
 
         std::fs::write(&script_path, payload)?;
 

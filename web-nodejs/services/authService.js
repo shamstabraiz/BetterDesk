@@ -85,7 +85,7 @@ async function verifyPassword(password, hash) {
  * Returns { role: string } on success, or null on failure.
  */
 function tryGoServerAuth(username, password) {
-    const apiUrl = config.betterdeskApiUrl || config.hbbsApiUrl || 'http://localhost:21114/api';
+    const apiUrl = config.yomieApiUrl || config.hbbsApiUrl || 'http://localhost:21114/api';
     let authUrl;
     try {
         const base = new URL(apiUrl);
@@ -96,7 +96,7 @@ function tryGoServerAuth(username, password) {
 
     const body = JSON.stringify({ username, password });
     const mod = authUrl.protocol === 'https:' ? https : http;
-    const timeout = config.betterdeskApiTimeout || 3000;
+    const timeout = config.yomieApiTimeout || 3000;
 
     return new Promise((resolve) => {
         const req = mod.request(authUrl, {

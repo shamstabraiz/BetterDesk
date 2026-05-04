@@ -167,9 +167,9 @@ module.exports = {
     hbbsApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT || process.env.HBBS_API_TIMEOUT, 10) || 3000,
 
     // Yomie Go Server API (preferred names)
-    betterdeskApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
-    betterdeskApiKey: process.env.BETTERDESK_API_KEY || apiKey,
-    betterdeskApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT, 10) || 5000,
+    yomieApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
+    yomieApiKey: process.env.BETTERDESK_API_KEY || apiKey,
+    yomieApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT, 10) || 5000,
 
     // TLS certificate verification (BD-2026-002)
     // Default is false (reject self-signed certs) for production safety.

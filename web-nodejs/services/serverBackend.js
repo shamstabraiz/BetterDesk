@@ -5,14 +5,14 @@
  * Always uses Yomie Go server (yomie mode).
  *
  * Legacy 'rustdesk' (hbbs/hbbr) backend has been removed.
- * All operations delegate to betterdeskApi.js (Go server REST API).
+ * All operations delegate to yomieApi.js (Go server REST API).
  *
  * The active backend is always 'yomie'.
  */
 
 const config = require('../config/config');
 const db = require('./database');
-const betterdeskApi = require('./betterdeskApi');
+const yomieApi = require('./yomieApi');
 
 /**
  * Return the active backend name: always 'yomie'
@@ -35,18 +35,18 @@ async function setActiveBackend(name) {
 /**
  * Returns true — always Yomie (Go server).
  */
-async function isBetterDesk() {
+async function isYomie() {
     return true;
 }
 
 // ========================== Health / Stats ===================================
 
 async function getHealth() {
-    return betterdeskApi.getHealth();
+    return yomieApi.getHealth();
 }
 
 async function getStats() {
-    const result = await betterdeskApi.getServerStats();
+    const result = await yomieApi.getServerStats();
     if (result.success && result.data) {
         // Normalise Go shape → panel shape
         const d = result.data;
@@ -65,14 +65,14 @@ async function getStats() {
 }
 
 async function getServerInfo() {
-    return betterdeskApi.getServerInfo();
+    return yomieApi.getServerInfo();
 }
 
 // ========================== Devices / Peers ==================================
 
 async function getAllDevices(filters = {}) {
-    if (await isBetterDesk()) {
-        let peers = await betterdeskApi.getAllPeers();
+    if (await isYomie()) {
+        let peers = await yomieApi.getAllPeers();
 
         // Overlay folder_id from auth.db assignments (Go server doesn't track folders)
         try {
@@ -140,7 +140,7 @@ async function getAllDevices(filters = {}) {
 }
 
 async function getDeviceById(id) {
-    const peer = await betterdeskApi.getPeer(id);
+    const peer = await yomieApi.getPeer(id);
     // Overlay folder_id from auth.db
     if (peer) {
         try {
@@ -154,13 +154,13 @@ async function getDeviceById(id) {
 }
 
 async function deleteDevice(id, options = {}) {
-    return betterdeskApi.deletePeer(id, options);
+    return yomieApi.deletePeer(id, options);
 }
 
 async function setBanStatus(id, banned, reason = '') {
     return banned
-        ? betterdeskApi.banPeer(id, reason)
-        : betterdeskApi.unbanPeer(id);
+        ? yomieApi.banPeer(id, reason)
+        : yomieApi.unbanPeer(id);
 }
 
 async function updateDevice(id, data) {
@@ -171,7 +171,7 @@ async function updateDevice(id, data) {
     if (data.display_name !== undefined) fields.display_name = String(data.display_name);
 
     if (Object.keys(fields).length > 0) {
-        const result = await betterdeskApi.updatePeer(id, fields);
+        const result = await yomieApi.updatePeer(id, fields);
         if (!result || !result.success) {
             return { changes: 0, error: result?.error || 'Failed to update peer' };
         }
@@ -186,51 +186,51 @@ async function updateDevice(id, data) {
 }
 
 async function changePeerId(oldId, newId) {
-    return betterdeskApi.changePeerId(oldId, newId);
+    return yomieApi.changePeerId(oldId, newId);
 }
 
 // ========================== Online Status Sync ===============================
 
 async function syncOnlineStatus() {
     // Yomie Go server owns the peer map — no sync needed.
-    return betterdeskApi.syncOnlineStatus();
+    return yomieApi.syncOnlineStatus();
 }
 
 // ========================== Yomie Features ==============================
 
 async function getStatusSummary() {
-    return betterdeskApi.getStatusSummary();
+    return yomieApi.getStatusSummary();
 }
 
 async function getBlocklist() {
-    return betterdeskApi.getBlocklist();
+    return yomieApi.getBlocklist();
 }
 
 async function addBlocklistEntry(entry) {
-    return betterdeskApi.addBlocklistEntry(entry);
+    return yomieApi.addBlocklistEntry(entry);
 }
 
 async function removeBlocklistEntry(entry) {
-    return betterdeskApi.removeBlocklistEntry(entry);
+    return yomieApi.removeBlocklistEntry(entry);
 }
 
 async function setPeerTags(id, tags) {
-    return betterdeskApi.setPeerTags(id, tags);
+    return yomieApi.setPeerTags(id, tags);
 }
 
 async function getPeersByTag(tag) {
-    return betterdeskApi.getPeersByTag(tag);
+    return yomieApi.getPeersByTag(tag);
 }
 
 async function getAuditEvents(limit) {
-    return betterdeskApi.getAuditEvents(limit);
+    return yomieApi.getAuditEvents(limit);
 }
 
 module.exports = {
     // Backend management
     getActiveBackend,
     setActiveBackend,
-    isBetterDesk,
+    isYomie,
     // Health / Stats
     getHealth,
     getStats,

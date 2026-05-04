@@ -85,7 +85,7 @@ router.post('/set/:code', (req, res) => {
             });
         }
         
-        res.cookie('betterdesk_lang', code, {
+        res.cookie('yomie_lang', code, {
             maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
             httpOnly: false, // Intentionally accessible to JS for client-side i18n
             sameSite: 'lax',

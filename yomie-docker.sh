@@ -72,7 +72,7 @@ NC='\033[0m'
 BOLD='\033[1m'
 
 # Logging
-LOG_FILE="/tmp/betterdesk_docker_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="/tmp/yomie_docker_$(date +%Y%m%d_%H%M%S).log"
 
 #===============================================================================
 # SELinux / Volume Helper Functions
@@ -506,8 +506,8 @@ choose_database_type() {
             
             # Get PostgreSQL credentials
             echo ""
-            read -p "PostgreSQL password for 'yomie' user [betterdesk123]: " pg_pass
-            POSTGRESQL_PASS="${pg_pass:-betterdesk123}"
+            read -p "PostgreSQL password for 'yomie' user [yomie123]: " pg_pass
+            POSTGRESQL_PASS="${pg_pass:-yomie123}"
             ;;
         *)
             DB_TYPE="sqlite"
@@ -1216,7 +1216,7 @@ do_backup() {
 }
 
 do_backup_silent() {
-    local backup_name="betterdesk_docker_backup_$(date +%Y%m%d_%H%M%S)"
+    local backup_name="yomie_docker_backup_$(date +%Y%m%d_%H%M%S)"
     local backup_path="$BACKUP_DIR/$backup_name"
     
     mkdir -p "$backup_path"
@@ -2161,8 +2161,8 @@ do_migrate_postgresql() {
     
     # Get PostgreSQL password
     echo ""
-    read -p "PostgreSQL password for 'yomie' user [betterdesk123]: " pg_pass
-    POSTGRESQL_PASS="${pg_pass:-betterdesk123}"
+    read -p "PostgreSQL password for 'yomie' user [yomie123]: " pg_pass
+    POSTGRESQL_PASS="${pg_pass:-yomie123}"
     
     # Backup current setup
     print_step "Creating backup..."
@@ -2215,7 +2215,7 @@ do_migrate_postgresql() {
     # For migration, we need to temporarily expose PostgreSQL or copy data
     
     # Copy SQLite database to migrate tool location
-    cp "$sqlite_db" "/tmp/betterdesk_migrate.sqlite3"
+    cp "$sqlite_db" "/tmp/yomie_migrate.sqlite3"
     
     # Since PostgreSQL is inside Docker, we need to connect via localhost:5432 if exposed
     # or use docker exec. Let's use docker exec approach:

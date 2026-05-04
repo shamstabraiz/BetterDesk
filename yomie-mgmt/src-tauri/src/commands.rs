@@ -649,7 +649,7 @@ pub fn get_discovery_status(state: State<'_, AppState>) -> Result<LanDiscoverySt
 /// with this device's identity information.
 
 /// Browse for Yomie servers via mDNS/DNS-SD.
-/// Returns servers advertising `_betterdesk._tcp` on the local network.
+/// Returns servers advertising `_yomie._tcp` on the local network.
 #[tauri::command]
 pub async fn discover_mdns_servers() -> Result<Vec<crate::discovery::MdnsServer>, String> {
     let servers = tokio::task::spawn_blocking(|| {

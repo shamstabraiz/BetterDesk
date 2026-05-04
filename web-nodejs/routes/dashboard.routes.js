@@ -60,7 +60,7 @@ router.get('/api/stats', requireAuth, async (req, res) => {
  */
 router.get('/api/server/status', requireAuth, async (req, res) => {
     try {
-        const isBD = serverBackend.isBetterDesk();
+        const isBD = serverBackend.isYomie();
 
         // Primary check: always try the API health endpoint
         const hbbsHealth = await serverBackend.getHealth();
@@ -108,7 +108,7 @@ router.get('/api/server/status', requireAuth, async (req, res) => {
 
         // Build port map for the UI
         const apiPort = parseInt(new URL(
-            isBD ? config.betterdeskApiUrl : config.hbbsApiUrl
+            isBD ? config.yomieApiUrl : config.hbbsApiUrl
         ).port, 10) || 21114;
 
         res.json({
@@ -145,8 +145,8 @@ router.get('/api/server/status', requireAuth, async (req, res) => {
  */
 router.get('/api/server/bandwidth', requireAuth, async (req, res) => {
     try {
-        const betterdeskApi = require('../services/betterdeskApi');
-        const stats = await betterdeskApi.getServerStats();
+        const yomieApi = require('../services/yomieApi');
+        const stats = await yomieApi.getServerStats();
         if (!stats || !stats.success) {
             return res.json({ success: true, data: { relay_active: 0, total_relayed: 0, bytes_transferred: 0, active_sessions: 0, throttle_hits: 0 } });
         }
@@ -197,8 +197,8 @@ router.get('/api/dashboard/activity', requireAuth, async (req, res) => {
         
         // Try Go server audit endpoint
         try {
-            const betterdeskApi = require('../services/betterdeskApi');
-            const audit = await betterdeskApi.getAuditEvents(10);
+            const yomieApi = require('../services/yomieApi');
+            const audit = await yomieApi.getAuditEvents(10);
             const entries = audit?.data?.entries || audit?.entries || (Array.isArray(audit?.data) ? audit.data : []);
             for (const entry of entries.slice(0, 10)) {
                 events.push({

@@ -69,7 +69,7 @@ router.get('/remote/:deviceId', requireAuth, async (req, res) => {
     let isCdapConnected = false;
     let goPeer = null;
     try {
-        const api = require('../services/betterdeskApi');
+        const api = require('../services/yomieApi');
         goPeer = await api.getPeer(deviceId);
         if (goPeer) {
             isOsAgent = String(goPeer.device_type || '').toLowerCase() === 'os_agent';

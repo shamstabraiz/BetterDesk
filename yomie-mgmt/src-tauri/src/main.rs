@@ -19,10 +19,10 @@ fn main() {
     // Handle elevated CLI commands (--apply-config, --add-firewall-rules).
     // These are invoked by the main process via UAC / pkexec and must
     // exit before Tauri starts.
-    betterdesk_mgmt_lib::service::handle_apply_config_cli();
+    yomie_mgmt_lib::service::handle_apply_config_cli();
 
     // Pass args awareness to lib::run() via env check
     let _ = &args; // suppress unused warning in non-windows builds
 
-    betterdesk_mgmt_lib::run();
+    yomie_mgmt_lib::run();
 }

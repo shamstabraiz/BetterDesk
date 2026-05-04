@@ -12,7 +12,7 @@ use tokio::io::AsyncWriteExt;
 use super::sender::{FileChunk, FileHeader, TransferProgress};
 
 /// Where received files are stored.
-const DOWNLOAD_SUBDIR: &str = "betterdesk_downloads";
+const DOWNLOAD_SUBDIR: &str = "yomie_downloads";
 
 /// State of a file being received.
 pub struct ActiveDownload {
@@ -31,7 +31,7 @@ pub struct FileReceiver {
 
 impl FileReceiver {
     /// Create a new file receiver.
-    /// Files are saved to the user's Downloads/betterdesk_downloads directory.
+    /// Files are saved to the user's Downloads/yomie_downloads directory.
     pub fn new() -> Self {
         let download_dir = dirs::download_dir()
             .unwrap_or_else(|| std::env::temp_dir())
@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn test_unique_path_nonexistent() {
-        let path = std::env::temp_dir().join("betterdesk_nonexistent_test_12345.txt");
+        let path = std::env::temp_dir().join("yomie_nonexistent_test_12345.txt");
         let result = unique_path(&path);
         assert_eq!(result, path);
     }

@@ -1202,7 +1202,7 @@ While bridges can be written from scratch (just JSON over WebSocket), optional S
 ```
 yomie-bridge-sdk/
 ├── python/          # pip install yomie-bridge
-│   └── betterdesk_bridge/
+│   └── yomie_bridge/
 │       ├── __init__.py
 │       ├── client.py       # WebSocket client + reconnect
 │       ├── manifest.py     # Manifest builder
@@ -1495,7 +1495,7 @@ The Yomie native client is a **desktop bridge** — an OS agent that exposes the
 // Conceptual Rust-based Yomie desktop agent
 // Dual-purpose: remote desktop + system management
 
-struct BetterDeskAgent {
+struct YomieAgent {
     cdap: CdapClient,             // CDAP WebSocket connection
     screen_capture: DxgiCapture,  // Platform screen capture
     encoder: H264Encoder,         // Hardware-accelerated encoder

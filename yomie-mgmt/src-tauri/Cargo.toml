@@ -6,7 +6,7 @@ description = "Yomie MGMT Client — operator and admin remote management consol
 license = "Proprietary"
 
 [lib]
-name = "betterdesk_mgmt_lib"
+name = "yomie_mgmt_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -311,7 +311,7 @@
     "backend_original": "Origine",
     "backend_enhanced": "Amélioré",
     "backend_rustdesk_desc": "Serveurs de signalisation et relais RustDesk standard (hbbs + hbbr). API HTTP de base avec un nombre limité de terminaux.",
-    "backend_betterdesk_desc": "Serveur amélioré basé sur GO avec API REST complète, authentification JWT, liste de blocage, balises, événements WebSocket en temps réel et journal d'audit.",
+    "backend_yomie_desc": "Serveur amélioré basé sur GO avec API REST complète, authentification JWT, liste de blocage, balises, événements WebSocket en temps réel et journal d'audit.",
     "backend_feature_signal": "Serveur de signalisation (enregistrement d'identifiant)",
     "backend_feature_relay": "Serveur relais (relais de connexion)",
     "backend_feature_basic_api": "API REST basique",

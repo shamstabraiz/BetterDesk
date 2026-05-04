@@ -161,7 +161,7 @@ CREATE TABLE org_settings (
 - Bulk operations: assign 50 devices to org at once
 
 ### 1.5 Organization Discovery Protocol (Enhancement) ✅
-- ✅ Client auto-discovers Yomie server on LAN via mDNS/DNS-SD (`_betterdesk._tcp`) — `discovery/mdns.rs`
+- ✅ Client auto-discovers Yomie server on LAN via mDNS/DNS-SD (`_yomie._tcp`) — `discovery/mdns.rs`
 - ✅ `discover_mdns_servers` IPC command with 10s browse timeout
 - ✅ `DiscoveryPanel.tsx` runs both UDP broadcast + mDNS in parallel, merges/deduplicates results
 - ✅ Source badge (UDP/mDNS/both) shown on each discovered server

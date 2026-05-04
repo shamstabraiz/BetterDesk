@@ -88,7 +88,7 @@ web-nodejs/
 ├── services/
 │   ├── authService.js   # Password hashing
 │   ├── database.js      # SQLite operations
-│   ├── betterdeskApi.js  # Yomie Go server REST API client
+│   ├── yomieApi.js  # Yomie Go server REST API client
 │   ├── i18nService.js   # Translation manager
 │   └── keyService.js    # Key file operations
 ├── views/

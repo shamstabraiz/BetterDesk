@@ -6,7 +6,7 @@ const { requireAuth, requirePermission } = require('../middleware/auth');
 
 let apiClient;
 try {
-    apiClient = require('../services/betterdeskApi').apiClient;
+    apiClient = require('../services/yomieApi').apiClient;
 } catch (e) {
     apiClient = null;
 }

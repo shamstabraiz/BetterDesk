@@ -22,7 +22,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const { getAdapter } = require('../services/dbAdapter');
-const betterdeskApi = require('../services/betterdeskApi');
+const yomieApi = require('../services/yomieApi');
 
 // ---------------------------------------------------------------------------
 //  Helpers (shared with bd-api.routes.js)
@@ -225,7 +225,7 @@ router.get('/', requireAdmin, async (req, res) => {
         } else {
             // Fallback: populate from Go server peer list when no agent inventory exists
             try {
-                const peers = await betterdeskApi.getAllPeers();
+                const peers = await yomieApi.getAllPeers();
                 const peerList = Array.isArray(peers) ? peers : (peers?.data || []);
                 for (const p of peerList) {
                     devices.push({

@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from betterdesk_cdap import CDAPBridge, gauge, toggle, slider, textWidget
+from yomie_cdap import CDAPBridge, gauge, toggle, slider, textWidget
 
 logger = logging.getLogger("bridge_modbus")
 

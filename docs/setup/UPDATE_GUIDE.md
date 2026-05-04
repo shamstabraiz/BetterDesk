@@ -64,7 +64,7 @@ sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
 
 **Default paths:**
 - RustDesk: `/opt/rustdesk`
-- Console: `/opt/BetterDeskConsole`
+- Console: `/opt/YomieConsole`
 - Database: `{rustdesk-dir}/db_v2.sqlite3`
 
 **What it does:**
@@ -97,7 +97,7 @@ sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
 **Parameters:**
 - `-RemoteHost` (required): Server hostname or IP
 - `-RemoteUser` (required): SSH username
-- `-RemotePath`: Console directory (default: `/opt/BetterDeskConsole`)
+- `-RemotePath`: Console directory (default: `/opt/YomieConsole`)
 - `-RustDeskPath`: RustDesk directory (default: `/opt/rustdesk`)
 - `-DbPath`: Database path (default: auto-set to `{RustDeskPath}/db_v2.sqlite3`)
 
@@ -145,9 +145,9 @@ sudo systemctl stop yomie
 sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/db_v2.sqlite3.backup /opt/rustdesk/db_v2.sqlite3
 
 # 3. Restore web files
-sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/app.py.backup /opt/BetterDeskConsole/app.py
-sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/script.js.backup /opt/BetterDeskConsole/static/script.js
-sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/index.html.backup /opt/BetterDeskConsole/templates/index.html
+sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/app.py.backup /opt/YomieConsole/app.py
+sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/script.js.backup /opt/YomieConsole/static/script.js
+sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/index.html.backup /opt/YomieConsole/templates/index.html
 
 # 4. Start service
 sudo systemctl start yomie
@@ -185,7 +185,7 @@ ssh-copy-id YOUR_SSH_USER@YOUR_SERVER_IP
 **SCP upload fails:**
 ```powershell
 # Check SSH access
-ssh YOUR_SSH_USER@YOUR_SERVER_IP "ls -la /opt/BetterDeskConsole"
+ssh YOUR_SSH_USER@YOUR_SERVER_IP "ls -la /opt/YomieConsole"
 
 # Verify file permissions
 ssh YOUR_SSH_USER@YOUR_SERVER_IP "whoami; groups"
@@ -242,9 +242,9 @@ sudo python3 migrations/v1.0.1_soft_delete.py
 sudo python3 migrations/v1.1.0_device_bans.py
 
 # 3. Copy files
-sudo cp web/app.py /opt/BetterDeskConsole/
-sudo cp web/static/script.js /opt/BetterDeskConsole/static/
-sudo cp web/templates/index.html /opt/BetterDeskConsole/templates/
+sudo cp web/app.py /opt/YomieConsole/
+sudo cp web/static/script.js /opt/YomieConsole/static/
+sudo cp web/templates/index.html /opt/YomieConsole/templates/
 
 # 4. Restart
 sudo systemctl restart yomie

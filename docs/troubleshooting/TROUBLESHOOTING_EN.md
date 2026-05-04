@@ -431,8 +431,8 @@ sudo systemctl cat yomie-server | grep relay-servers
 
 ```powershell
 # Windows: check the scheduled task or NSSM service arguments
-nssm get BetterDeskServer AppParameters
-# Or check the task in Task Scheduler → Yomie → BetterDeskServer → Arguments
+nssm get YomieServer AppParameters
+# Or check the task in Task Scheduler → Yomie → YomieServer → Arguments
 ```
 
 ### Solution
@@ -456,8 +456,8 @@ sudo systemctl restart yomie-server
 **Windows:**
 ```powershell
 # Update NSSM service parameters
-nssm set BetterDeskServer AppParameters "-mode all -relay-servers YOUR_IPV4_ADDRESS ..."
-Restart-Service BetterDeskServer
+nssm set YomieServer AppParameters "-mode all -relay-servers YOUR_IPV4_ADDRESS ..."
+Restart-Service YomieServer
 
 # Or edit the scheduled task arguments in Task Scheduler
 ```

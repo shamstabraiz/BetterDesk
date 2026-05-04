@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requirePermission } = require('../middleware/auth');
-const betterdeskApi = require('../services/betterdeskApi');
+const yomieApi = require('../services/yomieApi');
 
 // ── Page Routes ──────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ router.get('/cdap/devices/:id', requireAuth, (req, res) => {
 
 // ── API Routes ───────────────────────────────────────────────────────────
 
-// Unwrap the { success, data } envelope returned by betterdeskApi helpers
+// Unwrap the { success, data } envelope returned by yomieApi helpers
 // so that the CDAP frontend receives the flat Go server response it expects.
 function unwrap(result) {
     return (result && result.success && result.data) ? result.data : result;
@@ -62,7 +62,7 @@ function unwrap(result) {
  */
 router.get('/api/cdap/status', requireAuth, async (req, res) => {
     try {
-        const result = await betterdeskApi.getCDAPStatus();
+        const result = await yomieApi.getCDAPStatus();
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ enabled: false, error: 'Failed to get CDAP status' });
@@ -75,7 +75,7 @@ router.get('/api/cdap/status', requireAuth, async (req, res) => {
  */
 router.get('/api/cdap/devices', requireAuth, async (req, res) => {
     try {
-        const result = await betterdeskApi.getCDAPDevices();
+        const result = await yomieApi.getCDAPDevices();
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ devices: [], error: 'Failed to list CDAP devices' });
@@ -88,7 +88,7 @@ router.get('/api/cdap/devices', requireAuth, async (req, res) => {
  */
 router.get('/api/cdap/devices/:id', requireAuth, async (req, res) => {
     try {
-        const result = await betterdeskApi.getCDAPDeviceInfo(req.params.id);
+        const result = await yomieApi.getCDAPDeviceInfo(req.params.id);
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ error: 'Failed to get CDAP device info' });
@@ -101,7 +101,7 @@ router.get('/api/cdap/devices/:id', requireAuth, async (req, res) => {
  */
 router.get('/api/cdap/devices/:id/manifest', requireAuth, async (req, res) => {
     try {
-        const result = await betterdeskApi.getCDAPDeviceManifest(req.params.id);
+        const result = await yomieApi.getCDAPDeviceManifest(req.params.id);
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ error: 'Failed to get CDAP device manifest' });
@@ -114,7 +114,7 @@ router.get('/api/cdap/devices/:id/manifest', requireAuth, async (req, res) => {
  */
 router.get('/api/cdap/devices/:id/state', requireAuth, async (req, res) => {
     try {
-        const result = await betterdeskApi.getCDAPDeviceState(req.params.id);
+        const result = await yomieApi.getCDAPDeviceState(req.params.id);
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ error: 'Failed to get CDAP device state' });
@@ -134,7 +134,7 @@ router.post('/api/cdap/devices/:id/command', requireAuth, requirePermission('cda
             return res.status(400).json({ error: 'widget_id and action are required' });
         }
 
-        const result = await betterdeskApi.sendCDAPCommand(
+        const result = await yomieApi.sendCDAPCommand(
             req.params.id,
             widget_id,
             action,
@@ -158,7 +158,7 @@ router.post('/api/cdap/toggle', requireAuth, requirePermission('server.config'),
         if (typeof enabled !== 'boolean') {
             return res.status(400).json({ success: false, error: 'enabled must be a boolean' });
         }
-        await betterdeskApi.setConfig('cdap_enabled', enabled ? 'Y' : 'N');
+        await yomieApi.setConfig('cdap_enabled', enabled ? 'Y' : 'N');
         res.json({ success: true, enabled, restart_required: true });
     } catch (err) {
         console.error('[CDAP] Toggle error:', err.message);
@@ -173,7 +173,7 @@ router.post('/api/cdap/toggle', requireAuth, requirePermission('server.config'),
  */
 router.get('/api/cdap/alerts', requireAuth, async (req, res) => {
     try {
-        const result = await betterdeskApi.getCDAPAlerts(req.query.device_id);
+        const result = await yomieApi.getCDAPAlerts(req.query.device_id);
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ alerts: [], total: 0, error: 'Failed to get CDAP alerts' });
@@ -186,7 +186,7 @@ router.get('/api/cdap/alerts', requireAuth, async (req, res) => {
  */
 router.get('/api/cdap/devices/:id/linked', requireAuth, async (req, res) => {
     try {
-        const result = await betterdeskApi.getLinkedPeers(req.params.id);
+        const result = await yomieApi.getLinkedPeers(req.params.id);
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ error: 'Failed to get linked devices' });
@@ -204,7 +204,7 @@ router.post('/api/cdap/devices/:id/link', requireAuth, requirePermission('cdap.c
         if (linked_peer_id === undefined) {
             return res.status(400).json({ error: 'linked_peer_id is required' });
         }
-        const result = await betterdeskApi.linkDevice(req.params.id, linked_peer_id);
+        const result = await yomieApi.linkDevice(req.params.id, linked_peer_id);
         res.json(unwrap(result));
     } catch (err) {
         res.status(500).json({ error: 'Failed to link device' });

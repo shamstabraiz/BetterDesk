@@ -49,7 +49,7 @@ const DEFAULT_BRANDING = {
     logoType: 'image', // 'icon' | 'svg' | 'image' | 'text'
     logoIcon: 'dns',   // Material Icons name (when logoType === 'icon')
     logoSvg: '',       // Raw SVG markup or SVG path data (when logoType === 'svg')
-    logoUrl: '/img/betterdesk_icon.png', // URL to image file (when logoType === 'image')
+    logoUrl: '/img/yomie_icon.png', // URL to image file (when logoType === 'image')
     logoText: '',      // Text to display as logo (when logoType === 'text')
     logoTextAccent: '', // Accent text (different color, e.g. product name after brand)
     

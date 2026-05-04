@@ -57,7 +57,7 @@ python bridge_modbus.py --config config.json
 Use the Python SDK directly:
 
 ```python
-from betterdesk_cdap import CDAPBridge, gauge, toggle
+from yomie_cdap import CDAPBridge, gauge, toggle
 
 bridge = CDAPBridge(
     server="ws://your-server:21122/cdap",

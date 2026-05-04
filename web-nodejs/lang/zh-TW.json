@@ -311,7 +311,7 @@
     "backend_original": "標準版",
     "backend_enhanced": "增強版",
     "backend_rustdesk_desc": "標準 RustDesk 信令和中繼伺服器（hbbs + hbbr）。基礎 HTTP API，端點有限。",
-    "backend_betterdesk_desc": "增強型 Go 伺服器，具有完整 REST API、JWT 認證、黑名單、標籤、實時 WebSocket 事件和稽核日誌。",
+    "backend_yomie_desc": "增強型 Go 伺服器，具有完整 REST API、JWT 認證、黑名單、標籤、實時 WebSocket 事件和稽核日誌。",
     "backend_feature_signal": "信令伺服器（ID 註冊）",
     "backend_feature_relay": "中繼伺服器（連線中繼）",
     "backend_feature_basic_api": "基礎 REST API",
@@ -2521,7 +2521,7 @@
     "col_ip": "IP地址",
     "col_details": "詳情",
     "no_events": "找不到稽核事件。",
-    "hardening_hint": "BetterDesk部署的安全加固優先順序。按嚴重程度排序。",
+    "hardening_hint": "Yomie部署的安全加固優先順序。按嚴重程度排序。",
     "no_hardening": "沒有可用的加固專案。",
     "vuln_hint": "依賴項漏洞掃描結果。定期執行npm audit以保持依賴安全。",
     "no_vulns": "未發現漏洞。您的依賴項是安全的。"

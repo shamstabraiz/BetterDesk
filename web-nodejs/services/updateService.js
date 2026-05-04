@@ -46,21 +46,21 @@ const COMPONENTS = {
         prefix: 'web-nodejs/',
         label: 'Web Console',
         localRoot: ROOT_DIR,
-        service: IS_WINDOWS ? 'BetterDeskConsole' : 'yomie-console',
+        service: IS_WINDOWS ? 'YomieConsole' : 'yomie-console',
         autoUpdate: true
     },
     server: {
         prefix: 'yomie-server/',
         label: 'Go Server',
         localRoot: path.join(PROJECT_ROOT, 'yomie-server'),
-        service: IS_WINDOWS ? 'BetterDeskServer' : 'yomie-server',
+        service: IS_WINDOWS ? 'YomieServer' : 'yomie-server',
         autoUpdate: false
     },
     agent: {
         prefix: 'yomie-agent/',
         label: 'Agent',
         localRoot: null,
-        service: IS_WINDOWS ? 'BetterDeskAgent' : 'yomie-agent',
+        service: IS_WINDOWS ? 'YomieAgent' : 'yomie-agent',
         autoUpdate: false
     },
     scripts: {
@@ -332,7 +332,7 @@ function detectServerBinaryPath() {
     // 2. Read from systemd / NSSM service definition
     try {
         if (IS_WINDOWS) {
-            const out = execSync('nssm get BetterDeskServer Application 2>nul', {
+            const out = execSync('nssm get YomieServer Application 2>nul', {
                 timeout: 5000, stdio: 'pipe'
             }).toString().trim();
             if (out && fs.existsSync(out)) return out;

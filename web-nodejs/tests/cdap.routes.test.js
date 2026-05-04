@@ -1,6 +1,6 @@
 const request = require('supertest');
 
-jest.mock('../services/betterdeskApi', () => ({
+jest.mock('../services/yomieApi', () => ({
     getCDAPStatus: jest.fn(),
     getCDAPDevices: jest.fn(),
     getCDAPDeviceInfo: jest.fn(),
@@ -13,7 +13,7 @@ jest.mock('../services/betterdeskApi', () => ({
     linkDevice: jest.fn(),
 }));
 
-const betterdeskApi = require('../services/betterdeskApi');
+const yomieApi = require('../services/yomieApi');
 const { createTestApp, withAuth } = require('./helpers');
 const cdapRoutes = require('../routes/cdap.routes');
 
@@ -22,8 +22,8 @@ describe('CDAP Routes', () => {
         jest.clearAllMocks();
     });
 
-    it('unwraps the betterdeskApi envelope for CDAP status', async () => {
-        betterdeskApi.getCDAPStatus.mockResolvedValue({
+    it('unwraps the yomieApi envelope for CDAP status', async () => {
+        yomieApi.getCDAPStatus.mockResolvedValue({
             success: true,
             data: { enabled: true, connections: 2 },
         });
@@ -65,7 +65,7 @@ describe('CDAP Routes', () => {
     });
 
     it('returns the fallback error response when CDAP device info lookup fails', async () => {
-        betterdeskApi.getCDAPDeviceInfo.mockRejectedValue(new Error('offline'));
+        yomieApi.getCDAPDeviceInfo.mockRejectedValue(new Error('offline'));
 
         const app = createTestApp();
         withAuth(app);

@@ -11,5 +11,5 @@ fn main() {
         }
     }
 
-    betterdesk_agent_client_lib::run();
+    yomie_agent_client_lib::run();
 }

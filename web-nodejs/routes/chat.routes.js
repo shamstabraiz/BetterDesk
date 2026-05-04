@@ -83,7 +83,7 @@ router.get('/api/chat/files/:fileId', requireAuth, (req, res) => {
 // Search messages via Go server proxy
 router.get('/api/chat/search', requireAuth, async (req, res) => {
     try {
-        const { apiClient } = require('../services/betterdeskApi');
+        const { apiClient } = require('../services/yomieApi');
         const query = String(req.query.q || '').slice(0, 200);
         const conversationId = req.query.conversation_id || '';
         if (!query) return res.json({ success: true, messages: [] });

@@ -638,7 +638,7 @@ router.post('/api/settings/updates/install', requireAuth, requirePermission('ser
         // Restart Go server if changes detected and component selected
         if (result.needsServerRestart && (components || []).includes('server')) {
             const svc = updateService.restartService(
-                process.platform === 'win32' ? 'BetterDeskServer' : 'yomie-server'
+                process.platform === 'win32' ? 'YomieServer' : 'yomie-server'
             );
             if (svc.success) result.servicesRestarted.push('server');
             else result.servicesFailed.push({ service: 'server', error: svc.error });

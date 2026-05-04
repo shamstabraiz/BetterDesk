@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
-const betterdeskApi = require('../services/betterdeskApi');
+const yomieApi = require('../services/yomieApi');
 const db = require('../services/dbAdapter');
 const crypto = require('crypto');
 

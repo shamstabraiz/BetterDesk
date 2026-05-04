@@ -176,11 +176,11 @@ function findDataDir() {
         process.env.RUSTDESK_DATA,
         process.env.DATA_DIR,
         // Yomie Console standard data directories (Windows)
-        'C:\\BetterDeskConsole\\data',
-        'C:\\Yomie\\BetterDeskConsole\\data',
+        'C:\\YomieConsole\\data',
+        'C:\\Yomie\\YomieConsole\\data',
         'C:\\Yomie\\data',
         // Yomie Console standard data directories (Linux)
-        '/opt/BetterDeskConsole/data',
+        '/opt/YomieConsole/data',
         // Legacy paths
         '/opt/rustdesk',
         '/var/lib/rustdesk',

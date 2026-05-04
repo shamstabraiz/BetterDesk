@@ -16,10 +16,10 @@
     const MIN_HEIGHT = 300;
     const TASKBAR_HEIGHT = 10;  // slim taskbar height in px
     const BREAKPOINT = 1200;
-    const STORAGE_KEY = 'betterdesk_desktop_mode';
-    const STORAGE_WINS_KEY = 'betterdesk_desktop_wins';
+    const STORAGE_KEY = 'yomie_desktop_mode';
+    const STORAGE_WINS_KEY = 'yomie_desktop_wins';
     const CASCADE_OFFSET = 32;
-    const STORAGE_FOLDABLE_AUTO = 'betterdesk_foldable_auto'; // Auto-switch on unfold
+    const STORAGE_FOLDABLE_AUTO = 'yomie_foldable_auto'; // Auto-switch on unfold
 
 
     // ============ State ============
@@ -65,7 +65,7 @@
 
     // Widget mode: 'windows' or 'widgets'
     let currentMode = 'widgets'; // Default to widgets mode
-    const STORAGE_MODE = 'betterdesk_desktop_view_mode';
+    const STORAGE_MODE = 'yomie_desktop_view_mode';
 
     // Foldable phone detection
     let isFoldableDevice = false;
@@ -328,7 +328,7 @@
         active = true;
         localStorage.setItem(STORAGE_KEY, 'true');
         // Set HTTP cookie so server can detect desktop mode for login page
-        document.cookie = 'betterdesk_desktop_mode=true;path=/;max-age=31536000;SameSite=Lax';
+        document.cookie = 'yomie_desktop_mode=true;path=/;max-age=31536000;SameSite=Lax';
 
         document.body.classList.add('desktop-active');
         if (!skipAnimation) {
@@ -356,7 +356,7 @@
         active = false;
         localStorage.setItem(STORAGE_KEY, 'false');
         // Clear HTTP cookie
-        document.cookie = 'betterdesk_desktop_mode=;path=/;max-age=0;SameSite=Lax';
+        document.cookie = 'yomie_desktop_mode=;path=/;max-age=0;SameSite=Lax';
 
         // Destroy widget mode
         if (window.DesktopWidgets) {
@@ -1886,7 +1886,7 @@
 
     var _topbarClockInterval = null;
     var _topbarEditMode = false;
-    var STORAGE_SHORTCUTS = 'betterdesk_topbar_shortcuts';
+    var STORAGE_SHORTCUTS = 'yomie_topbar_shortcuts';
 
     function getTopbarShortcuts() {
         try { return JSON.parse(localStorage.getItem(STORAGE_SHORTCUTS) || '[]'); }
@@ -1977,8 +1977,8 @@
 
         var helpBtn = document.getElementById('topbar-help-btn');
         if (helpBtn) helpBtn.addEventListener('click', function() {
-            if (window.BetterDeskTutorial && typeof window.BetterDeskTutorial.toggleHelpMenu === 'function') {
-                window.BetterDeskTutorial.toggleHelpMenu();
+            if (window.YomieTutorial && typeof window.YomieTutorial.toggleHelpMenu === 'function') {
+                window.YomieTutorial.toggleHelpMenu();
             } else if (window.Tutorial && typeof window.Tutorial.toggleHelpMenu === 'function') {
                 window.Tutorial.toggleHelpMenu();
             }

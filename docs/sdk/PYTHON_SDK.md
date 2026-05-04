@@ -15,7 +15,7 @@ pip install -e sdks/python/
 The main class for building CDAP agents and bridges.
 
 ```python
-from betterdesk_cdap import CDAPBridge, Widget
+from yomie_cdap import CDAPBridge, Widget
 ```
 
 ### Constructor
@@ -111,7 +111,7 @@ widgets = [
 Internal message class. Normally not used directly.
 
 ```python
-from betterdesk_cdap import Message
+from yomie_cdap import Message
 
 msg = Message(type="custom", payload={"key": "value"})
 ```
@@ -121,7 +121,7 @@ msg = Message(type="custom", payload={"key": "value"})
 ```python
 import asyncio
 import os
-from betterdesk_cdap import CDAPBridge, Widget
+from yomie_cdap import CDAPBridge, Widget
 
 class ServerMonitor(CDAPBridge):
     def __init__(self):

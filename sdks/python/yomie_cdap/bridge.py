@@ -2,7 +2,7 @@
 
 Usage example:
 
-    from betterdesk_cdap import CDAPBridge, gauge, toggle
+    from yomie_cdap import CDAPBridge, gauge, toggle
 
     bridge = CDAPBridge(
         server="ws://192.168.0.110:21122/cdap",
@@ -35,10 +35,10 @@ from typing import Any, Callable, Coroutine
 import websockets
 import websockets.exceptions
 
-from betterdesk_cdap.protocol import Message, auth_payload_api_key, auth_payload_device_token, auth_payload_user_password
-from betterdesk_cdap.widgets import Widget
+from yomie_cdap.protocol import Message, auth_payload_api_key, auth_payload_device_token, auth_payload_user_password
+from yomie_cdap.widgets import Widget
 
-logger = logging.getLogger("betterdesk_cdap")
+logger = logging.getLogger("yomie_cdap")
 
 
 class CDAPBridge:

@@ -15,11 +15,11 @@ const config = require('../config/config');
 // Axios instance for Yomie Go API
 // Allow self-signed certificates for local TLS connections
 const apiClient = axios.create({
-    baseURL: config.betterdeskApiUrl,
-    timeout: config.betterdeskApiTimeout,
+    baseURL: config.yomieApiUrl,
+    timeout: config.yomieApiTimeout,
     headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': config.betterdeskApiKey
+        'X-API-Key': config.yomieApiKey
     },
     httpsAgent: new https.Agent({ rejectUnauthorized: !config.allowSelfSignedCerts })
 });
@@ -35,7 +35,7 @@ apiClient.interceptors.response.use(undefined, async (error) => {
         if (body.includes('HTTP request to an HTTPS server') || body.includes('Client sent an HTTP request')) {
             _tlsMismatchWarned = true;
             console.error('[Yomie API] ⚠ TLS MISMATCH: Go server has TLS_API=Y enabled on port ' +
-                (config.betterdeskApiUrl || '21114') + ' but this console connects via HTTP.');
+                (config.yomieApiUrl || '21114') + ' but this console connects via HTTP.');
             console.error('[Yomie API]   Fix: remove TLS_API=Y from Go server environment or add -tls-api removal.');
             console.error('[Yomie API]   The API port must stay HTTP for console↔Go communication. See issue #104.');
         }
@@ -44,9 +44,9 @@ apiClient.interceptors.response.use(undefined, async (error) => {
         _keyReloaded = true;
         try {
             const fresh = fs.readFileSync(config.apiKeyPath, 'utf8').trim();
-            if (fresh && fresh !== config.betterdeskApiKey) {
+            if (fresh && fresh !== config.yomieApiKey) {
                 apiClient.defaults.headers['X-API-Key'] = fresh;
-                config.betterdeskApiKey = fresh;
+                config.yomieApiKey = fresh;
                 console.log('API key reloaded from', config.apiKeyPath);
                 // Retry the original request with new key
                 error.config.headers['X-API-Key'] = fresh;
@@ -377,7 +377,7 @@ async function getServerInfo() {
  * is not needed. This is a no-op kept for interface compatibility.
  */
 async function syncOnlineStatus(/* db */) {
-    return { synced: 0, skipped: true, reason: 'betterdesk_manages_state' };
+    return { synced: 0, skipped: true, reason: 'yomie_manages_state' };
 }
 
 // ========================== Helpers ==========================================

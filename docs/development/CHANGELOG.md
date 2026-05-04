@@ -477,7 +477,7 @@ sudo ./update-to-v1.4.0.sh
 **Recommended Actions After Upgrade:**
 1. Login with default admin credentials (shown after migration)
 2. Change admin password immediately
-3. Delete `/opt/BetterDeskConsole/admin_credentials.txt`
+3. Delete `/opt/YomieConsole/admin_credentials.txt`
 4. Create additional users with appropriate roles
 5. Update external tools with API key from `/opt/rustdesk/.api_key`
 6. Configure firewall for LAN access if needed

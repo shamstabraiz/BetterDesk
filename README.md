@@ -538,7 +538,7 @@ cd Rustdesk-FreeConsole
 .etterdesk.ps1 -SkipVerify
 ```
 
-The script installs Go, compiles the server, sets up NSSM services (`BetterDeskServer` + `BetterDeskConsole`) or scheduled tasks as fallback.
+The script installs Go, compiles the server, sets up NSSM services (`YomieServer` + `YomieConsole`) or scheduled tasks as fallback.
 
 ### Docker
 
@@ -1152,30 +1152,30 @@ Available at `GET /metrics` (no authentication required):
 
 ```
 # Counters (monotonic)
-betterdesk_registrations_total
-betterdesk_expired_total
-betterdesk_relay_sessions_total
-betterdesk_relay_bytes_total
-betterdesk_bandwidth_throttle_hits_total
-betterdesk_audit_events_total
+yomie_registrations_total
+yomie_expired_total
+yomie_relay_sessions_total
+yomie_relay_bytes_total
+yomie_bandwidth_throttle_hits_total
+yomie_audit_events_total
 
 # Gauges (current values)
-betterdesk_uptime_seconds
-betterdesk_peers_total
-betterdesk_peers_online
-betterdesk_peers_degraded
-betterdesk_peers_critical
-betterdesk_peers_offline
-betterdesk_peers_banned
-betterdesk_peers_udp
-betterdesk_peers_tcp
-betterdesk_peers_ws
-betterdesk_relay_active_sessions
-betterdesk_blocklist_entries
-betterdesk_event_subscribers
-betterdesk_goroutines
-betterdesk_memory_alloc_bytes
-betterdesk_memory_sys_bytes
+yomie_uptime_seconds
+yomie_peers_total
+yomie_peers_online
+yomie_peers_degraded
+yomie_peers_critical
+yomie_peers_offline
+yomie_peers_banned
+yomie_peers_udp
+yomie_peers_tcp
+yomie_peers_ws
+yomie_relay_active_sessions
+yomie_blocklist_entries
+yomie_event_subscribers
+yomie_goroutines
+yomie_memory_alloc_bytes
+yomie_memory_sys_bytes
 ```
 
 ### Grafana Integration
@@ -1232,8 +1232,8 @@ curl http://localhost:21114/api/server/stats
 curl http://localhost:21114/metrics
 
 # Windows — check services
-Get-Service BetterDeskServer
-Get-Service BetterDeskConsole
+Get-Service YomieServer
+Get-Service YomieConsole
 ```
 
 ### Key Management
@@ -1421,7 +1421,7 @@ The Go server sends a UDP broadcast magic packet (6× `0xFF` + 16× MAC address)
 | Component | Technology |
 |-----------|-----------|
 | **Linux services** | systemd (`yomie-server.service` + `yomie-console.service`) |
-| **Windows services** | NSSM (`BetterDeskServer` + `BetterDeskConsole`) |
+| **Windows services** | NSSM (`YomieServer` + `YomieConsole`) |
 | **Docker** | Docker Compose with local image builds |
 | **Installation** | Bash (`yomie.sh`) + PowerShell (`yomie.ps1`) ALL-IN-ONE |
 | **CI/CD** | GitHub Actions (multi-platform build) |

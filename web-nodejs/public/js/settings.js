@@ -1193,7 +1193,7 @@
 
         // Read current state from Tutorial system (localStorage)
         const tutorialDisabled = typeof Tutorial !== 'undefined' ? Tutorial.isDisabled() : 
-            localStorage.getItem('betterdesk_tutorial_disabled') === 'true';
+            localStorage.getItem('yomie_tutorial_disabled') === 'true';
         toggle.checked = !tutorialDisabled;
 
         toggle.addEventListener('change', function() {
@@ -1201,7 +1201,7 @@
             if (typeof Tutorial !== 'undefined') {
                 Tutorial.setDisabled(disabled);
             } else {
-                localStorage.setItem('betterdesk_tutorial_disabled', disabled ? 'true' : 'false');
+                localStorage.setItem('yomie_tutorial_disabled', disabled ? 'true' : 'false');
             }
             // Notify tutorial.js to show/hide help button
             window.dispatchEvent(new CustomEvent('tutorial:stateChanged', { detail: { disabled: disabled } }));
@@ -1226,7 +1226,7 @@
                 if (typeof Tutorial !== 'undefined') {
                     Tutorial.resetTutorial();
                 } else {
-                    localStorage.removeItem('betterdesk_tutorial_seen');
+                    localStorage.removeItem('yomie_tutorial_seen');
                 }
                 if (typeof Toast !== 'undefined') {
                     Toast.success(_('settings.tutorials_reset_toast'), '', 3000);

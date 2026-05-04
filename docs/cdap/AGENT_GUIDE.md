@@ -34,7 +34,7 @@ pip install yomie-cdap   # or: pip install -e sdks/python/
 
 ```python
 import asyncio
-from betterdesk_cdap import CDAPBridge, Widget
+from yomie_cdap import CDAPBridge, Widget
 
 class MyAgent(CDAPBridge):
     def __init__(self):

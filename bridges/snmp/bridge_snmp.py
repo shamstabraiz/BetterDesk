@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from betterdesk_cdap import CDAPBridge, gauge, textWidget
+from yomie_cdap import CDAPBridge, gauge, textWidget
 
 logger = logging.getLogger("bridge_snmp")
 

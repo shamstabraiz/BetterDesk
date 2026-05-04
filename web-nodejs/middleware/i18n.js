@@ -39,12 +39,12 @@ function parseAcceptLanguage(header) {
 function i18nMiddleware(req, res, next) {
     // Language detection priority:
     // 1. URL query param ?lang=xx
-    // 2. Cookie betterdesk_lang
+    // 2. Cookie yomie_lang
     // 3. Accept-Language header
     // 4. Default language
     
     let lang = req.query.lang
-        || req.cookies?.betterdesk_lang
+        || req.cookies?.yomie_lang
         || parseAcceptLanguage(req.headers['accept-language'])
         || config.defaultLanguage;
     
@@ -55,7 +55,7 @@ function i18nMiddleware(req, res, next) {
     
     // Set language cookie if from query param
     if (req.query.lang && manager.hasLanguage(req.query.lang)) {
-        res.cookie('betterdesk_lang', req.query.lang, {
+        res.cookie('yomie_lang', req.query.lang, {
             maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
             httpOnly: false,
             sameSite: 'lax'

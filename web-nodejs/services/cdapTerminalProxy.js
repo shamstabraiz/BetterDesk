@@ -65,7 +65,7 @@ function initCdapTerminalProxy(server, sessionMiddleware) {
         console.log(`[CDAP Terminal] Proxy session started for device ${deviceId} by ${username}`);
 
         // Build Go server WebSocket URL
-        const goApiBase = config.betterdeskApiUrl || 'http://localhost:21114/api';
+        const goApiBase = config.yomieApiUrl || 'http://localhost:21114/api';
         const goWsUrl = goApiBase
             .replace(/^http/, 'ws')
             .replace(/\/api\/?$/, '') +
@@ -74,7 +74,7 @@ function initCdapTerminalProxy(server, sessionMiddleware) {
         // Connect to Go server terminal endpoint
         const goWs = new WebSocket(goWsUrl, ['cdap-terminal'], {
             headers: {
-                'X-API-Key': config.betterdeskApiKey || '',
+                'X-API-Key': config.yomieApiKey || '',
                 'X-Username': username,
                 'X-Role': role
             },

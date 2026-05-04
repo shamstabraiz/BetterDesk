@@ -411,7 +411,7 @@ router.put('/api/devices/:id/tags', requireAuth, requirePermission('device.edit'
         }
 
         // Yomie backend: delegate to Go server
-        if (serverBackend.isBetterDesk()) {
+        if (serverBackend.isYomie()) {
             const result = await serverBackend.setPeerTags(id, cleaned);
             if (!result || !result.success) {
                 return res.status(400).json({
@@ -484,7 +484,7 @@ router.post('/api/devices/bulk-delete', requireAuth, requirePermission('device.d
  */
 router.get('/api/devices/:id/access-policy', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
-        const goApi = require('../services/betterdeskApi');
+        const goApi = require('../services/yomieApi');
         const result = await goApi.getAccessPolicy(req.params.id);
         res.json(result);
     } catch (err) {
@@ -498,7 +498,7 @@ router.get('/api/devices/:id/access-policy', requireAuth, requirePermission('dev
  */
 router.put('/api/devices/:id/access-policy', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
-        const goApi = require('../services/betterdeskApi');
+        const goApi = require('../services/yomieApi');
         const result = await goApi.saveAccessPolicy(req.params.id, req.body);
         res.json(result);
     } catch (err) {
@@ -512,7 +512,7 @@ router.put('/api/devices/:id/access-policy', requireAuth, requirePermission('dev
  */
 router.delete('/api/devices/:id/access-policy', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
-        const goApi = require('../services/betterdeskApi');
+        const goApi = require('../services/yomieApi');
         const result = await goApi.deleteAccessPolicy(req.params.id);
         res.json(result);
     } catch (err) {

@@ -179,12 +179,12 @@ yomie-server/_test_*
 
 # --- Root-level image duplicates (originals in web-nodejs/public/img/) ---
 /yomie.png
-/betterdesk_icon.png
-/betterdesk_wallpaper.png
+/yomie_icon.png
+/yomie_wallpaper.png
 
 # Local Docker dev stack data (docker-compose.dev.yml)
 .yomie-dev-data/
-.betterdesk-dev-data/
+.yomie-dev-data/
 
 # --- Screenshots ---
 screenshots/*.png

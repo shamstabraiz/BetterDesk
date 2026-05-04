@@ -268,7 +268,7 @@ router.get('/api/portal/installers', (req, res) => {
     res.json({
         success: true,
         installers: [
-            { platform: 'windows', arch: 'x64', url: `${base}/downloads/BetterDesk_Agent_x64-setup.exe`, format: 'nsis' },
+            { platform: 'windows', arch: 'x64', url: `${base}/downloads/Yomie_Agent_x64-setup.exe`, format: 'nsis' },
             { platform: 'linux',   arch: 'x64', url: `${base}/downloads/yomie-agent-linux-amd64`,   format: 'binary' },
             { platform: 'linux',   arch: 'arm64', url: `${base}/downloads/yomie-agent-linux-arm64`, format: 'binary' },
         ],
