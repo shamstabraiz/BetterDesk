@@ -457,41 +457,23 @@ func (s *Server) handlePunchHoleRequest(msg *pb.PunchHoleRequest, raddr *net.UDP
 		return
 	}
 
-	relayServer := s.getRelayServer()
-
-	// Early LAN detection for ForceRelay path (needs relay before the check).
-	if target.UDPAddr != nil && isSameNetwork(raddr, target.UDPAddr) {
-		relayServer = s.getLANRelayServer()
+	relayServer, sameNetwork, hairpin := s.selectPeerRelayServer(s.getRelayServer(), raddr, target.UDPAddr)
+	if sameNetwork {
+		log.Printf("[signal] LAN detected: %s and %s on same network, relay=%s", raddr.IP, target.UDPAddr.IP, relayServer)
+	}
+	if hairpin {
+		log.Printf("[signal] PunchHole: shared public IP %s detected (issue #121 hairpin) → forcing relay for %s",
+			raddr.IP, targetID)
 	}
 
 	log.Printf("[signal] PunchHole: target %s found (addr=%s, status=%s, lastReg=%v ago), relay=%s",
 		targetID, target.UDPAddr, target.StatusTier, time.Since(target.LastReg), relayServer)
 
 	// If force relay or always use relay
-	if msg.ForceRelay || s.cfg.AlwaysUseRelay {
+	if msg.ForceRelay || s.cfg.AlwaysUseRelay || hairpin {
 		log.Printf("[signal] PunchHole: force relay for %s", targetID)
 		s.sendRelayResponse(target, raddr, msg, relayServer)
 		return
-	}
-
-	// Issue #121: NAT hairpin fallback.  When both peers connect from the
-	// same public IP, they sit behind the same NAT gateway.  Many consumer
-	// routers (and most cellular gateways) drop hairpin packets, so the
-	// usual LAN-address exchange times out.  Force the relay path instead
-	// — it always works.  Disable with SAME_NAT_RELAY=N.
-	if s.cfg.SameNATRelay && target.UDPAddr != nil && isSamePublicIP(raddr, target.UDPAddr) {
-		log.Printf("[signal] PunchHole: shared public IP %s detected (issue #121 hairpin) → forcing relay for %s",
-			raddr.IP, targetID)
-		s.sendRelayResponse(target, raddr, msg, relayServer)
-		return
-	}
-
-	// LAN detection: if both peers share the same public IP or are on the same
-	// private /24 subnet, they are on the same local network (matching Rust hbbs).
-	sameNetwork := isSameNetwork(raddr, target.UDPAddr)
-	if sameNetwork {
-		relayServer = s.getLANRelayServer()
-		log.Printf("[signal] LAN detected: %s and %s on same network, relay=%s", raddr.IP, target.UDPAddr.IP, relayServer)
 	}
 
 	// Send PunchHole to the TARGET peer (tell it the initiator's address)
@@ -609,11 +591,13 @@ func (s *Server) handlePunchHoleRequestTCP(msg *pb.PunchHoleRequest, raddr *net.
 		}
 	}
 
-	relayServer := s.getRelayServer()
-
-	// Early LAN detection (needed before ForceRelay check).
-	if target.UDPAddr != nil && isSameNetwork(raddr, target.UDPAddr) {
-		relayServer = s.getLANRelayServer()
+	relayServer, sameNetwork, hairpin := s.selectPeerRelayServer(s.getRelayServer(), raddr, target.UDPAddr)
+	if sameNetwork {
+		log.Printf("[signal] LAN detected (TCP): %s and %s on same network, relay=%s", raddr.IP, target.UDPAddr.IP, relayServer)
+	}
+	if hairpin {
+		log.Printf("[signal] PunchHole (TCP): shared public IP %s detected (issue #121 hairpin) → forcing relay for %s",
+			raddr.IP, targetID)
 	}
 
 	log.Printf("[signal] PunchHole (TCP): target %s found (addr=%s, status=%s), relay=%s",
@@ -634,16 +618,6 @@ func (s *Server) handlePunchHoleRequestTCP(msg *pb.PunchHoleRequest, raddr *net.
 	// PunchHoleResponse), generate their own UUID, and connect to relay with it
 	// — while the target connects with the server's UUID. This broke relay
 	// pairing every time (Issue #66).
-	// Issue #121: NAT hairpin fallback (see UDP handler for full rationale).
-	// When both peers connect from the same public IP, force relay because
-	// most consumer routers drop hairpin packets and the LAN exchange will
-	// silently time out.  Disable with SAME_NAT_RELAY=N.
-	hairpin := s.cfg.SameNATRelay && target.UDPAddr != nil && isSamePublicIP(raddr, target.UDPAddr)
-	if hairpin {
-		log.Printf("[signal] PunchHole (TCP): shared public IP %s detected (issue #121 hairpin) → forcing relay for %s",
-			raddr.IP, targetID)
-	}
-
 	if msg.ForceRelay || s.cfg.AlwaysUseRelay || hairpin {
 		log.Printf("[signal] PunchHole (TCP): force relay for %s (returning SYMMETRIC to let client drive relay UUID)", targetID)
 
@@ -690,14 +664,6 @@ func (s *Server) handlePunchHoleRequestTCP(msg *pb.PunchHoleRequest, raddr *net.
 	}
 	s.sendToPeer(targetID, punchHole)
 	log.Printf("[signal] PunchHole (TCP): forwarded to target %s (connType=%s)", targetID, target.ConnType)
-
-	// LAN detection: if both peers share the same public IP or are on the same
-	// private /24 subnet, they are on the same local network.
-	sameNetwork := isSameNetwork(raddr, target.UDPAddr)
-	if sameNetwork {
-		relayServer = s.getLANRelayServer()
-		log.Printf("[signal] LAN detected (TCP): %s and %s on same network, relay=%s", raddr.IP, target.UDPAddr.IP, relayServer)
-	}
 
 	// Sign the target's PK with server's Ed25519 key for E2E verification.
 	var signedPk []byte
@@ -802,12 +768,18 @@ func (s *Server) handlePunchHoleSent(phs *pb.PunchHoleSent, senderAddr *net.UDPA
 
 	// Build PunchHoleResponse for the initiator.
 	// socket_addr = target's (sender's) address, pk = SIGNED target's public key.
-	// LAN detection: set is_local when sender and initiator are on the same network.
+	// LAN detection: set is_local only for genuine LAN cases. Shared public IP
+	// peers keep the public relay to avoid NAT hairpin failures (#121).
 	relayServer := phs.RelayServer
-	sameNetwork := isSameNetwork(senderAddr, initiatorAddr)
+	if relayServer == "" {
+		relayServer = s.getRelayServer()
+	}
+	relayServer, sameNetwork, hairpin := s.selectPeerRelayServer(relayServer, senderAddr, initiatorAddr)
 	if sameNetwork {
-		relayServer = s.getLANRelayServer()
 		log.Printf("[signal] PunchHoleSent LAN detected: %s and %s on same network, relay=%s", senderAddr.IP, initiatorAddr.IP, relayServer)
+	}
+	if hairpin {
+		log.Printf("[signal] PunchHoleSent shared public IP %s detected (issue #121 hairpin) → keeping public relay=%s", senderAddr.IP, relayServer)
 	}
 
 	phr := &pb.PunchHoleResponse{
@@ -904,10 +876,14 @@ func (s *Server) handleRequestRelay(msg *pb.RequestRelay, raddr *net.UDPAddr) {
 		return
 	}
 
-	// LAN detection: use server's LAN IP for relay when both peers are on same network.
-	if target.UDPAddr != nil && isSameNetwork(raddr, target.UDPAddr) {
-		relayServer = s.getLANRelayServer()
+	// LAN detection: use server's LAN IP only for genuine LAN cases. Shared
+	// public IP peers keep the public relay to avoid NAT hairpin failures (#121).
+	relayServer, sameNetwork, hairpin := s.selectPeerRelayServer(relayServer, raddr, target.UDPAddr)
+	if sameNetwork {
 		log.Printf("[signal] RequestRelay LAN detected: %s and %s on same network, relay=%s", raddr.IP, target.UDPAddr.IP, relayServer)
+	}
+	if hairpin {
+		log.Printf("[signal] RequestRelay shared public IP %s detected (issue #121 hairpin) → keeping public relay=%s", raddr.IP, relayServer)
 	}
 
 	// Forward relay request to target peer (supports UDP, TCP, and WebSocket targets).
@@ -1006,11 +982,15 @@ func (s *Server) handleRequestRelayTCP(msg *pb.RequestRelay, raddr *net.UDPAddr)
 		}
 	}
 
-	// LAN detection: use server's LAN IP for relay when both peers are on same network.
+	// LAN detection: use server's LAN IP only for genuine LAN cases. Shared
+	// public IP peers keep the public relay to avoid NAT hairpin failures (#121).
 	// Only applicable when target has a known UDP address for comparison.
-	if target.UDPAddr != nil && isSameNetwork(raddr, target.UDPAddr) {
-		relayServer = s.getLANRelayServer()
+	var sameNetwork, hairpin bool
+	relayServer, sameNetwork, hairpin = s.selectPeerRelayServer(relayServer, raddr, target.UDPAddr)
+	if sameNetwork {
 		log.Printf("[signal] RequestRelay (TCP) LAN detected: %s and %s on same network, relay=%s", raddr.IP, target.UDPAddr.IP, relayServer)
+	} else if hairpin {
+		log.Printf("[signal] RequestRelay (TCP) shared public IP %s detected (issue #121 hairpin) → keeping public relay=%s", raddr.IP, relayServer)
 	} else {
 		// Debug: log why LAN detection failed
 		if target.UDPAddr == nil {
@@ -1145,10 +1125,15 @@ func (s *Server) handleRelayResponseForward(msg *pb.RendezvousMessage, senderAdd
 	rr.SocketAddr = nil
 	rr.SocketAddrV6 = nil
 
-	// LAN detection: use LAN relay when both peers are on same network.
+	// LAN detection: use LAN relay only for genuine LAN cases. Shared public IP
+	// peers keep the public relay to avoid NAT hairpin failures (#121).
 	relayServer := s.getRelayServer()
-	if senderAddr != nil && isSameNetwork(senderAddr, initiatorAddr) {
-		relayServer = s.getLANRelayServer()
+	relayServer, sameNetwork, hairpin := s.selectPeerRelayServer(relayServer, senderAddr, initiatorAddr)
+	if sameNetwork {
+		log.Printf("[signal] RelayResponse LAN detected: %s and %s on same network, relay=%s", senderAddr.IP, initiatorAddr.IP, relayServer)
+	}
+	if hairpin && senderAddr != nil {
+		log.Printf("[signal] RelayResponse shared public IP %s detected (issue #121 hairpin) → keeping public relay=%s", senderAddr.IP, relayServer)
 	}
 	rr.RelayServer = relayServer
 
@@ -1393,6 +1378,23 @@ func (s *Server) getLANRelayServer() string {
 		return relays[0]
 	}
 	return s.getRelayServer()
+}
+
+func (s *Server) selectPeerRelayServer(defaultRelay string, a, b *net.UDPAddr) (relay string, sameLAN bool, samePublicIP bool) {
+	if defaultRelay == "" {
+		defaultRelay = s.getRelayServer()
+	}
+	if a == nil || b == nil {
+		return defaultRelay, false, false
+	}
+
+	if s.cfg.SameNATRelay && isSamePublicIP(a, b) {
+		return s.getRelayServer(), false, true
+	}
+	if isSameNetwork(a, b) {
+		return s.getLANRelayServer(), true, false
+	}
+	return defaultRelay, false, false
 }
 
 // registerPkResponse is a helper to create a RegisterPkResponse message.

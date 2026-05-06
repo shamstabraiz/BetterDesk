@@ -2,11 +2,14 @@ package signal
 
 import (
 	"bytes"
+	"net"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/unitronix/betterdesk-server/config"
 	"github.com/unitronix/betterdesk-server/db"
+	"github.com/unitronix/betterdesk-server/peer"
 	pb "github.com/unitronix/betterdesk-server/proto"
 )
 
@@ -40,6 +43,10 @@ func newRegisterPk(peerID string) *pb.RegisterPk {
 		Uuid: []byte("test-uuid-" + peerID),
 		Pk:   bytes.Repeat([]byte{0x42}, 32),
 	}
+}
+
+func udpAddr(ip string, port int) *net.UDPAddr {
+	return &net.UDPAddr{IP: net.ParseIP(ip), Port: port}
 }
 
 func TestProcessRegisterPkManagedRejectsUnknownPeer(t *testing.T) {
@@ -128,5 +135,77 @@ func TestProcessRegisterPkManagedAllowsTokenBoundPeer(t *testing.T) {
 	}
 	if peer == nil || len(peer.PK) != 32 {
 		t.Fatalf("token-bound peer was not persisted with PK: %+v", peer)
+	}
+}
+
+func TestSelectPeerRelayServerKeepsPublicRelayForSharedPublicIP(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	srv.localIP.Store("198.51.100.20")
+	srv.lanIP.Store("10.0.0.20")
+
+	relay, sameLAN, samePublic := srv.selectPeerRelayServer(
+		"10.0.0.20:21117",
+		udpAddr("203.0.113.44", 51000),
+		udpAddr("203.0.113.44", 52000),
+	)
+
+	if relay != "198.51.100.20:21117" {
+		t.Fatalf("relay = %q, want public relay", relay)
+	}
+	if sameLAN {
+		t.Fatal("shared public IP must not be treated as LAN when SameNATRelay is enabled")
+	}
+	if !samePublic {
+		t.Fatal("shared public IP hairpin flag was not set")
+	}
+}
+
+func TestSelectPeerRelayServerUsesLANRelayForPrivateSubnet(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	srv.localIP.Store("198.51.100.20")
+	srv.lanIP.Store("10.0.0.20")
+
+	relay, sameLAN, samePublic := srv.selectPeerRelayServer(
+		"198.51.100.20:21117",
+		udpAddr("192.168.1.10", 51000),
+		udpAddr("192.168.1.42", 52000),
+	)
+
+	if relay != "10.0.0.20:21117" {
+		t.Fatalf("relay = %q, want LAN relay", relay)
+	}
+	if !sameLAN {
+		t.Fatal("private same-subnet peers should use LAN relay")
+	}
+	if samePublic {
+		t.Fatal("private same-subnet peers should not be marked as shared public IP")
+	}
+}
+
+func TestHandleRequestRelayTCPSamePublicIPIgnoresPrivateRelayHint(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	srv.localIP.Store("198.51.100.20")
+	srv.lanIP.Store("10.0.0.20")
+
+	srv.peers.Put(&peer.Entry{
+		ID:         "TARGET121",
+		UDPAddr:    udpAddr("203.0.113.44", 52000),
+		ConnType:   peer.ConnTCP,
+		LastReg:    time.Now(),
+		StatusTier: peer.StatusOnline,
+	})
+
+	resp := srv.handleRequestRelayTCP(&pb.RequestRelay{
+		Id:          "TARGET121",
+		Uuid:        "issue-121-relay-uuid",
+		RelayServer: "10.0.0.20:21117",
+	}, udpAddr("203.0.113.44", 51000))
+
+	rr := resp.GetRelayResponse()
+	if rr == nil {
+		t.Fatalf("expected RelayResponse, got %+v", resp)
+	}
+	if rr.RelayServer != "198.51.100.20:21117" {
+		t.Fatalf("relay = %q, want public relay", rr.RelayServer)
 	}
 }
