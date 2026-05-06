@@ -211,6 +211,28 @@ func (s *Server) handleRegisterPeerWS(msg *pb.RegisterPeer, remoteAddr string) *
 	if id == "" {
 		return nil
 	}
+	clientHost := hostFromAddrString(remoteAddr)
+
+	if !isValidPeerID(id) {
+		log.Printf("[signal] Rejected invalid WS peer ID format: %q from %s", id, clientHost)
+		return nil
+	}
+
+	if s.limiter != nil && !s.limiter.Allow(clientHost) {
+		log.Printf("[signal] Rate limited WS registration from %s", clientHost)
+		return nil
+	}
+
+	if s.blocklist != nil {
+		if s.blocklist.IsIPBlocked(clientHost) {
+			log.Printf("[signal] Blocked IP %s tried WS registration", clientHost)
+			return nil
+		}
+		if s.blocklist.IsIDBlocked(id) {
+			log.Printf("[signal] Blocked ID %s tried WS registration", id)
+			return nil
+		}
+	}
 
 	existing := s.peers.Get(id)
 	if existing != nil {
@@ -238,10 +260,25 @@ func (s *Server) handleRegisterPeerWS(msg *pb.RegisterPeer, remoteAddr string) *
 		}
 	}
 
+	if !s.checkEnrollmentPermission(id, clientHost) {
+		log.Printf("[signal] Rejected new WS peer %s from %s (enrollment policy)", id, clientHost)
+		return nil
+	}
+
 	// Check if this peer is banned in the database (e.g. removed from memory
 	// map after ban but trying to re-register via WS)
 	if banned, _ := s.db.IsPeerBanned(id); banned {
 		log.Printf("[signal] Rejected banned WS peer registration: %s from %s", id, remoteAddr)
+		return nil
+	}
+
+	if deleted, _ := s.db.IsPeerSoftDeleted(id); deleted {
+		log.Printf("[signal] Rejected soft-deleted WS peer registration: %s from %s", id, remoteAddr)
+		return nil
+	}
+
+	if renamed, _ := s.db.IsRenamedPeerID(id); renamed {
+		log.Printf("[signal] Rejected WS registration for renamed peer ID: %s from %s", id, remoteAddr)
 		return nil
 	}
 

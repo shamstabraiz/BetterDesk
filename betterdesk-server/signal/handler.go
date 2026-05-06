@@ -110,6 +110,14 @@ func isValidPeerID(id string) bool {
 	return peerIDRegexp.MatchString(id)
 }
 
+func hostFromAddrString(addrStr string) string {
+	host, _, err := net.SplitHostPort(addrStr)
+	if err == nil && host != "" {
+		return host
+	}
+	return addrStr
+}
+
 // handleRegisterPeer processes a heartbeat registration from a client.
 // This is the most frequent message — called every ~12 seconds per device.
 func (s *Server) handleRegisterPeer(msg *pb.RegisterPeer, raddr *net.UDPAddr) {
@@ -260,6 +268,7 @@ func (s *Server) processRegisterPk(msg *pb.RegisterPk, addrStr string) *pb.Rende
 	if id == "" {
 		return registerPkResponse(pb.RegisterPkResponse_SERVER_ERROR)
 	}
+	clientHost := hostFromAddrString(addrStr)
 
 	// Validate peer ID format (S7)
 	if !isValidPeerID(id) {
@@ -269,12 +278,8 @@ func (s *Server) processRegisterPk(msg *pb.RegisterPk, addrStr string) *pb.Rende
 
 	// IP blocklist check
 	if s.blocklist != nil {
-		host, _, _ := net.SplitHostPort(addrStr)
-		if host == "" {
-			host = addrStr
-		}
-		if s.blocklist.IsIPBlocked(host) {
-			log.Printf("[signal] Blocked IP %s tried RegisterPk", host)
+		if s.blocklist.IsIPBlocked(clientHost) {
+			log.Printf("[signal] Blocked IP %s tried RegisterPk", clientHost)
 			return registerPkResponse(pb.RegisterPkResponse_NOT_SUPPORT)
 		}
 		if s.blocklist.IsIDBlocked(id) {
@@ -291,6 +296,20 @@ func (s *Server) processRegisterPk(msg *pb.RegisterPk, addrStr string) *pb.Rende
 	// Handle no_register_device (key-only exchange, no DB entry)
 	if msg.NoRegisterDevice {
 		return registerPkResponse(pb.RegisterPkResponse_OK)
+	}
+
+	// RegisterPk can be the first persistence point for stock RustDesk clients.
+	// Enforce enrollment before creating a new peer row, otherwise managed/locked
+	// mode can be bypassed by sending PK registration without a prior heartbeat.
+	existingPeer, err := s.db.GetPeer(id)
+	if err != nil {
+		log.Printf("[signal] Failed to check peer %s before RegisterPk enrollment: %v", id, err)
+		return registerPkResponse(pb.RegisterPkResponse_SERVER_ERROR)
+	}
+	if existingPeer == nil && !s.checkEnrollmentPermission(id, clientHost) {
+		log.Printf("[signal] Rejected new peer PK registration: %s from %s (enrollment policy)", id, clientHost)
+		s.peers.Remove(id)
+		return registerPkResponse(pb.RegisterPkResponse_NOT_SUPPORT)
 	}
 
 	// Check ban status
