@@ -22,12 +22,18 @@ pub fn sync_os_autostart(app: &AppHandle, enabled: bool) {
     let manager = app.autolaunch();
 
     match manager.is_enabled() {
-        Ok(current) if current == enabled => {
+        Ok(current) if current == enabled && !enabled => {
             info!(
                 "[autostart] Already {} — no change",
                 if enabled { "enabled" } else { "disabled" }
             );
             return;
+        }
+        Ok(current) if current == enabled && enabled => {
+            info!("[autostart] Refreshing enabled OS registration");
+            if let Err(e) = manager.disable() {
+                warn!("[autostart] Failed to refresh registration: {}", e);
+            }
         }
         Ok(_) => {}
         Err(e) => {

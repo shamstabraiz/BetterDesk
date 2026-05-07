@@ -353,6 +353,8 @@ func (g *Gateway) messageLoop(ctx context.Context, dc *DeviceConn) {
 			g.handleDesktopFrame(ctx, dc, msg)
 		case "desktop_end":
 			g.handleDesktopEnd(ctx, dc, msg)
+		case "desktop_input_error":
+			g.HandleDesktopInputError(ctx, dc, msg)
 		case "video_frame":
 			g.handleVideoFrame(ctx, dc, msg)
 		case "video_end":
@@ -475,6 +477,8 @@ func (g *Gateway) removeDevice(dc *DeviceConn) {
 		}
 		return true
 	})
+
+	g.cleanupDeviceSessions(dc.ID, "device disconnected")
 
 	// Update peer status to OFFLINE
 	if err := g.db.UpdatePeerStatus(dc.ID, "OFFLINE", dc.ClientIP); err != nil {

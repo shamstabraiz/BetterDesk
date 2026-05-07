@@ -14,6 +14,7 @@ pub mod commands;
 pub mod config;
 pub mod privileges;
 pub mod registration;
+pub mod sidecar;
 pub mod sysinfo_collect;
 
 use log::info;
@@ -28,9 +29,9 @@ use tauri::Manager;
 #[allow(dead_code)]
 struct TrayState(tauri::tray::TrayIcon<tauri::Wry>);
 
-async fn resolve_cdap_config_from_state(
+async fn resolve_config_from_state(
     app: &tauri::AppHandle,
-) -> Option<cdap_client::CdapConfig> {
+) -> Option<config::AgentConfig> {
     let mut config = {
         let state = app.try_state::<commands::AgentState>()?;
         let guard = state.config.lock().ok()?;
@@ -48,7 +49,7 @@ async fn resolve_cdap_config_from_state(
         }
     }
 
-    Some(config.to_cdap_config())
+    Some(config)
 }
 
 /// Spawn a background task that sends `POST /api/heartbeat` every 12 seconds.
@@ -169,6 +170,86 @@ fn push_sysinfo_refresh(app: &tauri::AppHandle) {
     });
 }
 
+fn notify_agent_ready(app: &tauri::AppHandle) {
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+
+        let (registered, cdap_running, language) = app_handle
+            .try_state::<commands::AgentState>()
+            .map(|state| {
+                let (registered, language) = state
+                    .config
+                    .lock()
+                    .map(|config| (config.is_registered(), config.language.clone()))
+                    .unwrap_or((false, "en".to_string()));
+                (registered, state.sidecar.is_running(), language)
+            })
+            .unwrap_or((false, false, "en".to_string()));
+
+        if !registered {
+            return;
+        }
+
+        let body = match (language.as_str(), cdap_running) {
+            ("pl", true) => "Agent działa w tle, a CDAP jest połączony.",
+            ("pl", false) => "Agent działa w tle. CDAP połączy się ponownie automatycznie.",
+            ("zh" | "zh-TW", true) => "代理正在背景執行，CDAP 已連線。",
+            ("zh" | "zh-TW", false) => "代理正在背景執行。CDAP 會自動重新連線。",
+            (_, true) => "Agent is running in the background and CDAP is connected.",
+            (_, false) => "Agent is running in the background. CDAP will reconnect automatically.",
+        };
+
+        use tauri_plugin_notification::NotificationExt;
+        if let Err(e) = app_handle
+            .notification()
+            .builder()
+            .title("BetterDesk Agent")
+            .body(body)
+            .show()
+        {
+            log::debug!("Startup notification skipped: {}", e);
+        }
+    });
+}
+
+#[cfg(unix)]
+fn install_shutdown_signal_handlers(app: &tauri::AppHandle) {
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        let mut sigterm = match signal(SignalKind::terminate()) {
+            Ok(signal) => signal,
+            Err(e) => {
+                log::warn!("Could not install SIGTERM handler: {}", e);
+                return;
+            }
+        };
+        let mut sigint = match signal(SignalKind::interrupt()) {
+            Ok(signal) => signal,
+            Err(e) => {
+                log::warn!("Could not install SIGINT handler: {}", e);
+                return;
+            }
+        };
+
+        tokio::select! {
+            _ = sigterm.recv() => log::info!("SIGTERM received — exiting for system shutdown/restart"),
+            _ = sigint.recv() => log::info!("SIGINT received — exiting"),
+        }
+
+        if let Some(state) = app_handle.try_state::<commands::AgentState>() {
+            state.sidecar.stop();
+            state.cdap.stop();
+        }
+        app_handle.exit(0);
+    });
+}
+
+#[cfg(not(unix))]
+fn install_shutdown_signal_handlers(_app: &tauri::AppHandle) {}
+
 /// Entry point — called from main.rs.
 pub fn run() {
     // WebKitGTK Wayland workaround: prevent Gdk "Error 71 (Protocol error)
@@ -209,7 +290,7 @@ pub fn run() {
     );
 
     let cdap_client = cdap_client::CdapClient::new();
-    let cdap_client_clone = cdap_client.clone();
+    let sidecar_manager = sidecar::SidecarManager::new();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -229,6 +310,7 @@ pub fn run() {
             config: Mutex::new(settings),
             chat_history: Mutex::new(Vec::new()),
             cdap: cdap_client,
+            sidecar: sidecar_manager,
         })
         .invoke_handler(tauri::generate_handler![
             // Status & lifecycle
@@ -280,6 +362,8 @@ pub fn run() {
             let tray = setup_tray(app.handle())?;
             app.manage(TrayState(tray));
 
+            install_shutdown_signal_handlers(app.handle());
+
             let is_autostart = std::env::args().any(|a| a == "--autostart");
 
             // On first run (device not registered yet): show the window so the
@@ -287,7 +371,9 @@ pub fn run() {
             // click the tray icon.
             if !is_registered && !is_autostart {
                 if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.unminimize();
                     let _ = window.show();
+                    let _ = window.set_focus();
                 }
             }
 
@@ -298,19 +384,22 @@ pub fn run() {
                 }
             }
 
-            // Auto-start native CDAP client if device is registered and setting is on.
+            // Auto-start the managed Go CDAP sidecar if device is registered and setting is on.
             if auto_start {
                 let app_handle = app.handle().clone();
-                let cdap = cdap_client_clone.clone();
                 tauri::async_runtime::spawn(async move {
-                    info!("[cdap] Auto-starting native CDAP client...");
-                    let Some(cdap_cfg) = resolve_cdap_config_from_state(&app_handle).await else {
-                        info!("[cdap] Auto-start skipped: device not registered");
+                    info!("[sidecar] Auto-starting Go CDAP agent...");
+                    let Some(mut config) = resolve_config_from_state(&app_handle).await else {
+                        info!("[sidecar] Auto-start skipped: device not registered");
                         return;
                     };
 
-                    if let Err(e) = cdap.start(&cdap_cfg) {
-                        log::warn!("[cdap] Auto-start failed: {}", e);
+                    registration::normalize_server_origin_best_effort(&mut config).await;
+                    let sidecar_cfg = config.to_sidecar_config();
+                    if let Some(state) = app_handle.try_state::<commands::AgentState>() {
+                        if let Err(e) = state.sidecar.start(&sidecar_cfg, app_handle.clone()) {
+                            log::warn!("[sidecar] Auto-start failed: {}", e);
+                        }
                     }
                 });
             }
@@ -325,6 +414,8 @@ pub fn run() {
             if is_registered {
                 push_sysinfo_refresh(app.handle());
             }
+
+            notify_agent_ready(app.handle());
 
             // Start the bd-signal WS client — answers operator-initiated
             // introspection requests (services, processes, files, screenshot,
@@ -341,12 +432,9 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                use tauri::Emitter;
-
                 api.prevent_close();
-                info!("Close requested from window chrome");
-                let _ = window.set_focus();
-                let _ = window.app_handle().emit("request-quit", ());
+                info!("Close requested from window chrome — hiding to tray");
+                let _ = window.hide();
             }
         })
         .run(tauri::generate_context!())
@@ -377,7 +465,8 @@ fn setup_tray(
     let chat = MenuItemBuilder::with_id("chat", "Chat").build(app)?;
     let check = MenuItemBuilder::with_id("check_conn", "Check connection").build(app)?;
 
-    // Sidecar control (visible to all — non-admin gets informational deny).
+    // CDAP control is admin-only; regular users must not be able to interrupt
+    // the background connection from the tray menu.
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sidecar_toggle = MenuItemBuilder::with_id("sidecar_toggle", "Restart CDAP agent").build(app)?;
 
@@ -386,13 +475,17 @@ fn setup_tray(
     let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "Quit agent").build(app)?;
 
-    let builder = MenuBuilder::new(app)
+    let mut builder = MenuBuilder::new(app)
         .item(&show_id)
         .item(&help)
         .item(&chat)
-        .item(&check)
-        .item(&sep1)
-        .item(&sidecar_toggle)
+        .item(&check);
+
+    if is_admin {
+        builder = builder.item(&sep1).item(&sidecar_toggle);
+    }
+
+    let builder = builder
         .item(&sep2)
         .item(&settings)
         .item(&quit);
@@ -423,20 +516,22 @@ fn setup_tray(
                 "chat" => show_window(app, "/chat"),
                 "check_conn" => show_window(app, "/?action=reconnect"),
                 "sidecar_toggle" => {
-                    // Restart the native CDAP client on demand.
+                    // Restart the managed Go CDAP sidecar on demand.
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        let Some(cdap_cfg) = resolve_cdap_config_from_state(&app_handle).await else {
-                            info!("[tray] CDAP restart: device not registered");
+                        let Some(mut config) = resolve_config_from_state(&app_handle).await else {
+                            info!("[tray] CDAP sidecar restart: device not registered");
                             return;
                         };
 
+                        registration::normalize_server_origin_best_effort(&mut config).await;
+                        let sidecar_cfg = config.to_sidecar_config();
                         if let Some(state) = app_handle.try_state::<commands::AgentState>() {
-                            state.cdap.stop();
-                            if let Err(e) = state.cdap.start(&cdap_cfg) {
-                                log::warn!("[tray] CDAP restart failed: {}", e);
+                            state.sidecar.stop();
+                            if let Err(e) = state.sidecar.start(&sidecar_cfg, app_handle.clone()) {
+                                log::warn!("[tray] CDAP sidecar restart failed: {}", e);
                             } else {
-                                info!("[tray] CDAP client restarted");
+                                info!("[tray] CDAP sidecar restarted");
                             }
                         }
                     });

@@ -1467,6 +1467,23 @@ install_nodejs_console() {
     fi
     rm -f "$npm_log"
     echo ""
+
+    # Best-effort install of node-pty for Server Management terminal (BETA).
+    # node-pty is an optional dependency: if the native build fails the
+    # console falls back to plain pipe spawn (no PTY).
+    print_step "Installing optional node-pty (Server Management terminal — BETA)..."
+    if npm install --no-audit --no-fund --no-save node-pty >>"$npm_log" 2>&1; then
+        print_success "node-pty installed (real PTY available)"
+    else
+        print_warn "node-pty install failed — Server Management terminal will use pipe fallback"
+    fi
+    rm -f "$npm_log"
+
+    # Server Management Terminal sudo hint (BETA — manual step, NOT automated):
+    #   echo 'betterdesk-console ALL=(ALL) NOPASSWD: /usr/bin/systemctl, /usr/bin/journalctl' \
+    #       | sudo tee /etc/sudoers.d/betterdesk-console
+    # The installer never modifies sudoers; admins opt in manually.
+    echo ""
     
     # Create data directory for databases
     mkdir -p "$CONSOLE_PATH/data"

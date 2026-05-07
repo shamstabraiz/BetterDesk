@@ -1,3 +1,4 @@
+<% const sidebarServerTab = typeof currentTab !== 'undefined' && currentTab ? currentTab : 'overview'; %>
 <!-- Sidebar Navigation — TeamViewer-style icon rail + flyout -->
 <aside class="sidebar" id="sidebar" data-collapsed="true">
     <!-- Icon rail (always visible) -->
@@ -40,6 +41,12 @@
             <button class="sidebar-rail-btn <%= currentPage === 'settings' ? 'active' : '' %>"
                     data-category="system" title="<%= _('nav.system') %>">
                 <span class="material-icons">settings</span>
+            </button>
+            <% } %>
+            <% if (hasPermission('server.config')) { %>
+            <button class="sidebar-rail-btn <%= currentPage === 'server-management' ? 'active' : '' %>"
+                    data-category="server-mgmt" title="<%= _('nav.server_management') || 'Server Management' %>">
+                <span class="material-icons">dns</span>
             </button>
             <% } %>
         </nav>
@@ -245,6 +252,29 @@
             </a>
         </div>
 
+        <!-- Server Management category links (BETA) -->
+        <% if (hasPermission('server.config')) { %>
+        <div class="sidebar-flyout-panel" data-panel="server-mgmt">
+            <a href="/server-management?tab=overview" class="sidebar-link <%= currentPage === 'server-management' && sidebarServerTab === 'overview' ? 'active' : '' %>">
+                <span class="material-icons">monitoring</span>
+                <span class="sidebar-link-text"><%= _('server_mgmt.tab_overview') || 'Overview' %></span>
+            </a>
+            <a href="/server-management?tab=terminal" class="sidebar-link <%= currentPage === 'server-management' && sidebarServerTab === 'terminal' ? 'active' : '' %>">
+                <span class="material-icons">terminal</span>
+                <span class="sidebar-link-text"><%= _('server_mgmt.tab_terminal') || 'Terminal' %></span>
+            </a>
+            <a href="/server-management?tab=files" class="sidebar-link <%= currentPage === 'server-management' && sidebarServerTab === 'files' ? 'active' : '' %>">
+                <span class="material-icons">folder_open</span>
+                <span class="sidebar-link-text"><%= _('server_mgmt.tab_files') || 'Files' %></span>
+            </a>
+            <a href="/server-management?tab=services" class="sidebar-link <%= currentPage === 'server-management' && sidebarServerTab === 'services' ? 'active' : '' %>">
+                <span class="material-icons">miscellaneous_services</span>
+                <span class="sidebar-link-text"><%= _('server_mgmt.tab_services') || 'Services' %></span>
+                <span class="badge-sidebar" style="background:linear-gradient(135deg,#ff7b72,#d29922);color:#fff;flex-shrink:0;margin-left:auto;">BETA</span>
+            </a>
+        </div>
+        <% } %>
+
         <!-- Sidebar footer - User -->
         <div class="sidebar-footer">
             <div class="sidebar-user" id="user-menu-trigger">
@@ -305,7 +335,8 @@
             main: '<%= _("nav.main") %>',
             management: '<%= _("nav.management") || "Management" %>',
             tools: '<%= _("nav.tools") %>',
-            system: '<%= _("nav.system") %>'
+            system: '<%= _("nav.system") %>',
+            'server-mgmt': '<%= _("nav.server_management") || "Server Management" %>'
         };
         if (flyoutTitle) flyoutTitle.textContent = titles[category] || '';
         activeCategory = category;

@@ -70,15 +70,15 @@ pub struct SidecarStatus {
 /// Fields match `betterdesk-agent/agent/config.go`.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct GoAgentConfig {
-    server: String,       // ws://host:21122/cdap
-    auth_method: String,  // api_key | device_token | user_password
+    server: String,      // ws://host:21122/cdap
+    auth_method: String, // api_key | device_token | user_password
     #[serde(skip_serializing_if = "String::is_empty")]
     api_key: String,
     #[serde(skip_serializing_if = "String::is_empty")]
     device_token: String,
     device_id: String,
     device_name: String,
-    device_type: String,  // os_agent | desktop | custom
+    device_type: String, // os_agent | desktop | custom
     #[serde(skip_serializing_if = "Vec::is_empty")]
     tags: Vec<String>,
 
@@ -86,6 +86,7 @@ struct GoAgentConfig {
     file_browser: bool,
     clipboard: bool,
     screenshot: bool,
+    require_consent: bool,
 
     heartbeat_sec: u32,
     reconnect_sec: u32,
@@ -108,6 +109,7 @@ pub struct SidecarConfig {
     pub allow_file_browser: bool,
     pub allow_clipboard: bool,
     pub allow_screen_capture: bool,
+    pub require_consent: bool,
     pub data_dir: PathBuf,
     pub cdap_port: u16,
 }
@@ -129,7 +131,15 @@ impl SidecarConfig {
             } else {
                 host.to_string()
             };
-            let ws_scheme = if parsed.scheme() == "https" { "wss" } else { "ws" };
+            // CDAP runs on its own gateway port. Do not inherit the HTTP API
+            // scheme: a server can expose HTTPS on 21114 while CDAP on 21122 is
+            // plain WS. Operators can explicitly opt into WSS for CDAP with
+            // BETTERDESK_CDAP_TLS=1 when the server is started with --tls-cdap.
+            let ws_scheme = if std::env::var("BETTERDESK_CDAP_TLS").as_deref() == Ok("1") {
+                "wss"
+            } else {
+                "ws"
+            };
             format!("{}://{}:{}/cdap", ws_scheme, host_part, self.cdap_port)
         } else {
             format!("ws://{}:{}/cdap", addr, self.cdap_port)
@@ -160,6 +170,7 @@ struct Inner {
     binary_path: Mutex<PathBuf>,
     cdap_url: Mutex<String>,
     config_path: Mutex<PathBuf>,
+    app_handle: Mutex<Option<tauri::AppHandle>>,
     /// When set to true the monitor loop will not restart.
     stop_requested: AtomicBool,
 }
@@ -176,6 +187,7 @@ impl SidecarManager {
                 binary_path: Mutex::new(PathBuf::new()),
                 cdap_url: Mutex::new(String::new()),
                 config_path: Mutex::new(PathBuf::new()),
+                app_handle: Mutex::new(None),
                 stop_requested: AtomicBool::new(false),
             }),
         }
@@ -185,11 +197,12 @@ impl SidecarManager {
 
     /// Write Go config and spawn the sidecar. Starts the monitor task.
     /// Safe to call again after stop — creates a fresh process.
-    pub fn start(&self, cfg: &SidecarConfig) -> Result<()> {
+    pub fn start(&self, cfg: &SidecarConfig, app: tauri::AppHandle) -> Result<()> {
         let inner = &self.inner;
 
         // Abort any previous stop state.
         inner.stop_requested.store(false, Ordering::SeqCst);
+        *inner.app_handle.lock().unwrap() = Some(app.clone());
 
         // Locate the Go binary.
         let binary = find_binary(&cfg.data_dir)?;
@@ -206,6 +219,7 @@ impl SidecarManager {
 
         // Spawn the process.
         self.spawn_process(&binary, &config_path)?;
+        self.start_stdout_reader(app);
 
         // Start monitor task (async).
         let manager = self.clone();
@@ -337,6 +351,7 @@ impl SidecarManager {
 
     fn terminate_child(&self) {
         let mut guard = self.inner.child.lock().unwrap();
+        self.inner.child_stdin.lock().unwrap().take();
         if let Some(mut child) = guard.take() {
             #[cfg(unix)]
             {
@@ -421,6 +436,8 @@ impl SidecarManager {
 
                 if let Err(e) = self.spawn_process(binary, config_path) {
                     error!("[sidecar] Restart failed: {}", e);
+                } else if let Some(app) = self.inner.app_handle.lock().unwrap().clone() {
+                    self.start_stdout_reader(app);
                 }
             }
         }
@@ -453,21 +470,29 @@ fn find_binary(data_dir: &PathBuf) -> Result<PathBuf> {
         if p.is_file() {
             return Ok(p);
         }
-        warn!("[sidecar] BETTERDESK_AGENT_BIN set but file not found: {}", p.display());
+        warn!(
+            "[sidecar] BETTERDESK_AGENT_BIN set but file not found: {}",
+            p.display()
+        );
     }
 
-    // 2. Same directory as the Tauri executable.
+    // 2. Same directory as the Tauri executable. Packaged Tauri externalBin
+    // files may include the target triple, while dev installs often use the
+    // plain name.
     if let Ok(exe) = std::env::current_exe() {
-        let candidate = exe.parent().unwrap_or(&exe).join(bin_name);
-        if candidate.is_file() {
-            return Ok(candidate);
+        let exe_dir = exe.parent().unwrap_or(&exe);
+        for candidate in binary_candidates(exe_dir, bin_name) {
+            if candidate.is_file() {
+                return Ok(candidate);
+            }
         }
     }
 
     // 3. App data directory (downloaded/extracted binary).
-    let candidate = data_dir.join(bin_name);
-    if candidate.is_file() {
-        return Ok(candidate);
+    for candidate in binary_candidates(data_dir, bin_name) {
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
     }
 
     // 4. System PATH.
@@ -502,6 +527,35 @@ fn find_binary(data_dir: &PathBuf) -> Result<PathBuf> {
          or install via the ALL-IN-ONE installer.",
         data_dir.display()
     ))
+}
+
+fn binary_candidates(dir: &std::path::Path, bin_name: &str) -> Vec<PathBuf> {
+    let mut out = vec![dir.join(bin_name)];
+
+    let prefix = if cfg!(windows) {
+        "betterdesk-agent-"
+    } else {
+        "betterdesk-agent-"
+    };
+
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            let matches = if cfg!(windows) {
+                name.starts_with(prefix) && name.ends_with(".exe")
+            } else {
+                name.starts_with(prefix)
+            };
+            if matches {
+                out.push(path);
+            }
+        }
+    }
+
+    out
 }
 
 // ── Config writer ──────────────────────────────────────────────────────────
@@ -543,6 +597,7 @@ fn write_go_config(path: &PathBuf, cfg: &SidecarConfig) -> Result<()> {
         file_browser: cfg.allow_file_browser,
         clipboard: cfg.allow_clipboard,
         screenshot: cfg.allow_screen_capture,
+        require_consent: cfg.require_consent,
         heartbeat_sec: 15,
         reconnect_sec: 5,
         max_reconnect: 300,

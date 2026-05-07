@@ -12,8 +12,8 @@ const config = require('../config/config');
  * Allow WebSocket connections (ws:// or wss:// depending on mode)
  */
 const connectSources = config.httpsEnabled
-    ? ["'self'", "wss:"]
-    : ["'self'", "ws:"];
+    ? ["'self'", "wss:", "https://cdn.jsdelivr.net"]
+    : ["'self'", "ws:", "https://cdn.jsdelivr.net"];
 
 function buildHelmetMiddleware(req, res) {
     const nonce = crypto.randomBytes(16).toString('base64');
@@ -21,7 +21,7 @@ function buildHelmetMiddleware(req, res) {
 
     res.locals.cspNonce = nonce;
 
-    const scriptSources = ["'self'", `'nonce-${nonce}'`];
+    const scriptSources = ["'self'", `'nonce-${nonce}'`, "https://cdn.jsdelivr.net"];
     if (isRemoteViewerPage) {
         // The remote viewer still depends on protobuf.js runtime code generation.
         scriptSources.push("'unsafe-eval'");
@@ -35,7 +35,7 @@ function buildHelmetMiddleware(req, res) {
                 // Allow inline event handlers (onclick=, onchange=, etc.) used by
                 // several admin panel pages. <script> tags still require nonce.
                 scriptSrcAttr: ["'unsafe-inline'"],
-                styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+                styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
                 fontSrc: ["'self'", "https://fonts.gstatic.com"],
                 imgSrc: ["'self'", "data:", "blob:"],
                 mediaSrc: ["'self'", "blob:"],

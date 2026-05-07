@@ -374,16 +374,6 @@ async function startServer() {
 
         // Ensure default admin exists
         await authService.ensureDefaultAdmin();
-
-        // Mirror Node panel users into the Go users table so they can be
-        // linked to organizations via "Add User -> Add Existing" (Issue #125).
-        // Best-effort: failures are logged but never block startup.
-        try {
-            const userSync = require('./services/userSync');
-            await userSync.backfillFromNode();
-        } catch (err) {
-            console.warn('[startup] userSync.backfillFromNode failed:', err.message);
-        }
         
         let server;
         let protocol = 'http';

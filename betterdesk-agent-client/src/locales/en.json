@@ -58,7 +58,8 @@
     "sidecar_restarts_hint": "Number of automatic restarts",
     "sidecar_start": "Start",
     "sidecar_stop": "Stop",
-    "sidecar_restart": "Restart"
+    "sidecar_restart": "Restart",
+    "sidecar_managed_hint": "CDAP runs in the background and can only be controlled by an administrator."
   },
   "setup": {
     "title": "Server Setup",

@@ -1,6 +1,7 @@
-use crate::cdap_client::{CdapClient, CdapStatus};
+use crate::cdap_client::CdapClient;
 use crate::config::AgentConfig;
 use crate::registration;
+use crate::sidecar::{SidecarConfig, SidecarStatus};
 use crate::sysinfo_collect::SystemSnapshot;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -12,8 +13,14 @@ use tauri::Manager;
 pub struct AgentState {
     pub config: Mutex<AgentConfig>,
     pub chat_history: Mutex<Vec<ChatMessage>>,
-    /// Native CDAP WebSocket client (replaces Go sidecar).
+    /// Native CDAP WebSocket client kept for the lightweight telemetry path.
+    /// The managed Go sidecar below is the active runtime for full remote
+    /// desktop parity.
     pub cdap: CdapClient,
+    /// Managed Go agent sidecar. This is the active runtime for remote desktop
+    /// parity because it contains desktop streaming, input, monitor, and
+    /// consent handlers that the native Rust CDAP client does not yet provide.
+    pub sidecar: crate::sidecar::SidecarManager,
 }
 
 /// Chat message structure.
@@ -86,8 +93,9 @@ pub fn is_os_admin() -> bool {
 /// Called from the overflow menu "Close agent" button or the quit dialog.
 #[tauri::command]
 pub fn quit_app(app: tauri::AppHandle) {
-    // Stop the sidecar gracefully before exit.
+    // Stop background runtimes gracefully before exit.
     let state = app.state::<AgentState>();
+    state.sidecar.stop();
     state.cdap.stop();
     app.exit(0);
 }
@@ -665,7 +673,7 @@ pub async fn discover_lan_servers() -> Result<Vec<DiscoveredLanServer>, String> 
 
 // ─────────────────────────── CDAP client control ───────────────────────────
 
-async fn build_cdap_config(state: &AgentState) -> Result<crate::cdap_client::CdapConfig, String> {
+async fn build_sidecar_config(state: &AgentState) -> Result<SidecarConfig, String> {
     let mut config = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
         if !config.is_registered() {
@@ -682,57 +690,81 @@ async fn build_cdap_config(state: &AgentState) -> Result<crate::cdap_client::Cda
         shared.server_address = config.server_address.clone();
     }
 
-    Ok(config.to_cdap_config())
+    Ok(config.to_sidecar_config())
 }
 
-/// Returns the current status of the native CDAP client.
+/// Returns the current status of the managed Go CDAP sidecar.
 #[tauri::command]
-pub fn get_sidecar_status(state: State<'_, AgentState>) -> CdapStatus {
-    state.cdap.status()
+pub fn get_sidecar_status(state: State<'_, AgentState>) -> SidecarStatus {
+    state.sidecar.status()
 }
 
-/// Start or restart the native CDAP client.
+/// Start or restart the managed Go CDAP sidecar.
 #[tauri::command]
-pub async fn start_sidecar(_app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<CdapStatus, String> {
-    let cdap_cfg = build_cdap_config(&state).await?;
-    state.cdap.stop();
-    state.cdap.start(&cdap_cfg).map_err(|e| e.to_string())?;
-    info!("CDAP client started via IPC command");
-    Ok(state.cdap.status())
+pub async fn start_sidecar(
+    app: tauri::AppHandle,
+    state: State<'_, AgentState>,
+) -> Result<SidecarStatus, String> {
+    if !crate::privileges::is_os_admin() {
+        return Err("Administrator privileges are required to control the CDAP agent".to_string());
+    }
+
+    let sidecar_cfg = build_sidecar_config(&state).await?;
+    state.sidecar.stop();
+    state
+        .sidecar
+        .start(&sidecar_cfg, app)
+        .map_err(|e| e.to_string())?;
+    info!("CDAP sidecar started via IPC command");
+    Ok(state.sidecar.status())
 }
 
 /// Stop the CDAP client.
 #[tauri::command]
-pub fn stop_sidecar(state: State<'_, AgentState>) -> CdapStatus {
-    state.cdap.stop();
-    info!("CDAP client stopped via IPC command");
-    state.cdap.status()
+pub fn stop_sidecar(state: State<'_, AgentState>) -> Result<SidecarStatus, String> {
+    if !crate::privileges::is_os_admin() {
+        return Err("Administrator privileges are required to stop the CDAP agent".to_string());
+    }
+
+    state.sidecar.stop();
+    info!("CDAP sidecar stopped via IPC command");
+    Ok(state.sidecar.status())
 }
 
 /// Restart the CDAP client (re-reads current config).
 #[tauri::command]
-pub async fn restart_sidecar(app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<CdapStatus, String> {
+pub async fn restart_sidecar(
+    app: tauri::AppHandle,
+    state: State<'_, AgentState>,
+) -> Result<SidecarStatus, String> {
     start_sidecar(app, state).await
 }
 
 /// Legacy command — redirects to CDAP restart.
 #[tauri::command]
-pub async fn restart_agent_service(app: tauri::AppHandle, state: State<'_, AgentState>) -> Result<(), String> {
+pub async fn restart_agent_service(
+    app: tauri::AppHandle,
+    state: State<'_, AgentState>,
+) -> Result<(), String> {
     start_sidecar(app, state).await.map(|_| ())
 }
 
-/// No-op — consent is now handled natively inside cdap_client.rs.
+/// Forward a supervised-session consent response to the Go sidecar.
 #[tauri::command]
 pub fn answer_consent(
-    _state: State<'_, AgentState>,
-    _session_id: String,
-    _granted: bool,
+    state: State<'_, AgentState>,
+    session_id: String,
+    granted: bool,
 ) -> Result<(), String> {
+    state.sidecar.send_consent(&session_id, granted);
     Ok(())
 }
 
 #[tauri::command]
 pub fn unregister_device(state: State<'_, AgentState>) -> Result<(), String> {
+    state.sidecar.stop();
+    state.cdap.stop();
+
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
 
     let old_id = config.device_id.clone();

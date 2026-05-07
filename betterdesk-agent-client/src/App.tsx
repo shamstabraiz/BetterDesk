@@ -71,9 +71,18 @@ const BottomNav: Component<BottomNavProps> = (props) => {
   const isActive = (path: string) =>
     path === "/" ? currentPath() === "/" : currentPath().startsWith(path);
 
-  // Close overflow menu on outside click
+  // Close overflow menu on outside click. Solid delegates click handlers at the
+  // document level, so the native listener must explicitly ignore clicks inside
+  // this overflow area instead of relying on stopPropagation timing.
   onMount(() => {
-    const handler = () => setShowMenu(false);
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (target?.closest(".bottom-nav-overflow")) {
+        return;
+      }
+
+      setShowMenu(false);
+    };
     const syncPath = () => setCurrentPath(getCurrentHashPath());
 
     document.addEventListener("click", handler, { capture: true });
@@ -95,7 +104,7 @@ const BottomNav: Component<BottomNavProps> = (props) => {
       {mainTabs.map((tab) => (
         <button
           class={`bottom-nav-item ${isActive(tab.path) ? "active" : ""}`}
-          onClick={() => navigateHashRoute(tab.path)}
+          onClick={() => { setShowMenu(false); navigateHashRoute(tab.path); }}
         >
           <span class="material-symbols-rounded">{tab.icon}</span>
           <span class="bottom-nav-label">{tab.label()}</span>
@@ -105,7 +114,10 @@ const BottomNav: Component<BottomNavProps> = (props) => {
             {/* Settings / overflow */}
           <div class="bottom-nav-overflow" onClick={(e) => e.stopPropagation()}>
             <button
-              class={`bottom-nav-item ${isActive("/settings") ? "active" : ""}`}
+              class={`bottom-nav-item ${showMenu() || isActive("/settings") ? "active" : ""}`}
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={showMenu()}
               onClick={() => setShowMenu((v) => !v)}
             >
               <span class="material-symbols-rounded">more_vert</span>
@@ -113,10 +125,12 @@ const BottomNav: Component<BottomNavProps> = (props) => {
             </button>
 
             <Show when={showMenu()}>
-              <div class="overflow-menu">
+              <div class="overflow-menu" role="menu">
                 {/* Settings — always visible, SudoAuthDialog gates controls inside */}
                 <button
                   class="overflow-menu-item"
+                  type="button"
+                  role="menuitem"
                   onClick={() => { navigateHashRoute("/settings"); setShowMenu(false); }}
                 >
                   <span class="material-symbols-rounded">settings</span>
@@ -127,6 +141,8 @@ const BottomNav: Component<BottomNavProps> = (props) => {
                 {/* Close — always visible; non-admin gets sudo dialog */}
                 <button
                   class="overflow-menu-item overflow-menu-item-danger"
+                  type="button"
+                  role="menuitem"
                   onClick={() => { props.onQuit(); setShowMenu(false); }}
                 >
                   <span class="material-symbols-rounded">power_settings_new</span>

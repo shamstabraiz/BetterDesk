@@ -207,10 +207,26 @@ impl AgentConfig {
         }
     }
 
-    /// Build a `SidecarConfig` — kept for backward compatibility, delegates to CdapConfig.
-    #[deprecated(note = "Use to_cdap_config() — sidecar is replaced by native CDAP client")]
-    pub fn to_sidecar_config(&self) -> crate::cdap_client::CdapConfig {
-        self.to_cdap_config()
+    /// Build a `SidecarConfig` for the bundled Go agent runtime.
+    pub fn to_sidecar_config(&self) -> crate::sidecar::SidecarConfig {
+        let data_dir = directories::ProjectDirs::from("com", "betterdesk", "agent")
+            .map(|d| d.data_dir().to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        crate::sidecar::SidecarConfig {
+            server_address: self.server_address.clone(),
+            device_id: self.device_id.clone(),
+            device_name: self.device_name.clone(),
+            api_key: self.api_key.clone(),
+            auth_token: self.auth_token.clone(),
+            allow_terminal: self.allow_terminal,
+            allow_file_browser: self.allow_file_browser,
+            allow_clipboard: self.allow_clipboard,
+            allow_screen_capture: self.allow_screen_capture,
+            require_consent: self.require_consent,
+            data_dir,
+            cdap_port: self.cdap_port,
+        }
     }
 
     /// Store credentials securely via OS keyring.

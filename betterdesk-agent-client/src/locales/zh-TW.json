@@ -41,7 +41,16 @@
     "reconnect": "重新連線",
     "send_diagnostics": "傳送診斷資訊",
     "diagnostics_sent": "診斷資訊已傳送至伺服器",
-    "diagnostics_error": "傳送診斷資訊失敗"
+    "diagnostics_error": "傳送診斷資訊失敗",
+    "sidecar_title": "CDAP 代理",
+    "sidecar_running": "執行中",
+    "sidecar_stopped": "已停止",
+    "sidecar_not_configured": "未設定",
+    "sidecar_restarts_hint": "自動重新啟動次數",
+    "sidecar_start": "啟動",
+    "sidecar_stop": "停止",
+    "sidecar_restart": "重新啟動",
+    "sidecar_managed_hint": "CDAP 在背景執行，只有管理員可以控制。"
   },
   "setup": {
     "title": "伺服器設定",

@@ -57,6 +57,7 @@
     "sidecar_start": "Uruchom",
     "sidecar_stop": "Zatrzymaj",
     "sidecar_restart": "Restartuj",
+    "sidecar_managed_hint": "CDAP działa w tle i może być kontrolowany tylko przez administratora.",
     "diagnostics_sent": "Diagnostyka wysłana na serwer",
     "diagnostics_error": "Nie udało się wysłać diagnostyki"
   },

@@ -11,17 +11,29 @@ import (
 // injectInput injects a keyboard or mouse event on Linux.
 //
 // Strategy:
-//  1. X11 or XWayland session (DISPLAY set) → use xdotool
-//  2. Pure Wayland without XWayland (DISPLAY not set) → use ydotool
-//     (requires ydotoold daemon to be running)
-//
-// Most Wayland compositors (GNOME, KDE, sway) run XWayland, so path 1
-// is taken even on Wayland desktops in most real-world setups.
+//  1. Wayland session → prefer ydotool, because xdotool only reaches XWayland windows.
+//  2. X11 or XWayland fallback → use xdotool.
 func injectInput(evt *InputEvent) error {
+	if isWaylandSession() {
+		if commandExists("ydotool") {
+			if err := injectInputWayland(evt); err == nil {
+				return nil
+			} else if !hasX11Display() {
+				return err
+			}
+		}
+		if hasX11Display() {
+			return injectInputX11(evt)
+		}
+		return fmt.Errorf("Wayland input injection requires ydotool and a running ydotoold daemon")
+	}
 	if hasX11Display() {
 		return injectInputX11(evt)
 	}
-	return injectInputWayland(evt)
+	if commandExists("ydotool") {
+		return injectInputWayland(evt)
+	}
+	return fmt.Errorf("no supported input backend found (install xdotool for X11 or ydotool for Wayland)")
 }
 
 // ── X11 / XWayland path (xdotool) ────────────────────────────────────────
@@ -40,21 +52,31 @@ func injectInputX11(evt *InputEvent) error {
 		return xdotool("click", fmt.Sprintf("%d", linuxMouseButton(evt.Button)))
 
 	case "mouse_down":
+		if err := xdotool("mousemove", "--sync",
+			fmt.Sprintf("%d", evt.X), fmt.Sprintf("%d", evt.Y)); err != nil {
+			return err
+		}
 		return xdotool("mousedown", fmt.Sprintf("%d", linuxMouseButton(evt.Button)))
 
 	case "mouse_up":
+		if err := xdotool("mousemove", "--sync",
+			fmt.Sprintf("%d", evt.X), fmt.Sprintf("%d", evt.Y)); err != nil {
+			return err
+		}
 		return xdotool("mouseup", fmt.Sprintf("%d", linuxMouseButton(evt.Button)))
 
 	case "mouse_scroll":
-		if evt.DeltaY < 0 {
-			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(evt.DeltaY)), "4")
-		} else if evt.DeltaY > 0 {
-			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(evt.DeltaY)), "5")
+		stepsY := scrollSteps(evt.DeltaY)
+		stepsX := scrollSteps(evt.DeltaX)
+		if stepsY < 0 {
+			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(stepsY)), "4")
+		} else if stepsY > 0 {
+			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(stepsY)), "5")
 		}
-		if evt.DeltaX < 0 {
-			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(evt.DeltaX)), "6")
-		} else if evt.DeltaX > 0 {
-			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(evt.DeltaX)), "7")
+		if stepsX < 0 {
+			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(stepsX)), "6")
+		} else if stepsX > 0 {
+			return xdotool("click", "--repeat", fmt.Sprintf("%d", abs(stepsX)), "7")
 		}
 		return nil
 
@@ -87,6 +109,11 @@ func xdotool(args ...string) error {
 	return exec.Command(path, args...).Run()
 }
 
+func commandExists(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
 // ── Pure-Wayland path (ydotool) ──────────────────────────────────────────
 
 // injectInputWayland uses ydotool for input injection on pure-Wayland sessions.
@@ -113,18 +140,28 @@ func injectInputWayland(evt *InputEvent) error {
 		return ydotoolClick(evt.Button)
 
 	case "mouse_down":
+		if err := ydotool("mousemove",
+			"-x", fmt.Sprintf("%d", evt.X),
+			"-y", fmt.Sprintf("%d", evt.Y)); err != nil {
+			return err
+		}
 		return ydotoolMouseDown(evt.Button)
 
 	case "mouse_up":
+		if err := ydotool("mousemove",
+			"-x", fmt.Sprintf("%d", evt.X),
+			"-y", fmt.Sprintf("%d", evt.Y)); err != nil {
+			return err
+		}
 		return ydotoolMouseUp(evt.Button)
 
 	case "mouse_scroll":
 		// ydotool scroll: positive DeltaY = scroll down
-		if evt.DeltaY != 0 {
+		if steps := scrollSteps(evt.DeltaY); steps != 0 {
 			// ydotool scroll button clicks: 4=wheel-up, 5=wheel-down
 			btn := "5"
-			repeat := evt.DeltaY
-			if evt.DeltaY < 0 {
+			repeat := steps
+			if steps < 0 {
 				btn = "4"
 				repeat = -repeat
 			}
@@ -172,6 +209,26 @@ func ydotool(args ...string) error {
 		)
 	}
 	return exec.Command(path, args...).Run()
+}
+
+func scrollSteps(delta int) int {
+	if delta == 0 {
+		return 0
+	}
+	steps := abs(delta)
+	if steps > 12 {
+		steps = (steps + 79) / 80
+	}
+	if steps < 1 {
+		steps = 1
+	}
+	if steps > 10 {
+		steps = 10
+	}
+	if delta < 0 {
+		return -steps
+	}
+	return steps
 }
 
 // ydotoolClick sends a full button click (down + up) for a CDAP button number.

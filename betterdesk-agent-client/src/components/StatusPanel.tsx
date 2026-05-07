@@ -32,6 +32,7 @@ const StatusPanel: Component = () => {
   const [diagFeedback, setDiagFeedback] = createSignal<"" | "ok" | "error">("");
   const [sidecarAction, setSidecarAction] = createSignal<"" | "busy">(""); 
   const [sidecarError, setSidecarError] = createSignal("");
+  const [isAdmin, setIsAdmin] = createSignal(false);
   let initialSnapshotLogged = false;
 
   let pollInterval: ReturnType<typeof setInterval>;
@@ -67,6 +68,9 @@ const StatusPanel: Component = () => {
 
   onMount(() => {
     frontendLog("debug", "status", "Status panel mounted");
+    invoke<boolean>("is_os_admin")
+      .then(setIsAdmin)
+      .catch((error) => frontendLog("warn", "status", "is_os_admin failed", error));
     fetchStatus();
     pollInterval = setInterval(fetchStatus, 5000);
   });
@@ -266,37 +270,42 @@ const StatusPanel: Component = () => {
               </div>
             )}
 
-            <div class="sidecar-actions">
-              {!sidecar()?.running ? (
-                <button
-                  class="btn btn-primary btn-sm"
-                  onClick={startSidecar}
-                  disabled={sidecarAction() === "busy"}
-                >
-                  <span class="material-symbols-rounded">play_arrow</span>
-                  {t("status.sidecar_start")}
-                </button>
-              ) : (
-                <>
+            <Show
+              when={isAdmin()}
+              fallback={<div class="sidecar-managed-hint">{t("status.sidecar_managed_hint")}</div>}
+            >
+              <div class="sidecar-actions">
+                {!sidecar()?.running ? (
                   <button
-                    class="btn btn-secondary btn-sm"
-                    onClick={restartSidecar}
+                    class="btn btn-primary btn-sm"
+                    onClick={startSidecar}
                     disabled={sidecarAction() === "busy"}
                   >
-                    <span class="material-symbols-rounded">refresh</span>
-                    {t("status.sidecar_restart")}
+                    <span class="material-symbols-rounded">play_arrow</span>
+                    {t("status.sidecar_start")}
                   </button>
-                  <button
-                    class="btn btn-danger btn-sm"
-                    onClick={stopSidecar}
-                    disabled={sidecarAction() === "busy"}
-                  >
-                    <span class="material-symbols-rounded">stop</span>
-                    {t("status.sidecar_stop")}
-                  </button>
-                </>
-              )}
-            </div>
+                ) : (
+                  <>
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      onClick={restartSidecar}
+                      disabled={sidecarAction() === "busy"}
+                    >
+                      <span class="material-symbols-rounded">refresh</span>
+                      {t("status.sidecar_restart")}
+                    </button>
+                    <button
+                      class="btn btn-danger btn-sm"
+                      onClick={stopSidecar}
+                      disabled={sidecarAction() === "busy"}
+                    >
+                      <span class="material-symbols-rounded">stop</span>
+                      {t("status.sidecar_stop")}
+                    </button>
+                  </>
+                )}
+              </div>
+            </Show>
 
             <Show when={sidecarError()}>
               <div class="form-error">{sidecarError()}</div>

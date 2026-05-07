@@ -41,5 +41,10 @@ func (a *Agent) handleDesktopInput(msg *Message) {
 
 	if err := injectInput(&evt); err != nil {
 		log.Printf("[input] Injection failed (%s): %v", evt.Type, err)
+		_ = a.sendMessage("desktop_input_error", map[string]any{
+			"session_id": evt.SessionID,
+			"type":       evt.Type,
+			"message":    err.Error(),
+		})
 	}
 }

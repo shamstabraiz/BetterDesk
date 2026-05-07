@@ -339,7 +339,7 @@ func (a *Agent) dispatch(msg *Message) {
 	// ── Desktop (Screenshot + Streaming) ──
 	case "desktop_start":
 		a.handleDesktopStart(msg)
-	case "desktop_stop":
+	case "desktop_stop", "desktop_end":
 		a.handleDesktopStop(msg)
 	case "desktop_input":
 		a.handleDesktopInput(msg)

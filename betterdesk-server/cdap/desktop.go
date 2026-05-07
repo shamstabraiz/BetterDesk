@@ -300,11 +300,11 @@ func (g *Gateway) EndDesktopSession(ctx context.Context, sessionID, reason strin
 	}
 	data, _ := json.Marshal(endPayload)
 	msg := &Message{
-		Type:      "desktop_end",
+		Type:      "desktop_stop",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Payload:   data,
 	}
-	ds.deviceConn.WriteMessage(ctx, msg)
+	_ = ds.deviceConn.WriteMessage(ctx, msg)
 
 	endMsg, _ := json.Marshal(map[string]string{
 		"type":       "end",
@@ -325,4 +325,51 @@ func (g *Gateway) EndDesktopSession(ctx context.Context, sessionID, reason strin
 			"reason":     reason,
 		})
 	}
+}
+
+// HandleDesktopInputError forwards input injection failures from the device to
+// the browser session so operators get an actionable error instead of silent no-op input.
+func (g *Gateway) HandleDesktopInputError(ctx context.Context, _ *DeviceConn, msg *Message) {
+	var payload struct {
+		SessionID string `json:"session_id"`
+		Type      string `json:"type"`
+		Message   string `json:"message"`
+	}
+	if err := json.Unmarshal(msg.Payload, &payload); err != nil || payload.SessionID == "" {
+		return
+	}
+
+	val, ok := g.desktopSessions.Load(payload.SessionID)
+	if !ok {
+		return
+	}
+	ds := val.(*DesktopSession)
+	if ds.closed.Load() {
+		return
+	}
+
+	text := payload.Message
+	if text == "" {
+		text = "remote input injection failed"
+	}
+	out, _ := json.Marshal(map[string]string{
+		"type":       "error",
+		"session_id": payload.SessionID,
+		"error":      text,
+	})
+	ds.mu.Lock()
+	_ = ds.browser.Write(ctx, websocket.MessageText, out)
+	ds.mu.Unlock()
+}
+
+func (g *Gateway) cleanupDeviceSessions(deviceID, reason string) {
+	g.desktopSessions.Range(func(key, value any) bool {
+		ds, ok := value.(*DesktopSession)
+		if !ok || ds.DeviceID != deviceID {
+			return true
+		}
+		g.EndDesktopSession(context.Background(), ds.ID, reason)
+		g.desktopSessions.Delete(key)
+		return true
+	})
 }

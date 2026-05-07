@@ -214,6 +214,11 @@
 
             case 'error':
                 console.error('[CDAPDesktop] Error:', msg.error);
+                if (session.overlay) {
+                    session.overlay.classList.remove('hidden');
+                    const label = session.overlay.querySelector('span:last-child');
+                    if (label) label.textContent = msg.error || 'Remote desktop error';
+                }
                 break;
 
             case 'end':

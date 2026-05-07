@@ -1041,6 +1041,17 @@ function Install-NodeJsConsole {
             Pop-Location
             return $false
         }
+
+        # Best-effort install of node-pty for Server Management terminal (BETA).
+        # Optional native module — falls back to pipe spawn if build fails.
+        Print-Step "Installing optional node-pty (Server Management terminal - BETA)..."
+        $ptyOutput = npm install --no-audit --no-fund --no-save node-pty 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Print-Success "node-pty installed (real PTY available)"
+        } else {
+            Print-Warning "node-pty install failed - Server Management terminal will use pipe fallback"
+            $ptyOutput | Select-Object -Last 5 | ForEach-Object { Write-Host "[node-pty] $_" }
+        }
         
         # Create data directory for databases
         $dataDir = Join-Path $script:CONSOLE_PATH "data"

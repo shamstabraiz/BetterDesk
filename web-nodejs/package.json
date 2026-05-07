@@ -39,7 +39,8 @@
     "ws": "^8.19.0"
   },
   "optionalDependencies": {
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "node-pty": "^1.0.0"
   },
   "overrides": {
     "tar": "^7.5.11",
