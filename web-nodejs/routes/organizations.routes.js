@@ -33,6 +33,7 @@ const express = require('express');
 const router = express.Router();
 const { apiClient } = require('../services/betterdeskApi');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const userSync = require('../services/userSync');
 
 // ---------------------------------------------------------------------------
 //  Helper: proxy to Go server
@@ -49,6 +50,11 @@ async function goApiProxy(req, res, method, path, body) {
         const data = err.response?.data || { error: 'Go server unreachable' };
         res.status(status).json(data);
     }
+}
+
+async function resolveGoMemberId(userId) {
+    const resolved = await userSync.resolveGoUserId(userId);
+    return resolved || userId;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +98,14 @@ router.delete('/api/panel/org/:id/users/:uid', requireAuth, requirePermission('o
 // User-Org Linking (Issue #106)
 router.get('/api/panel/org/:id/available-users', requireAuth, requirePermission('org.manage_users'), (req, res) => goApiProxy(req, res, 'get', `/org/${req.params.id}/available-users`));
 router.post('/api/panel/org/:id/members', requireAuth, requirePermission('org.manage_users'), (req, res) => goApiProxy(req, res, 'post', `/org/${req.params.id}/members`, req.body));
-router.delete('/api/panel/org/:id/members/:userId', requireAuth, requirePermission('org.manage_users'), (req, res) => goApiProxy(req, res, 'delete', `/org/${req.params.id}/members/${req.params.userId}`));
+router.delete('/api/panel/org/:id/members/:userId', requireAuth, requirePermission('org.manage_users'), async (req, res) => {
+    try {
+        const goUserId = await resolveGoMemberId(req.params.userId);
+        goApiProxy(req, res, 'delete', `/org/${req.params.id}/members/${goUserId}`);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to resolve user' });
+    }
+});
 
 // Invitations
 router.post('/api/panel/org/:id/invite', requireAuth, requirePermission('org.manage_users'), (req, res) => goApiProxy(req, res, 'post', `/org/${req.params.id}/invite`, req.body));

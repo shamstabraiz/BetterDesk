@@ -24,6 +24,7 @@ const { roleHasPermission, isSuperAdminRole } = require('./middleware/auth');
 const authService = require('./services/authService');
 const serverBackend = require('./services/serverBackend');
 const db = require('./services/database');
+const userSync = require('./services/userSync');
 const { initWsProxy } = require('./services/wsRelay');
 const { initBdRelay } = require('./services/bdRelay');
 const { initChatRelay } = require('./services/chatRelay');
@@ -372,8 +373,15 @@ async function startServer() {
         const brandingService = require('./services/brandingService');
         await brandingService.loadBranding();
 
+        // Recover/sync global users before deciding whether a default admin is needed.
+        // This protects upgrades where local auth.db was recreated but Go still has users.
+        await userSync.backfillFromGo();
+
         // Ensure default admin exists
         await authService.ensureDefaultAdmin();
+
+        // Keep Go organization-linkable users aligned with the panel store.
+        await userSync.backfillFromNode();
         
         let server;
         let protocol = 'http';

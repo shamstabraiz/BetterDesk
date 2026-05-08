@@ -4,6 +4,10 @@ jest.mock('../services/betterdeskApi', () => ({
     apiClient: jest.fn(),
 }));
 
+jest.mock('../services/userSync', () => ({
+    resolveGoUserId: jest.fn(),
+}));
+
 const { apiClient } = require('../services/betterdeskApi');
 const { createTestApp, withAuth } = require('./helpers');
 const organizationsRoutes = require('../routes/organizations.routes');
@@ -20,7 +24,7 @@ describe('Organizations Routes', () => {
         const res = await request(app).get('/api/panel/org');
 
         expect(res.status).toBe(401);
-        expect(res.body.error).toBe('Authentication required');
+        expect(res.body.error).toBe('Unauthorized. Please log in.');
     });
 
     it('returns 403 for non-admin organization writes', async () => {
@@ -33,7 +37,7 @@ describe('Organizations Routes', () => {
             .send({ name: 'Ops', slug: 'ops' });
 
         expect(res.status).toBe(403);
-        expect(res.body.error).toBe('Admin access required');
+        expect(res.body.error).toBe('Permission denied: org.create');
     });
 
     it('proxies organization list requests to the Go API', async () => {

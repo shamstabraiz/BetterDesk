@@ -17,10 +17,10 @@
  *
  *   All mirror calls are best-effort: failures are logged but do not break
  *   the panel-side request — users remain functional locally even when the
- *   Go server is unreachable. A backfill helper is run at startup to
- *   reconcile any drift (Node-only users get created on the Go side with a
- *   random throwaway password; the Node hash remains authoritative for
- *   panel login).
+ *   Go server is unreachable. Backfill helpers are run at startup to
+ *   reconcile drift in both directions. SQLite installs can recover local
+ *   auth.db users from the Go db_v2.sqlite3 users table, preserving password
+ *   hashes so panel login keeps working after an update recreated auth.db.
  */
 
 const crypto = require('crypto');
@@ -43,6 +43,65 @@ function normalizeRole(role) {
     return GO_VALID_ROLES.has(role) ? role : 'viewer';
 }
 
+function normalizeUsername(username) {
+    return String(username || '').trim().toLowerCase();
+}
+
+function sqliteTableExists(sqliteDb, tableName) {
+    if (!/^[a-zA-Z0-9_]+$/.test(tableName)) return false;
+    try {
+        return !!sqliteDb
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+            .get(tableName);
+    } catch (_) {
+        return false;
+    }
+}
+
+function sqliteColumns(sqliteDb, tableName) {
+    if (!/^[a-zA-Z0-9_]+$/.test(tableName)) return new Set();
+    try {
+        return new Set(sqliteDb.prepare(`PRAGMA table_info(${tableName})`).all().map(c => c.name));
+    } catch (_) {
+        return new Set();
+    }
+}
+
+function readGoUsersFromSqlite() {
+    if (db.type !== 'sqlite') return [];
+    if (typeof db.getDb !== 'function') return [];
+
+    let goDb;
+    try {
+        goDb = db.getDb();
+    } catch (err) {
+        console.warn(`[userSync] Go->Node backfill: cannot open Go SQLite DB: ${err.message}`);
+        return [];
+    }
+
+    if (!sqliteTableExists(goDb, 'users')) return [];
+    const cols = sqliteColumns(goDb, 'users');
+    if (!cols.has('username') || !cols.has('password_hash')) return [];
+
+    const select = [
+        cols.has('id') ? 'id' : '0 AS id',
+        'username',
+        'password_hash',
+        cols.has('role') ? "COALESCE(role, 'viewer') AS role" : "'viewer' AS role",
+        cols.has('totp_secret') ? "COALESCE(totp_secret, '') AS totp_secret" : "'' AS totp_secret",
+        cols.has('totp_enabled') ? 'COALESCE(totp_enabled, 0) AS totp_enabled' : '0 AS totp_enabled',
+        cols.has('created_at') ? 'created_at' : "datetime('now') AS created_at",
+        cols.has('last_login') ? 'last_login' : 'NULL AS last_login',
+    ];
+
+    try {
+        return goDb.prepare(`SELECT ${select.join(', ')} FROM users ORDER BY id`).all();
+    } catch (err) {
+        console.warn(`[userSync] Go->Node backfill: cannot read Go users: ${err.message}`);
+        return [];
+    }
+}
+
 function randomPassword() {
     // 32 hex chars — used only as a Go-side placeholder. Panel login keeps
     // using the Node bcrypt hash; admin can later reset the password through
@@ -55,13 +114,30 @@ async function findGoUserByUsername(username) {
     try {
         const { data } = await apiClient.get('/users');
         if (!Array.isArray(data)) return null;
-        const lower = String(username).toLowerCase();
-        return data.find(u => String(u.username || '').toLowerCase() === lower) || null;
+        const lower = normalizeUsername(username);
+        return data.find(u => normalizeUsername(u.username) === lower) || null;
     } catch (err) {
         const status = err.response?.status;
         console.warn(`[userSync] findGoUser('${username}') failed: status=${status} ${err.message}`);
         return null;
     }
+}
+
+async function resolveGoUserId(localUserId) {
+    const id = Number(localUserId);
+    if (!Number.isInteger(id) || id <= 0) return null;
+
+    let localUser;
+    try {
+        localUser = await db.getUserById(id);
+    } catch (err) {
+        console.warn(`[userSync] resolveGoUserId(${localUserId}) local lookup failed: ${err.message}`);
+        return null;
+    }
+    if (!localUser) return null;
+
+    const goUser = await findGoUserByUsername(localUser.username);
+    return goUser?.id || localUser.id;
 }
 
 /**
@@ -191,9 +267,91 @@ async function backfillFromNode() {
     }
 }
 
+/**
+ * Backfill: recover Node auth.db users from the Go server SQLite database.
+ *
+ * This intentionally only runs in SQLite mode. PostgreSQL deployments already
+ * share the same `users` table between Node and Go, while the Go REST API does
+ * not expose password hashes. Reading db_v2.sqlite3 directly lets us preserve
+ * bcrypt/PBKDF2 hashes and keep existing users able to log in after auth.db was
+ * recreated during an update.
+ */
+async function backfillFromGo() {
+    if (db.type !== 'sqlite') return { imported: 0, skipped: 'shared-db' };
+    if (typeof db.getAuthDb !== 'function') return { imported: 0, skipped: 'no-auth-db' };
+
+    const goUsers = readGoUsersFromSqlite()
+        .filter(u => normalizeUsername(u.username) && String(u.password_hash || '').trim() !== '');
+    if (goUsers.length === 0) return { imported: 0 };
+
+    let localUsers;
+    try {
+        localUsers = await db.getAllUsersForBackup();
+    } catch (err) {
+        console.warn(`[userSync] Go->Node backfill: cannot read local users: ${err.message}`);
+        return { imported: 0, error: err.message };
+    }
+
+    const localByUsername = new Set((localUsers || []).map(u => normalizeUsername(u.username)));
+    const localIds = new Set((localUsers || []).map(u => Number(u.id)).filter(Number.isInteger));
+    const missing = goUsers.filter(u => !localByUsername.has(normalizeUsername(u.username)));
+    if (missing.length === 0) return { imported: 0 };
+
+    let authDb;
+    try {
+        authDb = db.getAuthDb();
+    } catch (err) {
+        console.warn(`[userSync] Go->Node backfill: cannot open local auth DB: ${err.message}`);
+        return { imported: 0, error: err.message };
+    }
+
+    const insertWithId = authDb.prepare(`
+        INSERT INTO users (id, username, password_hash, role, created_at, last_login, totp_secret, totp_enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertWithoutId = authDb.prepare(`
+        INSERT INTO users (username, password_hash, role, created_at, last_login, totp_secret, totp_enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    let imported = 0;
+    for (const user of missing) {
+        const username = String(user.username || '').trim();
+        const passwordHash = String(user.password_hash || '').trim();
+        const role = normalizeRole(user.role);
+        const createdAt = user.created_at || new Date().toISOString();
+        const lastLogin = user.last_login || null;
+        const totpSecret = user.totp_secret || null;
+        const totpEnabled = user.totp_enabled ? 1 : 0;
+        const goId = Number(user.id);
+
+        try {
+            if (Number.isInteger(goId) && goId > 0 && !localIds.has(goId)) {
+                insertWithId.run(goId, username, passwordHash, role, createdAt, lastLogin, totpSecret, totpEnabled);
+                localIds.add(goId);
+            } else {
+                insertWithoutId.run(username, passwordHash, role, createdAt, lastLogin, totpSecret, totpEnabled);
+            }
+            localByUsername.add(normalizeUsername(username));
+            imported++;
+            console.log(`[userSync] Go->Node backfill: restored local user '${username}' (${role})`);
+        } catch (err) {
+            console.warn(`[userSync] Go->Node backfill: failed to restore '${username}': ${err.message}`);
+        }
+    }
+
+    if (imported > 0) {
+        console.log(`[userSync] Go->Node backfill: restored ${imported} user(s) into local auth DB`);
+    }
+    return { imported };
+}
+
 module.exports = {
+    findGoUserByUsername,
+    resolveGoUserId,
     mirrorCreate,
     mirrorUpdate,
     mirrorDelete,
+    backfillFromGo,
     backfillFromNode,
 };

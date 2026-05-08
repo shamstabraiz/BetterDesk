@@ -29,6 +29,27 @@ async function goApiProxy(req, res, method, path, body) {
     }
 }
 
+async function resolveGoUserIdOrRespond(req, res) {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId) || userId <= 0) {
+        res.status(400).json({ success: false, error: 'Invalid user ID' });
+        return null;
+    }
+
+    const localUser = await db.getUserById(userId);
+    if (!localUser) {
+        res.status(404).json({ success: false, error: req.t('users.not_found') });
+        return null;
+    }
+
+    const goUserId = await userSync.resolveGoUserId(userId);
+    if (!goUserId) {
+        res.status(502).json({ success: false, error: 'User is not synchronized with the Go server' });
+        return null;
+    }
+    return goUserId;
+}
+
 /**
  * GET /users - Users management page (admin only)
  */
@@ -44,6 +65,7 @@ router.get('/users', requireAuth, requirePermission('user.view'), (req, res) => 
  */
 router.get('/api/users', requireAuth, requirePermission('user.view'), async (req, res) => {
     try {
+        await userSync.backfillFromGo();
         const users = await db.getAllUsers();
         
         // Remove sensitive data
@@ -332,15 +354,29 @@ router.post('/api/users/:id/reset-password', requireAuth, requirePermission('use
 /**
  * GET /api/users/:id/organizations - Get organizations a user belongs to
  */
-router.get('/api/users/:id/organizations', requireAuth, requirePermission('user.view'), (req, res) => {
-    goApiProxy(req, res, 'get', `/users/${req.params.id}/organizations`);
+router.get('/api/users/:id/organizations', requireAuth, requirePermission('user.view'), async (req, res) => {
+    try {
+        const goUserId = await resolveGoUserIdOrRespond(req, res);
+        if (!goUserId) return;
+        goApiProxy(req, res, 'get', `/users/${goUserId}/organizations`);
+    } catch (err) {
+        console.error('Resolve user organizations error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
 });
 
 /**
  * POST /api/users/:id/organizations - Assign user to an organization
  */
-router.post('/api/users/:id/organizations', requireAuth, requirePermission('org.manage_users'), (req, res) => {
-    goApiProxy(req, res, 'post', `/users/${req.params.id}/organizations`, req.body);
+router.post('/api/users/:id/organizations', requireAuth, requirePermission('org.manage_users'), async (req, res) => {
+    try {
+        const goUserId = await resolveGoUserIdOrRespond(req, res);
+        if (!goUserId) return;
+        goApiProxy(req, res, 'post', `/users/${goUserId}/organizations`, req.body);
+    } catch (err) {
+        console.error('Assign user organization error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
 });
 
 module.exports = router;
