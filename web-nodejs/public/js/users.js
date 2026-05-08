@@ -399,8 +399,8 @@
         }
         
         // Filter out orgs user is already in
-        const userOrgIds = new Set(userOrgs.map(o => o.org_id));
-        const availableOrgs = allOrgs.filter(o => !userOrgIds.has(o.id));
+        const userOrgIds = new Set(userOrgs.map(o => String(o.org_id)));
+        const availableOrgs = allOrgs.filter(o => !userOrgIds.has(String(o.id)));
         
         const orgsListHtml = userOrgs.length > 0 
             ? userOrgs.map(org => `
@@ -422,7 +422,7 @@
                 <div class="add-org-row">
                     <select id="add-org-select" class="form-input">
                         <option value="">${_('policies.select_org_placeholder')}</option>
-                        ${availableOrgs.map(o => `<option value="${o.id}">${Utils.escapeHtml(o.name)}</option>`).join('')}
+                        ${availableOrgs.map(o => `<option value="${Utils.escapeHtml(String(o.id))}">${Utils.escapeHtml(o.name)}</option>`).join('')}
                     </select>
                     <select id="add-org-role" class="form-input" style="width: 120px;">
                         <option value="user">User</option>
@@ -481,7 +481,7 @@
                     try {
                         await Utils.api(`/api/users/${userId}/organizations`, {
                             method: 'POST',
-                            body: { org_id: parseInt(orgId), role }
+                            body: { org_id: orgId, role }
                         });
                         Notifications.success(_('organizations.user_linked'));
                         Modal.close();
