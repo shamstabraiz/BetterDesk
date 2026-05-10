@@ -8,8 +8,8 @@
 #   docker compose up -d
 #
 # Web Console: http://localhost:5000
-# Default credentials shown on first startup in logs:
-#   docker compose logs console | grep -i password
+# Default credentials are written to the shared credentials file:
+#   docker compose exec console sh -c 'cat /opt/rustdesk/.admin_credentials 2>/dev/null || cat /app/data/.admin_credentials'
 #
 # TROUBLESHOOTING: If you get "denied" or "pull access denied" error,
 # images may not be published yet. Build from source instead:

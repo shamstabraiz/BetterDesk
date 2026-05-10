@@ -129,27 +129,33 @@
         const row = tableBody?.querySelector(`tr[data-id="${deviceId}"]`);
         if (!row) return;
 
+        const normalizedStatus = String(status || '').toLowerCase();
+        const statusClassName = ['online', 'offline', 'degraded', 'critical'].includes(normalizedStatus)
+            ? normalizedStatus
+            : 'offline';
+        const statusText = _('status.' + statusClassName);
+        const statusLabel = statusText === 'status.' + statusClassName ? statusClassName : statusText;
+
         const dot = row.querySelector('.device-status-dot');
         if (dot) {
             dot.className = 'device-status-dot';
-            if (status === 'online' || status === 'ONLINE') {
-                dot.classList.add('online');
-                dot.title = 'Online';
-            } else if (status === 'offline' || status === 'OFFLINE') {
-                dot.classList.add('offline');
-                dot.title = 'Offline';
-            } else {
-                dot.classList.add(status.toLowerCase());
-                dot.title = status;
-            }
+            dot.classList.add(statusClassName);
+            dot.title = statusLabel;
+        }
+
+        const badge = row.querySelector('[data-column="status"] .status-badge');
+        if (badge) {
+            badge.className = `status-badge ${statusClassName}`;
+            badge.innerHTML = `<span class="status-dot"></span>${statusLabel}`;
         }
 
         // Also update the device in our local state
-        const dev = allDevices.find(d => d.id === deviceId);
+        const dev = devices.find(d => d.id === deviceId);
         if (dev) {
             dev.status = status;
-            dev.live_status = status;
-            dev.live_online = (status === 'online' || status === 'ONLINE');
+            dev.live_status = statusClassName;
+            dev.live_online = statusClassName === 'online';
+            dev.online = statusClassName === 'online';
         }
     }
 

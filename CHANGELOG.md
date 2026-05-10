@@ -8,9 +8,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased] — Security hardening (2026-04-26)
 
 ### Added
+- **Czech console translation completed** — `web-nodejs/lang/cs.json` now contains Czech UI text instead of the previous English fallback content and has the correct `meta.lang` value. Community contribution by [Karel Lowprize K](https://github.com/lowprize) ([PR #133](https://github.com/UNITRONIX/BetterDesk/pull/133)).
 - **RustDesk PRO group endpoint stubs** — `betterdesk-server/api/server.go` now exposes `GET /api/group`, `GET|POST /api/group/get`, and `GET /api/peers/list` returning the `{total, data, msg}` envelope expected by RustDesk Flutter clients. Without these endpoints the Flutter UI aborted device-list loading and never fell back to address-book mode. Idea credit: [progloto](https://github.com/progloto) ([PR #81](https://github.com/UNITRONIX/BetterDesk/pull/81)).
 - **Catch-all 404 logging** — Both `betterdesk-server/api/server.go` (Go API) and `web-nodejs/server.js` (RustDesk-compatible API + main panel) now log unmatched routes with method, path, client IP, and User-Agent. Makes missing client-compatibility endpoints easy to spot during deployments. Diagnostics suggestion credit: [progloto](https://github.com/progloto) ([PR #81](https://github.com/UNITRONIX/BetterDesk/pull/81)).
 - **Defensive list parsing in panel** — `web-nodejs/services/betterdeskApi.js` and `web-nodejs/public/js/devices.js` already accepted both `[…]` and `{ peers: […] }` shapes; this stays unchanged so admin UI works regardless of which endpoint envelope a future RustDesk version returns.
+
+### Changed
+- **Docker quick-start admin credential lookup** — README and `docker-compose.quick.yml` now point users to the secure `.admin_credentials` file shared with the console container instead of grepping logs that do not reliably contain the generated password. Documentation suggestion by [Karel Lowprize K](https://github.com/lowprize) ([PR #134](https://github.com/UNITRONIX/BetterDesk/pull/134)).
+
+### Fixed
+- **Live device-status updates on the Devices page** — The WebSocket status handler now updates the current device state array and visible status badge without referencing a stale `allDevices` variable. This was found while reviewing Rafael Monteiro's heartbeat/status contribution ([PR #35](https://github.com/UNITRONIX/BetterDesk/pull/35)).
 
 ### Security
 - **Brute-force protection on RustDesk client API** — `web-nodejs/routes/rustdesk-api.routes.js` now `await`s `authService.checkBruteForce(...)`. Previously the async result was treated as truthy/undefined, making the lockout effectively unenforceable on the RustDesk-compatible login route. (Audit finding #1, High)

@@ -550,7 +550,7 @@ curl -fsSL https://raw.githubusercontent.com/UNITRONIX/Rustdesk-FreeConsole/main
 docker compose up -d
 
 # Get admin password
-docker compose logs console 2>&1 | grep -i "Admin password"
+docker compose exec console sh -c 'cat /opt/rustdesk/.admin_credentials 2>/dev/null || cat /app/data/.admin_credentials'
 ```
 
 Open http://localhost:5000 — done in 30 seconds! See [DOCKER_QUICKSTART.md](docs/docker/DOCKER_QUICKSTART.md) for more options.
