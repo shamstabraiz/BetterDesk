@@ -383,15 +383,27 @@
     async function showOrganizationsModal(userId, username) {
         let userOrgs = [];
         let allOrgs = [];
+
+        const normalizeOrg = (org) => {
+            const id = String(org.org_id || org.id || org.organization_id || '');
+            return {
+                ...org,
+                id,
+                org_id: id,
+                name: org.name || org.org_name || (id ? 'Org #' + id : ''),
+                org_name: org.org_name || org.name || (id ? 'Org #' + id : ''),
+                role: org.role || ''
+            };
+        };
         
         try {
             // Fetch user's organizations
             const orgsResponse = await Utils.api(`/api/users/${userId}/organizations`);
-            userOrgs = orgsResponse.organizations || [];
+            userOrgs = (orgsResponse.organizations || []).map(normalizeOrg).filter(o => o.id);
             
             // Fetch all organizations for adding
             const allOrgsResponse = await Utils.api('/api/panel/org');
-            allOrgs = allOrgsResponse.organizations || [];
+            allOrgs = (allOrgsResponse.organizations || []).map(normalizeOrg).filter(o => o.id);
         } catch (error) {
             console.error('Failed to load organizations:', error);
             Notifications.error(_('errors.load_orgs_failed'));
@@ -399,18 +411,18 @@
         }
         
         // Filter out orgs user is already in
-        const userOrgIds = new Set(userOrgs.map(o => String(o.org_id)));
+        const userOrgIds = new Set(userOrgs.map(o => o.id));
         const availableOrgs = allOrgs.filter(o => !userOrgIds.has(String(o.id)));
         
         const orgsListHtml = userOrgs.length > 0 
             ? userOrgs.map(org => `
-                <div class="org-assignment-item" data-org-id="${org.org_id}">
+                <div class="org-assignment-item" data-org-id="${Utils.escapeHtml(org.id)}">
                     <div class="org-info">
                         <span class="material-icons">business</span>
-                        <span class="org-name">${Utils.escapeHtml(org.org_name || org.name || 'Org #' + org.org_id)}</span>
-                        <span class="role-badge ${org.role}">${_(org.role)}</span>
+                        <span class="org-name">${Utils.escapeHtml(org.org_name)}</span>
+                        ${org.role ? `<span class="role-badge ${Utils.escapeHtml(org.role)}">${_('organizations.role_' + org.role)}</span>` : ''}
                     </div>
-                    <button class="action-btn danger remove-org-btn" data-org-id="${org.org_id}" title="${_('actions.remove')}">
+                    <button class="action-btn danger remove-org-btn" data-org-id="${Utils.escapeHtml(org.id)}" title="${_('actions.remove')}">
                         <span class="material-icons">remove_circle</span>
                     </button>
                 </div>

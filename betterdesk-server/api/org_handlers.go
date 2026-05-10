@@ -1111,8 +1111,38 @@ func (s *Server) handleListUserOrganizations(w http.ResponseWriter, r *http.Requ
 		orgs = []*db.Organization{}
 	}
 
+	type userOrgView struct {
+		ID        string    `json:"id"`
+		OrgID     string    `json:"org_id"`
+		Name      string    `json:"name"`
+		OrgName   string    `json:"org_name"`
+		Slug      string    `json:"slug"`
+		LogoURL   string    `json:"logo_url,omitempty"`
+		Settings  string    `json:"settings,omitempty"`
+		Role      string    `json:"role,omitempty"`
+		CreatedAt time.Time `json:"created_at"`
+	}
+
+	views := make([]userOrgView, 0, len(orgs))
+	for _, org := range orgs {
+		view := userOrgView{
+			ID:        org.ID,
+			OrgID:     org.ID,
+			Name:      org.Name,
+			OrgName:   org.Name,
+			Slug:      org.Slug,
+			LogoURL:   org.LogoURL,
+			Settings:  org.Settings,
+			CreatedAt: org.CreatedAt,
+		}
+		if membership, err := s.db.GetOrgUserByServerUserID(org.ID, userID); err == nil && membership != nil {
+			view.Role = membership.Role
+		}
+		views = append(views, view)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"organizations": orgs})
+	json.NewEncoder(w).Encode(map[string]interface{}{"organizations": views})
 }
 
 // POST /api/users/{id}/organizations
