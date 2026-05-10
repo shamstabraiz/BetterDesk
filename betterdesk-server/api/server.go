@@ -689,6 +689,12 @@ func (s *Server) handleDeletePeer(w http.ResponseWriter, r *http.Request) {
 		writeInternalError(w, err, "DeletePeer")
 		return
 	}
+	if revoke && !hard {
+		if err := s.db.BanPeer(id, "revoked via panel"); err != nil {
+			writeInternalError(w, err, "RevokePeer")
+			return
+		}
+	}
 
 	// Remove from memory (closes TCP/WS connections — Phase 3.9).
 	s.peers.Remove(id)
@@ -714,6 +720,9 @@ func (s *Server) handleDeletePeer(w http.ResponseWriter, r *http.Request) {
 				s.db.HardDeletePeer(lid)
 			} else {
 				s.db.DeletePeer(lid)
+				if revoke {
+					s.db.BanPeer(lid, "revoked via cascade")
+				}
 			}
 			s.peers.Remove(lid)
 			if revoke && s.blocklist != nil {

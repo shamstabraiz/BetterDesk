@@ -166,6 +166,41 @@ func TestSoftDelete(t *testing.T) {
 	}
 }
 
+func TestUpsertRestoresSoftDeletedPeer(t *testing.T) {
+	db := newTestDB(t)
+
+	if err := db.UpsertPeer(&Peer{ID: "RESTORE1", Status: "ONLINE", IP: "10.0.0.1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.DeletePeer("RESTORE1"); err != nil {
+		t.Fatal(err)
+	}
+	if deleted, err := db.IsPeerSoftDeleted("RESTORE1"); err != nil || !deleted {
+		t.Fatalf("peer should be soft-deleted, deleted=%v err=%v", deleted, err)
+	}
+
+	if err := db.UpsertPeer(&Peer{ID: "RESTORE1", Status: "ONLINE", IP: "10.0.0.2"}); err != nil {
+		t.Fatal(err)
+	}
+
+	peer, err := db.GetPeer("RESTORE1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if peer == nil {
+		t.Fatal("restored peer should be visible")
+	}
+	if peer.SoftDeleted {
+		t.Error("restored peer should not remain soft-deleted")
+	}
+	if peer.DeletedAt != nil {
+		t.Error("restored peer should clear deleted_at")
+	}
+	if peer.IP != "10.0.0.2" {
+		t.Errorf("restored peer IP = %q, want 10.0.0.2", peer.IP)
+	}
+}
+
 func TestBanSystem(t *testing.T) {
 	db := newTestDB(t)
 

@@ -181,8 +181,12 @@ func (s *Server) handleRegisterPeer(msg *pb.RegisterPeer, raddr *net.UDPAddr) {
 		return
 	}
 
-	// NEW PEER — Dual Key System enrollment check
-	if !s.checkEnrollmentPermission(id, raddr.IP.String()) {
+	softDeleted, _ := s.db.IsPeerSoftDeleted(id)
+
+	// NEW PEER — Dual Key System enrollment check. A soft-deleted peer is a
+	// previously known device, so allow it to re-register unless it was revoked
+	// through the blocklist or persistent ban marker.
+	if !softDeleted && !s.checkEnrollmentPermission(id, raddr.IP.String()) {
 		log.Printf("[signal] Rejected new peer %s from %s (enrollment policy)", id, raddr.IP)
 		return
 	}
@@ -191,12 +195,6 @@ func (s *Server) handleRegisterPeer(msg *pb.RegisterPeer, raddr *net.UDPAddr) {
 	// map after ban but trying to re-register)
 	if banned, _ := s.db.IsPeerBanned(id); banned {
 		log.Printf("[signal] Rejected banned peer registration: %s from %s", id, raddr.IP)
-		return
-	}
-
-	// Check if this peer was soft-deleted — do not allow re-registration
-	if deleted, _ := s.db.IsPeerSoftDeleted(id); deleted {
-		log.Printf("[signal] Rejected soft-deleted peer registration: %s from %s", id, raddr.IP)
 		return
 	}
 
@@ -301,12 +299,13 @@ func (s *Server) processRegisterPk(msg *pb.RegisterPk, addrStr string) *pb.Rende
 	// RegisterPk can be the first persistence point for stock RustDesk clients.
 	// Enforce enrollment before creating a new peer row, otherwise managed/locked
 	// mode can be bypassed by sending PK registration without a prior heartbeat.
+	softDeleted, _ := s.db.IsPeerSoftDeleted(id)
 	existingPeer, err := s.db.GetPeer(id)
 	if err != nil {
 		log.Printf("[signal] Failed to check peer %s before RegisterPk enrollment: %v", id, err)
 		return registerPkResponse(pb.RegisterPkResponse_SERVER_ERROR)
 	}
-	if existingPeer == nil && !s.checkEnrollmentPermission(id, clientHost) {
+	if existingPeer == nil && !softDeleted && !s.checkEnrollmentPermission(id, clientHost) {
 		log.Printf("[signal] Rejected new peer PK registration: %s from %s (enrollment policy)", id, clientHost)
 		s.peers.Remove(id)
 		return registerPkResponse(pb.RegisterPkResponse_NOT_SUPPORT)
@@ -316,12 +315,6 @@ func (s *Server) processRegisterPk(msg *pb.RegisterPk, addrStr string) *pb.Rende
 	banned, _ := s.db.IsPeerBanned(id)
 	if banned {
 		log.Printf("[signal] Rejected banned peer: %s", id)
-		return registerPkResponse(pb.RegisterPkResponse_NOT_SUPPORT)
-	}
-
-	// Check soft-deleted status — do not allow re-registration
-	if deleted, _ := s.db.IsPeerSoftDeleted(id); deleted {
-		log.Printf("[signal] Rejected soft-deleted peer PK registration: %s", id)
 		return registerPkResponse(pb.RegisterPkResponse_NOT_SUPPORT)
 	}
 

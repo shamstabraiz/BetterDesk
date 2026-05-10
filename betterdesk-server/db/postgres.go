@@ -441,7 +441,9 @@ func (pg *PostgresDB) UpsertPeer(p *Peer) error {
 			disabled      = EXCLUDED.disabled,
 			note          = COALESCE(NULLIF(EXCLUDED.note, ''), peers.note),
 			tags          = COALESCE(NULLIF(EXCLUDED.tags, ''), peers.tags),
-			heartbeat_seq = EXCLUDED.heartbeat_seq`,
+			heartbeat_seq = EXCLUDED.heartbeat_seq,
+			soft_deleted  = FALSE,
+			deleted_at    = NULL`,
 		p.ID, p.UUID, p.PK, p.IP, p.User, p.Hostname, p.OS, p.Version,
 		p.Status, p.NATType, lastOnline, p.Disabled, p.Note, p.Tags, p.HeartbeatSeq,
 	)

@@ -260,7 +260,8 @@ func (s *Server) handleRegisterPeerWS(msg *pb.RegisterPeer, remoteAddr string) *
 		}
 	}
 
-	if !s.checkEnrollmentPermission(id, clientHost) {
+	softDeleted, _ := s.db.IsPeerSoftDeleted(id)
+	if !softDeleted && !s.checkEnrollmentPermission(id, clientHost) {
 		log.Printf("[signal] Rejected new WS peer %s from %s (enrollment policy)", id, clientHost)
 		return nil
 	}
@@ -269,11 +270,6 @@ func (s *Server) handleRegisterPeerWS(msg *pb.RegisterPeer, remoteAddr string) *
 	// map after ban but trying to re-register via WS)
 	if banned, _ := s.db.IsPeerBanned(id); banned {
 		log.Printf("[signal] Rejected banned WS peer registration: %s from %s", id, remoteAddr)
-		return nil
-	}
-
-	if deleted, _ := s.db.IsPeerSoftDeleted(id); deleted {
-		log.Printf("[signal] Rejected soft-deleted WS peer registration: %s from %s", id, remoteAddr)
 		return nil
 	}
 

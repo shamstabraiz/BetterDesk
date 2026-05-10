@@ -51,12 +51,6 @@ func (g *Gateway) handleRegister(ctx context.Context, dc *DeviceConn) error {
 		return fmt.Errorf("device is banned")
 	}
 
-	// Check if device is soft-deleted
-	deleted, _ := g.db.IsPeerSoftDeleted(dc.ID)
-	if deleted {
-		return fmt.Errorf("device has been deleted")
-	}
-
 	// Upsert the peer in the database
 	tags := strings.Join(rp.Manifest.Device.Tags, ",")
 	peer := &db.Peer{
