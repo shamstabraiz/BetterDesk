@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
+const addressBookSync = require('../services/rustdeskAddressBookSync');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
 /**
@@ -52,6 +53,37 @@ router.get('/api/devices', requireAuth, async (req, res) => {
         });
     } catch (err) {
         console.error('Get devices error:', err);
+        res.status(500).json({
+            success: false,
+            error: req.t('errors.server_error')
+        });
+    }
+});
+
+/**
+ * GET /api/tags - Get all visible device tags and folder-backed tags.
+ */
+router.get('/api/tags', requireAuth, requirePermission('device.view'), async (req, res) => {
+    try {
+        const devices = await serverBackend.getAllDevices({});
+        let folders = [];
+        let assignments = {};
+
+        try {
+            folders = await db.getAllFolders();
+            assignments = await db.getAllFolderAssignments();
+        } catch (err) {
+            console.warn('Get tags folder overlay failed:', err.message);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                tags: addressBookSync.collectVisibleTags(devices, folders, assignments)
+            }
+        });
+    } catch (err) {
+        console.error('Get tags error:', err);
         res.status(500).json({
             success: false,
             error: req.t('errors.server_error')
@@ -388,7 +420,7 @@ router.put('/api/devices/:id/tags', requireAuth, requirePermission('device.edit'
         }
 
         // BetterDesk backend: delegate to Go server
-        if (serverBackend.isBetterDesk()) {
+        if (await serverBackend.isBetterDesk()) {
             const result = await serverBackend.setPeerTags(id, cleaned);
             if (!result || !result.success) {
                 return res.status(400).json({

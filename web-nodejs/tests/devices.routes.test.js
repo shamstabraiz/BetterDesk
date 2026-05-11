@@ -12,6 +12,8 @@ jest.mock('../services/database', () => ({
     getLatestPeerMetric: jest.fn().mockResolvedValue(null),
     getPeerMetrics: jest.fn().mockResolvedValue([]),
     getDeviceGroupsForPeer: jest.fn().mockResolvedValue([]),
+    getAllFolders: jest.fn().mockResolvedValue([]),
+    getAllFolderAssignments: jest.fn().mockResolvedValue({}),
     cleanupDeletedPeerData: jest.fn().mockResolvedValue(undefined)
 }));
 
@@ -161,6 +163,23 @@ describe('Devices Routes', () => {
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
             expect(res.body.data.id).toBe('123456789');
+        });
+    });
+
+    describe('GET /api/tags', () => {
+        it('should return unique device tags and folder names', async () => {
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: '123456789', tags: ['Internal', 'Windows'], folder_id: 1 },
+                { id: '987654321', tags: 'External,Windows' }
+            ]);
+            db.getAllFolders.mockResolvedValue([{ id: 1, name: 'Servers' }]);
+            db.getAllFolderAssignments.mockResolvedValue({ '123456789': 1 });
+
+            const res = await request(app).get('/api/tags');
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data.tags).toEqual(['External', 'Internal', 'Servers', 'Windows']);
         });
     });
 

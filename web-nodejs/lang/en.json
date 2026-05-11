@@ -208,6 +208,7 @@
     "id_exists": "Device ID already exists",
     "no_selection": "No devices selected",
     "device_type": "Type",
+    "tags": "Tags",
     "filter_type_all": "All Types",
     "filter_type_rustdesk": "RustDesk",
     "filter_type_desktop": "Desktop",

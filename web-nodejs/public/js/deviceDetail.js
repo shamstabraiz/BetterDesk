@@ -33,6 +33,8 @@ const DeviceDetail = (function () {
     let device = null;
     let activeTab = 'overview';
     let refreshTimer = null;
+    let availableTags = [];
+    let availableTagsLoaded = false;
 
     // ──────────────────────────────────────────────────────────────────────
     // Public API
@@ -499,7 +501,10 @@ const DeviceDetail = (function () {
             </div>
             <div class="device-panel-tag-input-row">
                 <input type="text" class="device-panel-tag-input" id="dp-tag-input"
-                       placeholder="${_('device_detail.tag_placeholder')}" maxlength="50">
+                       placeholder="${_('device_detail.tag_placeholder')}" maxlength="50" list="dp-tag-suggestions">
+                <datalist id="dp-tag-suggestions">
+                    ${_tagSuggestionOptions(tags)}
+                </datalist>
                 <button class="device-panel-tag-add-btn" id="dp-tag-add-btn">
                     <span class="material-icons">add</span>${_('device_detail.add_tag')}
                 </button>
@@ -1058,6 +1063,8 @@ const DeviceDetail = (function () {
         const addBtn = panel.querySelector('#dp-tag-add-btn');
         const input = panel.querySelector('#dp-tag-input');
 
+        _loadTagSuggestions(panel);
+
         if (addBtn && input) {
             addBtn.addEventListener('click', function () { _addTag(input.value.trim()); });
             input.addEventListener('keydown', function (e) {
@@ -1094,6 +1101,9 @@ const DeviceDetail = (function () {
                 body: { tags: tags }
             });
             device.tags = tags;
+            availableTags = Array.from(new Set(availableTags.concat(tags))).sort(function (a, b) {
+                return a.localeCompare(b);
+            });
             _render();
             _switchTab('tags');
             _notifyChanged();
@@ -1101,6 +1111,37 @@ const DeviceDetail = (function () {
         } catch (err) {
             Notifications.error(err.message || _('errors.server_error'));
         }
+    }
+
+    function _tagSuggestionOptions(currentTags) {
+        const current = new Set(currentTags || []);
+        return (availableTags || [])
+            .filter(function (tag) { return tag && !current.has(tag); })
+            .map(function (tag) { return `<option value="${Utils.escapeHtml(tag)}"></option>`; })
+            .join('');
+    }
+
+    function _updateTagSuggestions(panel) {
+        const list = panel.querySelector('#dp-tag-suggestions');
+        if (!list || !device) return;
+        list.innerHTML = _tagSuggestionOptions(device.tags || []);
+    }
+
+    async function _loadTagSuggestions(panel) {
+        if (availableTagsLoaded) {
+            _updateTagSuggestions(panel);
+            return;
+        }
+
+        try {
+            const response = await Utils.api('/api/tags');
+            availableTags = response.tags || [];
+        } catch (_) {
+            availableTags = [];
+        }
+
+        availableTagsLoaded = true;
+        _updateTagSuggestions(panel);
     }
 
     // ── Notes ──

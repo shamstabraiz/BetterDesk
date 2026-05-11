@@ -38,6 +38,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const authService = require('../services/authService');
 const db = require('../services/database');
+const serverBackend = require('../services/serverBackend');
+const addressBookSync = require('../services/rustdeskAddressBookSync');
 const config = require('../config/config');
 
 // ==================== Constants ====================
@@ -152,6 +154,125 @@ function sanitizeStr(val, maxLen = MAX_STRING_LEN) {
  */
 function isValidDeviceId(id) {
     return typeof id === 'string' && id.length > 0 && id.length <= MAX_ID_LEN && /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
+function canSyncDeviceInventory(user) {
+    return user && user.role !== 'pro';
+}
+
+async function getConsoleDeviceContext(user) {
+    const context = {
+        devices: [],
+        folders: [],
+        assignments: {}
+    };
+
+    try {
+        context.folders = await db.getAllFolders();
+    } catch (err) {
+        console.warn('[API:AB] Failed to read panel folders:', err.message);
+    }
+
+    try {
+        context.assignments = await db.getAllFolderAssignments();
+    } catch (err) {
+        console.warn('[API:AB] Failed to read folder assignments:', err.message);
+    }
+
+    try {
+        context.devices = await serverBackend.getAllDevices({});
+        if (!canSyncDeviceInventory(user)) {
+            const allowedIds = new Set();
+            const legacy = await db.getAddressBook(user.id, 'legacy');
+            const personal = await db.getAddressBook(user.id, 'personal');
+            for (const row of [legacy, personal]) {
+                const parsed = addressBookSync.parseAddressBookData(row && row.data);
+                for (const peer of parsed.peers) {
+                    if (peer && peer.id) allowedIds.add(String(peer.id));
+                }
+            }
+            context.devices = context.devices.filter(device => allowedIds.has(String(device.id)));
+        }
+    } catch (err) {
+        console.warn('[API:AB] Failed to read panel devices:', err.message);
+    }
+
+    return context;
+}
+
+async function buildSyncedAddressBook(user, abType) {
+    const abRecord = await db.getAddressBook(user.id, abType);
+    const abData = (abRecord && abRecord.data) ? String(abRecord.data) : '{}';
+    const context = await getConsoleDeviceContext(user);
+
+    return addressBookSync.mergeAddressBookData(abData, {
+        ...context,
+        includeDevices: canSyncDeviceInventory(user)
+    });
+}
+
+async function getSyncedAddressBookTags(user) {
+    const context = await getConsoleDeviceContext(user);
+    let folders = context.folders;
+    if (!canSyncDeviceInventory(user)) {
+        const visibleFolderIds = new Set();
+        for (const device of context.devices) {
+            const folderId = context.assignments[String(device.id)] ?? device.folder_id;
+            if (folderId !== undefined && folderId !== null) visibleFolderIds.add(String(folderId));
+        }
+        folders = context.folders.filter(folder => visibleFolderIds.has(String(folder.id)));
+    }
+    const tags = addressBookSync.collectVisibleTags(context.devices, folders, context.assignments);
+
+    try {
+        for (const tag of await db.getAddressBookTags(user.id)) {
+            if (!tags.includes(tag)) tags.push(tag);
+        }
+    } catch (_) { /* non-critical */ }
+
+    return tags.sort((a, b) => a.localeCompare(b));
+}
+
+async function getRustDeskDeviceGroups() {
+    const groups = [];
+
+    try {
+        const deviceGroups = await db.getAllDeviceGroups();
+        for (const group of deviceGroups) {
+            groups.push({
+                guid: group.guid,
+                name: group.name,
+                note: group.note || '',
+                team_id: group.team_id || '',
+                member_count: group.member_count || 0
+            });
+        }
+    } catch (err) {
+        console.warn('[API:DEVICE-GROUP] Failed to read device groups:', err.message);
+    }
+
+    try {
+        const folders = await db.getAllFolders();
+        const assignments = await db.getAllFolderAssignments();
+        const counts = {};
+        for (const folderId of Object.values(assignments || {})) {
+            counts[folderId] = (counts[folderId] || 0) + 1;
+        }
+        for (const folder of folders) {
+            groups.push({
+                guid: `folder_${folder.id}`,
+                name: folder.name,
+                note: 'BetterDesk folder',
+                team_id: '',
+                member_count: counts[folder.id] || 0,
+                folder_id: folder.id
+            });
+        }
+    } catch (err) {
+        console.warn('[API:DEVICE-GROUP] Failed to read folders:', err.message);
+    }
+
+    return groups;
 }
 
 // ==================== Phase 0: Core Auth Endpoints ====================
@@ -395,8 +516,7 @@ router.get('/api/ab', async (req, res) => {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
     try {
-        const abRecord = await db.getAddressBook(user.id, 'legacy');
-        const abData = (abRecord && abRecord.data) ? String(abRecord.data) : '{}';
+        const abData = await buildSyncedAddressBook(user, 'legacy');
         return res.json({ data: abData, licensed_devices: 0 });
     } catch (err) {
         console.error('[API:AB] Error reading legacy address book:', err.message);
@@ -445,8 +565,7 @@ router.get('/api/ab/personal', async (req, res) => {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
     try {
-        const abRecord = await db.getAddressBook(user.id, 'personal');
-        const abData = (abRecord && abRecord.data) ? String(abRecord.data) : '{}';
+        const abData = await buildSyncedAddressBook(user, 'personal');
         return res.json({ data: abData });
     } catch (err) {
         console.error('[API:AB] Error reading personal address book:', err.message);
@@ -521,7 +640,7 @@ router.get('/api/ab/tags', async (req, res) => {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
     try {
-        const tags = await db.getAddressBookTags(user.id);
+        const tags = await getSyncedAddressBookTags(user);
         return res.json({ data: tags });
     } catch (err) {
         console.error('[API:AB] Error reading address book tags:', err.message);
@@ -596,6 +715,7 @@ router.get('/api/peers', async (req, res, next) => {
         // Merge devices with sysinfo
         const enrichedPeers = devices.map(device => {
             const si = sysinfoMap[device.id] || {};
+            const tags = addressBookSync.normalizeTags(device.tags);
             return {
                 id: device.id,
                 hostname: si.hostname || device.hostname || '',
@@ -613,7 +733,9 @@ router.get('/api/peers', async (req, res, next) => {
                 memory: si.memory_gb || 0,
                 os: si.os_full || '',
                 displays: si.displays || [],
-                folder_id: device.folder_id
+                tags,
+                folder_id: device.folder_id,
+                device_group_guid: device.folder_id ? `folder_${device.folder_id}` : ''
             };
         });
 
@@ -643,14 +765,15 @@ router.get('/api/device-group/accessible', requireAuth, async (req, res) => {
         if (req.authUser && req.authUser.role === 'pro') {
             return res.json({ data: [], total: 0 });
         }
-        const groups = await db.getAllDeviceGroups();
+        const groups = await getRustDeskDeviceGroups();
         return res.json({
             data: groups.map(g => ({
                 guid: g.guid,
                 name: g.name,
                 note: g.note || '',
                 team_id: g.team_id || '',
-                accessed_count: g.member_count || 0
+                accessed_count: g.member_count || 0,
+                folder_id: g.folder_id || null
             })),
             total: groups.length
         });
@@ -670,14 +793,15 @@ router.get('/api/device-group', requireAuth, async (req, res) => {
         if (req.authUser && req.authUser.role === 'pro') {
             return res.json({ data: [], total: 0 });
         }
-        const groups = await db.getAllDeviceGroups();
+        const groups = await getRustDeskDeviceGroups();
         return res.json({
             data: groups.map(g => ({
                 guid: g.guid,
                 name: g.name,
                 note: g.note || '',
                 team_id: g.team_id || '',
-                member_count: g.member_count || 0
+                member_count: g.member_count || 0,
+                folder_id: g.folder_id || null
             })),
             total: groups.length
         });

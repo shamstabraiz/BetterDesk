@@ -348,6 +348,34 @@ function loadSslCertificates() {
     }
 }
 
+function attachPlainHttpTlsHint(server, port) {
+    server.on('tlsClientError', (err, socket) => {
+        const message = String(err && err.message || '');
+        const looksLikePlainHttp = /wrong version number|http request|unknown protocol|packet length/i.test(message);
+        if (!looksLikePlainHttp || !socket || socket.destroyed) return;
+
+        const body = JSON.stringify({
+            error: `RustDesk Client API on port ${port} requires HTTPS. Use https://<server>:${port}.`
+        });
+        const response = [
+            'HTTP/1.1 400 Bad Request',
+            'Content-Type: application/json; charset=utf-8',
+            'Cache-Control: no-store',
+            'Connection: close',
+            `Content-Length: ${Buffer.byteLength(body)}`,
+            '',
+            body
+        ].join('\r\n');
+
+        try {
+            socket.end(response);
+        } catch (_) {
+            socket.destroy();
+        }
+        console.warn(`RustDesk API: rejected plain HTTP on HTTPS port ${port}`);
+    });
+}
+
 /**
  * Create HTTP redirect server (redirects all HTTP to HTTPS)
  */
@@ -613,6 +641,7 @@ function startRustDeskApiServer() {
     const sslOptions = loadSslCertificates();
     if (sslOptions) {
         apiServerInstance = https.createServer(sslOptions, apiApp);
+        attachPlainHttpTlsHint(apiServerInstance, config.apiPort);
         console.log(`  ║   API TLS:   Enabled (HTTPS on :${config.apiPort})`.padEnd(53) + '║');
     } else {
         if (config.sslCertPath || config.sslKeyPath) {

@@ -504,6 +504,43 @@ td.column-hidden {
     background: currentColor;
 }
 
+/* ==================== Table Cell: Tags ==================== */
+
+.device-tags {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 180px;
+    min-height: 22px;
+    overflow: hidden;
+}
+
+.device-tag-pill,
+.device-tag-more {
+    display: inline-flex;
+    align-items: center;
+    max-width: 78px;
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    background: var(--accent-blue-muted);
+    color: var(--accent-blue);
+    font-size: var(--font-size-xs);
+    line-height: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-tag-more {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.device-tags-empty {
+    color: var(--text-tertiary);
+}
+
 /* ==================== Table Cell: Kebab Menu ==================== */
 
 .col-actions {
@@ -923,7 +960,9 @@ td.column-hidden {
     .devices-table th[data-column="platform"],
     .devices-table td[data-column="platform"],
     .devices-table th[data-column="last_online"],
-    .devices-table td[data-column="last_online"] {
+    .devices-table td[data-column="last_online"],
+    .devices-table th[data-column="tags"],
+    .devices-table td[data-column="tags"] {
         display: none;
     }
 

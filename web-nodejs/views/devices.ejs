@@ -74,6 +74,10 @@
                             <input type="checkbox" data-column="status" checked>
                             <span>${_('devices.status')}</span>
                         </label>
+                        <label class="column-toggle">
+                            <input type="checkbox" data-column="tags" checked>
+                            <span>${_('devices.tags')}</span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -89,12 +93,13 @@
                             <th class="sortable" data-sort="platform" data-column="platform">${_('devices.platform')}</th>
                             <th class="sortable" data-sort="last_online" data-column="last_online">${_('devices.last_seen')}</th>
                             <th data-column="status">${_('devices.status')}</th>
+                            <th data-column="tags">${_('devices.tags')}</th>
                             <th class="col-actions" data-column="actions"></th>
                         </tr>
                     </thead>
                     <tbody id="devices-tbody">
                         <tr class="loading-row">
-                            <td colspan=\"7\" style=\"text-align: center; padding: 40px;\">
+                            <td colspan=\"8\" style=\"text-align: center; padding: 40px;\">
                                 <span class="skeleton skeleton-text" style="width: 200px;"></span>
                             </td>
                         </tr>

@@ -263,6 +263,34 @@
             Notifications.error(_('errors.load_devices_failed'));
         }
     }
+
+    function normalizeTags(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.map(String).map(t => t.trim()).filter(Boolean);
+        if (typeof value === 'string') {
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) return parsed.map(String).map(t => t.trim()).filter(Boolean);
+            } catch (_) {}
+            return value.split(',').map(t => t.trim()).filter(Boolean);
+        }
+        return [];
+    }
+
+    function renderTagsCell(device) {
+        const tags = normalizeTags(device.tags);
+        if (tags.length === 0) {
+            return `<span class="device-tags-empty">-</span>`;
+        }
+
+        const visible = tags.slice(0, 2);
+        const rest = tags.length - visible.length;
+        return `
+            <div class="device-tags" title="${Utils.escapeHtml(tags.join(', '))}">
+                ${visible.map(tag => `<span class="device-tag-pill">${Utils.escapeHtml(tag)}</span>`).join('')}
+                ${rest > 0 ? `<span class="device-tag-more">+${rest}</span>` : ''}
+            </div>`;
+    }
     
     /**
      * Apply current filters and render
@@ -388,6 +416,7 @@
                 <td data-column="status">
                     <span class="status-badge ${sc}"><span class="status-dot"></span>${statusLabel(device)}</span>
                 </td>
+                <td data-column="tags">${renderTagsCell(device)}</td>
                 <td data-column="actions">
                     <div class="kebab-wrapper">
                         <button class="kebab-btn" title="${_('devices.actions')}">

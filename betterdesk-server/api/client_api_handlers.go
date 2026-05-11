@@ -528,6 +528,7 @@ func (s *Server) mergeAdminTagsIntoAB(data string) string {
 // GET /api/ab/tags
 func (s *Server) handleClientAddressBookTags(w http.ResponseWriter, r *http.Request) {
 	username := getUsernameFromCtx(r)
+	role := getRoleFromCtx(r)
 	if username == "" {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Not authenticated"})
 		return
@@ -539,14 +540,32 @@ func (s *Server) handleClientAddressBookTags(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusOK, map[string]any{"data": []string{}})
 		return
 	}
+	data = s.mergeAdminTagsIntoAB(data)
 
 	// Extract tags from the address book JSON
 	var ab struct {
 		Tags []string `json:"tags"`
 	}
 	if err := json.Unmarshal([]byte(data), &ab); err != nil || ab.Tags == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"data": []string{}})
-		return
+		ab.Tags = []string{}
+	}
+
+	if auth.RoleHasPermission(role, auth.PermDeviceView) {
+		if peers, err := s.db.ListPeers(false); err == nil {
+			seen := make(map[string]bool, len(ab.Tags))
+			for _, tag := range ab.Tags {
+				seen[tag] = true
+			}
+			for _, p := range peers {
+				for _, tag := range strings.Split(p.Tags, ",") {
+					tag = strings.TrimSpace(tag)
+					if tag != "" && !seen[tag] {
+						ab.Tags = append(ab.Tags, tag)
+						seen[tag] = true
+					}
+				}
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": ab.Tags})
 }
