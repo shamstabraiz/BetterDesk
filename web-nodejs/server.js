@@ -376,6 +376,13 @@ function attachPlainHttpTlsHint(server, port) {
     });
 }
 
+function shouldUseRustDeskApiTls(sslOptions) {
+    const mode = String(config.rustdeskApiTls || 'auto').toLowerCase();
+    if (mode === 'false' || mode === '0' || mode === 'off' || mode === 'http') return false;
+    if (mode === 'true' || mode === '1' || mode === 'on' || mode === 'https') return !!sslOptions;
+    return !!sslOptions;
+}
+
 /**
  * Create HTTP redirect server (redirects all HTTP to HTTPS)
  */
@@ -634,18 +641,23 @@ function startRustDeskApiServer() {
         res.status(500).json({ error: 'Server error' });
     });
 
-    // Start HTTP or HTTPS server for RustDesk Client API
-    // Port 21121 is internet-facing — always use TLS if valid certs are available,
-    // regardless of HTTPS_ENABLED (which controls the admin panel port).
+    // Start HTTP or HTTPS server for RustDesk Client API. By default TLS is used
+    // when certs are available, but self-signed deployments may set
+    // RUSTDESK_API_TLS=false because stock RustDesk clients cannot trust a
+    // private CA here. Keep that exception explicit: it affects only :21121.
     let apiServerInstance;
     const sslOptions = loadSslCertificates();
-    if (sslOptions) {
+    const useApiTls = shouldUseRustDeskApiTls(sslOptions);
+    if (useApiTls) {
         apiServerInstance = https.createServer(sslOptions, apiApp);
         attachPlainHttpTlsHint(apiServerInstance, config.apiPort);
         console.log(`  ║   API TLS:   Enabled (HTTPS on :${config.apiPort})`.padEnd(53) + '║');
     } else {
-        if (config.sslCertPath || config.sslKeyPath) {
+        if ((config.sslCertPath || config.sslKeyPath) && config.rustdeskApiTls !== 'false') {
             console.warn(`WARNING: SSL certs configured but invalid — API running insecure HTTP on :${config.apiPort}`);
+        }
+        if (sslOptions && String(config.rustdeskApiTls || '').toLowerCase() === 'false') {
+            console.warn(`WARNING: RUSTDESK_API_TLS=false — RustDesk Client API is HTTP on :${config.apiPort}. Use only behind a trusted network/VPN or with a low-privilege account.`);
         }
         apiServerInstance = http.createServer(apiApp);
     }
@@ -682,10 +694,10 @@ function startRustDeskApiServer() {
  */
 function printStartupBanner(protocol, port) {
     const sslStatus = config.httpsEnabled ? '🔒 HTTPS' : '🔓 HTTP';
-    // API port 21121 auto-enables TLS if valid certs exist (regardless of HTTPS_ENABLED)
+    // API port 21121 can use a separate TLS mode for RustDesk client compatibility.
     const apiHasCerts = config.sslCertPath && config.sslKeyPath && 
                         fs.existsSync(config.sslCertPath) && fs.existsSync(config.sslKeyPath);
-    const apiProtocol = apiHasCerts ? 'HTTPS' : 'HTTP';
+    const apiProtocol = shouldUseRustDeskApiTls(apiHasCerts ? {} : null) ? 'HTTPS' : 'HTTP';
     const apiStatus = config.apiEnabled ? `✅ Port ${config.apiPort} (${apiProtocol})` : '❌ Disabled';
     const panelUrl = `${protocol}://${config.host}:${port}`;
     console.log('');

@@ -1138,6 +1138,7 @@ HBBS_API_URL=http://localhost:$script:API_PORT/api
 
 # RustDesk Client API listener
 API_HOST=0.0.0.0
+RUSTDESK_API_TLS=auto
 
 # Server backend (betterdesk = Go server, rustdesk = legacy Rust)
 SERVER_BACKEND=betterdesk
@@ -1696,6 +1697,7 @@ function Setup-Services {
             $envExtra += "HTTPS_ENABLED=true"
             $envExtra += "SSL_CERT_PATH=$certPath"
             $envExtra += "SSL_KEY_PATH=$keyPath"
+            $envExtra += "RUSTDESK_API_TLS=$(if ($tlsIsSelfSigned) { 'false' } else { 'auto' })"
         }
         # Trust self-signed cert for localhost API communication
         if ($tlsIsSelfSigned -and (Test-Path $certPath)) {
@@ -3957,6 +3959,11 @@ function Do-ConfigureSSL {
                 $envContent = $envContent -replace 'SSL_CA_PATH=.*', "SSL_CA_PATH=$caPath"
             }
             $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=true'
+            if ($envContent -match 'RUSTDESK_API_TLS=') {
+                $envContent = $envContent -replace 'RUSTDESK_API_TLS=.*', 'RUSTDESK_API_TLS=true'
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nRUSTDESK_API_TLS=true`n"
+            }
             
             Set-Content $envFile -Value $envContent -NoNewline
             Print-Success "Custom SSL certificate configured"
@@ -4038,6 +4045,11 @@ function Do-ConfigureSSL {
             $envContent = $envContent -replace 'SSL_CERT_PATH=.*', "SSL_CERT_PATH=$certPath"
             $envContent = $envContent -replace 'SSL_KEY_PATH=.*', "SSL_KEY_PATH=$keyPath"
             $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=true'
+            if ($envContent -match 'RUSTDESK_API_TLS=') {
+                $envContent = $envContent -replace 'RUSTDESK_API_TLS=.*', 'RUSTDESK_API_TLS=false'
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nRUSTDESK_API_TLS=false`n"
+            }
             
             # Configure NODE_EXTRA_CA_CERTS for self-signed
             if ($envContent -match 'NODE_EXTRA_CA_CERTS=') {
@@ -4081,6 +4093,11 @@ function Do-ConfigureSSL {
             $envContent = $envContent -replace 'SSL_CERT_PATH=.*', 'SSL_CERT_PATH='
             $envContent = $envContent -replace 'SSL_KEY_PATH=.*', 'SSL_KEY_PATH='
             $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=false'
+            if ($envContent -match 'RUSTDESK_API_TLS=') {
+                $envContent = $envContent -replace 'RUSTDESK_API_TLS=.*', 'RUSTDESK_API_TLS=false'
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nRUSTDESK_API_TLS=false`n"
+            }
             
             # Remove TLS args from Go server
             $nssm = Get-Command nssm -ErrorAction SilentlyContinue
@@ -4178,6 +4195,11 @@ function Do-ConfigureSSL {
             $envContent = $envContent -replace 'SSL_CERT_PATH=.*', "SSL_CERT_PATH=$certPath"
             $envContent = $envContent -replace 'SSL_KEY_PATH=.*', "SSL_KEY_PATH=$keyPath"
             $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=true'
+            if ($envContent -match 'RUSTDESK_API_TLS=') {
+                $envContent = $envContent -replace 'RUSTDESK_API_TLS=.*', 'RUSTDESK_API_TLS=true'
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nRUSTDESK_API_TLS=true`n"
+            }
             
             # Set ALLOW_SELF_SIGNED_CERTS
             if ($envContent -match 'ALLOW_SELF_SIGNED_CERTS=') {
@@ -4265,8 +4287,15 @@ function Do-ConfigureSSL {
             $svcName = $script:CONSOLE_SERVICE
             try {
                 $currentEnv = & nssm get $svcName AppEnvironmentExtra 2>$null
-                if ($currentEnv -and $currentEnv -notmatch 'ALLOW_SELF_SIGNED_CERTS=') {
-                    $currentEnv = "$currentEnv`nALLOW_SELF_SIGNED_CERTS=true"
+                if ($currentEnv) {
+                    if ($currentEnv -notmatch 'ALLOW_SELF_SIGNED_CERTS=') {
+                        $currentEnv = "$currentEnv`nALLOW_SELF_SIGNED_CERTS=true"
+                    }
+                    if ($currentEnv -match 'RUSTDESK_API_TLS=') {
+                        $currentEnv = $currentEnv -replace 'RUSTDESK_API_TLS=.*', 'RUSTDESK_API_TLS=true'
+                    } else {
+                        $currentEnv = "$currentEnv`nRUSTDESK_API_TLS=true"
+                    }
                     & nssm set $svcName AppEnvironmentExtra $currentEnv 2>$null
                 }
             } catch { }
@@ -4298,6 +4327,12 @@ function Do-ConfigureSSL {
                     # Ensure API URLs stay HTTP in NSSM service
                     $currentEnv = $currentEnv -replace 'HBBS_API_URL=https://localhost', 'HBBS_API_URL=http://localhost'
                     $currentEnv = $currentEnv -replace 'BETTERDESK_API_URL=https://localhost', 'BETTERDESK_API_URL=http://localhost'
+                    $apiTlsMode = if ($sslChoice -eq "3") { 'false' } else { 'true' }
+                    if ($currentEnv -match 'RUSTDESK_API_TLS=') {
+                        $currentEnv = $currentEnv -replace 'RUSTDESK_API_TLS=.*', "RUSTDESK_API_TLS=$apiTlsMode"
+                    } else {
+                        $currentEnv = "$currentEnv`nRUSTDESK_API_TLS=$apiTlsMode"
+                    }
                     & nssm set $svcName AppEnvironmentExtra $currentEnv 2>$null
                 }
             } catch { }
@@ -4326,6 +4361,19 @@ function Do-ConfigureSSL {
         # Remove ALL TLS args from Go server service
         $nssm = Get-Command nssm -ErrorAction SilentlyContinue
         if ($nssm) {
+            $svcName = $script:CONSOLE_SERVICE
+            try {
+                $currentEnv = & nssm get $svcName AppEnvironmentExtra 2>$null
+                if ($currentEnv) {
+                    if ($currentEnv -match 'RUSTDESK_API_TLS=') {
+                        $currentEnv = $currentEnv -replace 'RUSTDESK_API_TLS=.*', 'RUSTDESK_API_TLS=false'
+                    } else {
+                        $currentEnv = "$currentEnv`nRUSTDESK_API_TLS=false"
+                    }
+                    & nssm set $svcName AppEnvironmentExtra $currentEnv 2>$null
+                }
+            } catch { }
+
             $goSvcName = $script:SERVER_SERVICE
             try {
                 $goArgs = & nssm get $goSvcName AppParameters 2>$null

@@ -126,6 +126,7 @@ module.exports = {
     apiPort: parseInt(process.env.API_PORT, 10) || 21121,
     apiHost: process.env.API_HOST || '127.0.0.1',
     apiEnabled: (process.env.API_ENABLED || 'true').toLowerCase() !== 'false',
+    rustdeskApiTls: (process.env.RUSTDESK_API_TLS || 'auto').toLowerCase(),
 
     // Issue #104 mitigation:
     // Stock RustDesk OSS clients (e.g. v1.4.6) do not implement the

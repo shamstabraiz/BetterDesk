@@ -1560,6 +1560,7 @@ HBBS_API_URL=http://localhost:$API_PORT/api
 
 # RustDesk Client API listener
 API_HOST=0.0.0.0
+RUSTDESK_API_TLS=auto
 
 # Server backend (betterdesk = Go server, rustdesk = legacy Rust)
 SERVER_BACKEND=betterdesk
@@ -2025,11 +2026,15 @@ Environment=DB_PATH=$RUSTDESK_PATH/db_v2.sqlite3"
         local api_scheme="http"
         local tls_env=""
         if [ -n "$tls_arg" ]; then
-            # Enable HTTPS on Node.js console (admin panel port 5443 + Client API port 21121)
-            # so that RustDesk desktop clients can connect via HTTPS to port 21121.
+                # Enable HTTPS on Node.js console (admin panel port 5443). The
+                # RustDesk Client API port 21121 has its own TLS switch because
+                # stock clients cannot trust self-signed certs here.
+                local rustdesk_api_tls="auto"
+                [ "$tls_is_selfsigned" = true ] && rustdesk_api_tls="false"
             tls_env="Environment=HTTPS_ENABLED=true
 Environment=SSL_CERT_PATH=$ssl_dir/betterdesk.crt
-Environment=SSL_KEY_PATH=$ssl_dir/betterdesk.key"
+        Environment=SSL_KEY_PATH=$ssl_dir/betterdesk.key
+        Environment=RUSTDESK_API_TLS=$rustdesk_api_tls"
         fi
         
         # Detect node binary path dynamically (NodeSource, nvm, system, etc.)
@@ -3974,6 +3979,11 @@ do_configure_ssl() {
             sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$cert_path|" "$CONSOLE_PATH/.env"
             sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$key_path|" "$CONSOLE_PATH/.env"
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=true|" "$CONSOLE_PATH/.env"
+            if grep -q '^RUSTDESK_API_TLS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
+                sed -i "s|^RUSTDESK_API_TLS=.*|RUSTDESK_API_TLS=true|" "$CONSOLE_PATH/.env"
+            else
+                echo "RUSTDESK_API_TLS=true" >> "$CONSOLE_PATH/.env"
+            fi
             
             # Setup auto-renewal
             if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
@@ -4008,6 +4018,11 @@ do_configure_ssl() {
                 sed -i "s|^SSL_CA_PATH=.*|SSL_CA_PATH=$ca_path|" "$CONSOLE_PATH/.env"
             fi
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=true|" "$CONSOLE_PATH/.env"
+            if grep -q '^RUSTDESK_API_TLS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
+                sed -i "s|^RUSTDESK_API_TLS=.*|RUSTDESK_API_TLS=true|" "$CONSOLE_PATH/.env"
+            else
+                echo "RUSTDESK_API_TLS=true" >> "$CONSOLE_PATH/.env"
+            fi
             
             print_success "Custom SSL certificate configured"
             ;;
@@ -4055,6 +4070,11 @@ do_configure_ssl() {
             sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/betterdesk.crt|" "$CONSOLE_PATH/.env"
             sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/betterdesk.key|" "$CONSOLE_PATH/.env"
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=true|" "$CONSOLE_PATH/.env"
+            if grep -q '^RUSTDESK_API_TLS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
+                sed -i "s|^RUSTDESK_API_TLS=.*|RUSTDESK_API_TLS=false|" "$CONSOLE_PATH/.env"
+            else
+                echo "RUSTDESK_API_TLS=false" >> "$CONSOLE_PATH/.env"
+            fi
             
             # Configure NODE_EXTRA_CA_CERTS for self-signed
             if grep -q '^NODE_EXTRA_CA_CERTS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
@@ -4087,6 +4107,11 @@ do_configure_ssl() {
             sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=|" "$CONSOLE_PATH/.env"
             sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=|" "$CONSOLE_PATH/.env"
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=false|" "$CONSOLE_PATH/.env"
+            if grep -q '^RUSTDESK_API_TLS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
+                sed -i "s|^RUSTDESK_API_TLS=.*|RUSTDESK_API_TLS=false|" "$CONSOLE_PATH/.env"
+            else
+                echo "RUSTDESK_API_TLS=false" >> "$CONSOLE_PATH/.env"
+            fi
             
             # Remove TLS args from Go server
             local go_svc_file="/etc/systemd/system/betterdesk-server.service"
@@ -4151,6 +4176,11 @@ do_configure_ssl() {
             sed -i "s|^SSL_CERT_PATH=.*|SSL_CERT_PATH=$ssl_dir/betterdesk.crt|" "$CONSOLE_PATH/.env"
             sed -i "s|^SSL_KEY_PATH=.*|SSL_KEY_PATH=$ssl_dir/betterdesk.key|" "$CONSOLE_PATH/.env"
             sed -i "s|^HTTP_REDIRECT_HTTPS=.*|HTTP_REDIRECT_HTTPS=true|" "$CONSOLE_PATH/.env"
+            if grep -q '^RUSTDESK_API_TLS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
+                sed -i "s|^RUSTDESK_API_TLS=.*|RUSTDESK_API_TLS=true|" "$CONSOLE_PATH/.env"
+            else
+                echo "RUSTDESK_API_TLS=true" >> "$CONSOLE_PATH/.env"
+            fi
             
             # Set ALLOW_SELF_SIGNED_CERTS for internal API calls
             if grep -q '^ALLOW_SELF_SIGNED_CERTS=' "$CONSOLE_PATH/.env" 2>/dev/null; then
@@ -4236,6 +4266,11 @@ do_configure_ssl() {
             else
                 sed -i "/^\[Service\]/a Environment=ALLOW_SELF_SIGNED_CERTS=true" "$svc_file"
             fi
+            if grep -q 'Environment=RUSTDESK_API_TLS=' "$svc_file"; then
+                sed -i "s|Environment=RUSTDESK_API_TLS=.*|Environment=RUSTDESK_API_TLS=true|" "$svc_file"
+            else
+                sed -i "/^\[Service\]/a Environment=RUSTDESK_API_TLS=true" "$svc_file"
+            fi
             systemctl daemon-reload 2>/dev/null || true
         fi
         
@@ -4266,6 +4301,13 @@ do_configure_ssl() {
             # Sync HTTPS_ENABLED in systemd (overrides .env value)
             if grep -q 'Environment=HTTPS_ENABLED=' "$svc_file"; then
                 sed -i "s|Environment=HTTPS_ENABLED=.*|Environment=HTTPS_ENABLED=true|" "$svc_file"
+            fi
+            local rustdesk_api_tls="true"
+            [ "${ssl_choice:-1}" = "3" ] && rustdesk_api_tls="false"
+            if grep -q 'Environment=RUSTDESK_API_TLS=' "$svc_file"; then
+                sed -i "s|Environment=RUSTDESK_API_TLS=.*|Environment=RUSTDESK_API_TLS=$rustdesk_api_tls|" "$svc_file"
+            else
+                sed -i "/^\[Service\]/a Environment=RUSTDESK_API_TLS=$rustdesk_api_tls" "$svc_file"
             fi
             # Sync SSL cert/key paths in systemd
             if grep -q 'Environment=SSL_CERT_PATH=' "$svc_file"; then
@@ -4306,6 +4348,11 @@ do_configure_ssl() {
             # Sync HTTPS_ENABLED=false in systemd
             if grep -q 'Environment=HTTPS_ENABLED=' "$svc_file"; then
                 sed -i "s|Environment=HTTPS_ENABLED=.*|Environment=HTTPS_ENABLED=false|" "$svc_file"
+            fi
+            if grep -q 'Environment=RUSTDESK_API_TLS=' "$svc_file"; then
+                sed -i "s|Environment=RUSTDESK_API_TLS=.*|Environment=RUSTDESK_API_TLS=false|" "$svc_file"
+            else
+                sed -i "/^\[Service\]/a Environment=RUSTDESK_API_TLS=false" "$svc_file"
             fi
             sed -i '/Environment=NODE_EXTRA_CA_CERTS=/d' "$svc_file"
             sed -i '/Environment=ENTERPRISE_TLS=/d' "$svc_file"
