@@ -148,6 +148,52 @@
     color: #eab308;
 }
 
+/* Organization role variants (used in org-membership modal) */
+.role-badge.owner {
+    background: rgba(217, 70, 239, 0.15);
+    color: #d946ef;
+}
+
+.role-badge.user {
+    background: var(--bg-tertiary, #21262d);
+    color: var(--text-secondary, #8b949e);
+}
+
+/* Inline org badges in the users table column */
+.user-orgs-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: 320px;
+}
+
+.user-orgs-cell .org-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    background: var(--bg-tertiary, #21262d);
+    color: var(--text-secondary, #8b949e);
+    border: 1px solid var(--border-color, #30363d);
+    cursor: pointer;
+}
+
+.user-orgs-cell .org-badge:hover {
+    color: var(--text-primary, #e6edf3);
+    background: var(--bg-secondary);
+}
+
+.user-orgs-cell .org-badge .material-icons {
+    font-size: 14px;
+}
+
+.user-orgs-cell .no-orgs {
+    color: var(--text-tertiary, #6e7681);
+    font-style: italic;
+}
+
 /* User Actions */
 .user-actions {
     display: flex;
@@ -316,6 +362,20 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-md);
+}
+
+.org-assignments-section {
+    margin: 0;
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.org-assignments-hint {
+    margin: -4px 0 0 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
 }
 
 .org-assignments-list {

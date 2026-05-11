@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "व्यवस्थापक",
     "role_operator": "Operator",
-    "role_user": "दर्शक",
+    "role_user": "सदस्य",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

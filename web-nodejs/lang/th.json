@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "ผู้ดูแลระบบ",
     "role_operator": "Operator",
-    "role_user": "ผู้ชม",
+    "role_user": "สมาชิก",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

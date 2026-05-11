@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "Administrator",
     "role_operator": "Operator",
-    "role_user": "Pelihat",
+    "role_user": "Anggota",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

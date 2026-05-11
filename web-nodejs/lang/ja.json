@@ -1862,7 +1862,7 @@
     "role_owner": "Owner",
     "role_admin": "管理者",
     "role_operator": "Operator",
-    "role_user": "閲覧者",
+    "role_user": "メンバー",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

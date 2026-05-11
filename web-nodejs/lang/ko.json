@@ -1862,7 +1862,7 @@
     "role_owner": "Owner",
     "role_admin": "관리자",
     "role_operator": "Operator",
-    "role_user": "뷰어",
+    "role_user": "구성원",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

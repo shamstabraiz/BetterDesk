@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "Administratör",
     "role_operator": "Operator",
-    "role_user": "Betraktare",
+    "role_user": "Medlem",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

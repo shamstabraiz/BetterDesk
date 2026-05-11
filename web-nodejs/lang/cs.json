@@ -261,7 +261,7 @@
     "display_name_placeholder": "Vlastní název (přepíše hostname)",
     "note_placeholder": "Poznámky k tomuto zařízení"
   },
-"keys": {
+  "keys": {
     "title": "Klíče serveru",
     "subtitle": "Veřejný klíč a konfigurace pro klienty RustDesk",
     "public_key": "Veřejný klíč",
@@ -366,7 +366,7 @@
     "tutorials_disabled_toast": "Návody zakázány",
     "tutorials_reset_toast": "Všechny návody byly resetovány"
   },
-"audit": {
+  "audit": {
     "time": "Čas",
     "user": "Uživatel",
     "action": "Akce",
@@ -462,7 +462,7 @@
     "day_sat": "So",
     "day_sun": "Ne"
   },
-"users": {
+  "users": {
     "title": "Správa uživatelů",
     "subtitle": "Spravujte uživatele konzole a oprávnění",
     "add_user": "Přidat uživatele",
@@ -1862,7 +1862,7 @@
     "role_owner": "Vlastník",
     "role_admin": "Administrátor",
     "role_operator": "Operátor",
-    "role_user": "Pozorovatel",
+    "role_user": "Člen",
     "username": "Uživatelské jméno",
     "password": "Heslo",
     "display_name": "Zobrazované jméno",

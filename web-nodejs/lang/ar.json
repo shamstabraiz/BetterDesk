@@ -1869,7 +1869,7 @@
     "role_owner": "Owner",
     "role_admin": "مسؤول",
     "role_operator": "Operator",
-    "role_user": "مشاهد",
+    "role_user": "عضو",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

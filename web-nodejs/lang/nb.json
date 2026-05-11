@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "Administrator",
     "role_operator": "Operator",
-    "role_user": "Seer",
+    "role_user": "Medlem",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

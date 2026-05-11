@@ -11,6 +11,8 @@
     // State
     let users = [];
     let editingUserId = null;
+    // Cache: userId -> [{ id, org_id, name, org_name, role }]
+    const userOrgsCache = new Map();
     
     // Elements
     let tableBody, emptyState;
@@ -38,6 +40,8 @@
             const response = await Utils.api('/api/users');
             users = response.users || [];
             renderUsers();
+            // Lazy-load organizations for each user (parallel, best-effort)
+            loadUsersOrganizations();
         } catch (error) {
             console.error('Failed to load users:', error);
             if (error.status === 403) {
@@ -45,6 +49,66 @@
             } else {
                 Notifications.error(_('errors.load_users_failed'));
             }
+        }
+    }
+
+    /**
+     * Lazy-load each user's organization memberships and update the table cells.
+     * Errors per user are silently ignored so the table still renders.
+     */
+    async function loadUsersOrganizations() {
+        if (!Array.isArray(users) || users.length === 0) return;
+        await Promise.all(users.map(async (user) => {
+            try {
+                const resp = await Utils.api(`/api/users/${user.id}/organizations`);
+                const orgs = (resp.organizations || []).map(normalizeOrgPayload).filter(o => o.id);
+                userOrgsCache.set(Number(user.id), orgs);
+                renderUserOrgsCell(user.id, orgs);
+            } catch (_err) {
+                renderUserOrgsCell(user.id, []);
+            }
+        }));
+    }
+
+    function normalizeOrgPayload(org) {
+        const id = String(org.org_id || org.id || org.organization_id || '');
+        return {
+            ...org,
+            id,
+            org_id: id,
+            name: org.name || org.org_name || (id ? 'Org #' + id : ''),
+            org_name: org.org_name || org.name || (id ? 'Org #' + id : ''),
+            role: org.role || ''
+        };
+    }
+
+    function renderUserOrgsCell(userId, orgs) {
+        const cell = document.querySelector(`tr[data-id="${userId}"] .user-orgs-cell`);
+        if (!cell) return;
+        if (!orgs || orgs.length === 0) {
+            cell.innerHTML = `<span class="no-orgs">${_('users.no_orgs_short')}</span>`;
+            return;
+        }
+        cell.innerHTML = orgs.map(o => `
+            <span class="org-badge" data-org-id="${Utils.escapeHtml(o.id)}" title="${Utils.escapeHtml(o.org_name)}${o.role ? ' • ' + _('organizations.role_' + o.role) : ''}">
+                <span class="material-icons">business</span>
+                ${Utils.escapeHtml(o.org_name)}
+            </span>
+        `).join('');
+    }
+
+    /**
+     * Re-fetch a single user's org memberships and refresh the inline cell.
+     * Safe to call after add/remove from the Organizations modal.
+     */
+    async function refreshUserOrgsCell(userId) {
+        try {
+            const resp = await Utils.api(`/api/users/${userId}/organizations`);
+            const orgs = (resp.organizations || []).map(normalizeOrgPayload).filter(o => o.id);
+            userOrgsCache.set(Number(userId), orgs);
+            renderUserOrgsCell(userId, orgs);
+        } catch (_err) {
+            // Leave cell as-is on failure
         }
     }
     
@@ -89,6 +153,11 @@
                         ${_(roleLabelKey)}
                     </span>
                 </td>
+                <td>
+                    <div class="user-orgs-cell" data-user-id="${user.id}" data-username="${Utils.escapeHtml(user.username)}">
+                        <span class="skeleton skeleton-text" style="width: 80px; height: 14px;"></span>
+                    </div>
+                </td>
                 <td>${Utils.formatDate(user.created_at)}</td>
                 <td>${user.last_login ? Utils.formatDate(user.last_login) : '<span class="text-muted">' + _('users.never') + '</span>'}</td>
                 <td>
@@ -113,6 +182,14 @@
         // Attach event listeners
         tableBody.querySelectorAll('.action-btn').forEach(btn => {
             btn.addEventListener('click', () => handleAction(btn.dataset.action, btn.dataset.id, btn.dataset));
+        });
+        // Clicking the inline orgs cell opens the same Organizations modal as the action button
+        tableBody.querySelectorAll('.user-orgs-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const id = cell.dataset.userId;
+                const username = cell.dataset.username;
+                if (id && username) showOrganizationsModal(id, username);
+            });
         });
     }
     
@@ -436,11 +513,11 @@
                         <option value="">${_('policies.select_org_placeholder')}</option>
                         ${availableOrgs.map(o => `<option value="${Utils.escapeHtml(String(o.id))}">${Utils.escapeHtml(o.name)}</option>`).join('')}
                     </select>
-                    <select id="add-org-role" class="form-input" style="width: 120px;">
-                        <option value="user">User</option>
-                        <option value="operator">Operator</option>
-                        <option value="admin">Admin</option>
-                        <option value="owner">Owner</option>
+                    <select id="add-org-role" class="form-input" style="width: 140px;" title="${_('organizations.org_role')}" aria-label="${_('organizations.org_role')}">
+                        <option value="user">${_('organizations.role_user')}</option>
+                        <option value="operator">${_('organizations.role_operator')}</option>
+                        <option value="admin">${_('organizations.role_admin')}</option>
+                        <option value="owner">${_('organizations.role_owner')}</option>
                     </select>
                     <button id="add-org-btn" class="btn btn-primary btn-sm">
                         <span class="material-icons">add</span>
@@ -448,12 +525,14 @@
                     </button>
                 </div>
             `
-            : '';
+            : `<div class="empty-state-inline">${_('users.all_orgs_assigned')}</div>`;
         
         Modal.show({
             title: _('users.user_organizations', { username }),
             content: `
                 <div class="org-assignments">
+                    <h4 class="org-assignments-section">${_('users.org_membership_section')}</h4>
+                    <p class="org-assignments-hint">${_('users.org_membership_hint')}</p>
                     <div class="org-assignments-list" id="user-orgs-list">
                         ${orgsListHtml}
                     </div>
@@ -472,7 +551,9 @@
                         try {
                             await Utils.api(`/api/panel/org/${orgId}/members/${userId}`, { method: 'DELETE' });
                             Notifications.success(_('users.org_removed'));
+                            userOrgsCache.delete(Number(userId));
                             Modal.close();
+                            refreshUserOrgsCell(userId);
                             showOrganizationsModal(userId, username); // Refresh
                         } catch (error) {
                             Notifications.error(error.message || _('errors.server_error'));
@@ -496,7 +577,9 @@
                             body: { org_id: orgId, role }
                         });
                         Notifications.success(_('organizations.user_linked'));
+                        userOrgsCache.delete(Number(userId));
                         Modal.close();
+                        refreshUserOrgsCell(userId);
                         showOrganizationsModal(userId, username); // Refresh
                     } catch (error) {
                         Notifications.error(error.message || _('errors.server_error'));

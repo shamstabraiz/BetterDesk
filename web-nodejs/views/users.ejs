@@ -41,6 +41,7 @@
                         <tr>
                             <th>${_('users.username')}</th>
                             <th>${_('users.role')}</th>
+                            <th>${_('users.column_organizations')}</th>
                             <th>${_('users.created')}</th>
                             <th>${_('users.last_login')}</th>
                             <th>${_('users.actions')}</th>
@@ -48,7 +49,7 @@
                     </thead>
                     <tbody id="users-tbody">
                         <tr class="loading-row">
-                            <td colspan="5" style="text-align: center; padding: 40px;">
+                            <td colspan="6" style="text-align: center; padding: 40px;">
                                 <span class="skeleton skeleton-text" style="width: 200px;"></span>
                             </td>
                         </tr>
@@ -89,7 +90,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="user-role">${_('users.role')}</label>
+                    <label for="user-role">${_('users.server_role_label')}</label>
                     <select id="user-role" name="role" class="form-select">
                         <option value="viewer">${_('users.role_viewer')}</option>
                         <option value="operator">${_('users.role_operator')}</option>

@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "Yönetici",
     "role_operator": "Operator",
-    "role_user": "İzleyici",
+    "role_user": "Üye",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

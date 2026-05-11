@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "Quản trị viên",
     "role_operator": "Operator",
-    "role_user": "Người xem",
+    "role_user": "Thành viên",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

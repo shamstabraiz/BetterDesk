@@ -1862,7 +1862,7 @@
     "role_owner": "Owner",
     "role_admin": "Administrador",
     "role_operator": "Operador",
-    "role_user": "Visualizador",
+    "role_user": "Miembro",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

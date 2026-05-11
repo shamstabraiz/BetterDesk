@@ -2005,7 +2005,7 @@
     "role_owner": "Owner",
     "role_admin": "Administrador",
     "role_operator": "Operator",
-    "role_user": "Visualizador",
+    "role_user": "Membro",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

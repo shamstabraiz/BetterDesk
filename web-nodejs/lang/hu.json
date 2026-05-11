@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "Adminisztrátor",
     "role_operator": "Operator",
-    "role_user": "Megfigyelő",
+    "role_user": "Tag",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

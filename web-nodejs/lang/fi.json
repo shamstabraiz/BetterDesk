@@ -1868,7 +1868,7 @@
     "role_owner": "Owner",
     "role_admin": "Järjestelmänvalvoja",
     "role_operator": "Operator",
-    "role_user": "Katselija",
+    "role_user": "Jäsen",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",

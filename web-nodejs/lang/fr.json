@@ -1863,7 +1863,7 @@
     "role_owner": "Owner",
     "role_admin": "Administrateur",
     "role_operator": "Opérateur",
-    "role_user": "Observateur",
+    "role_user": "Membre",
     "username": "Username",
     "password": "Password",
     "display_name": "Display Name",
