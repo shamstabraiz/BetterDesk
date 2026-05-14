@@ -921,9 +921,12 @@ You can **upgrade to Let's Encrypt** or a custom certificate at any time using m
 | `-force-https` | `false` | `FORCE_HTTPS=Y` | Reject non-TLS API requests |
 | `-trust-proxy` | `false` | `TRUST_PROXY=Y` | Trust `X-Forwarded-For` / `X-Real-IP` headers |
 | `-relay-max-conns-ip` | `20` | `RELAY_MAX_CONNS_PER_IP` | Max relay connections per IP |
+| `-signal-rate-limit-per-ip` | `20` | `SIGNAL_RATE_LIMIT_PER_IP` | Max signal registrations per proxy/client bucket per minute (`0` = disabled) |
 | `-init-admin-user` | `admin` | `INIT_ADMIN_USER` | Initial admin username |
 | `-init-admin-pass` | *(auto)* | `INIT_ADMIN_PASS` | Initial admin password (auto-generated if omitted) |
 | `-version` | — | — | Show version and exit |
+
+> Signal proxy note: UDP/TCP signal traffic on port `21116` cannot use HTTP headers such as `X-Forwarded-For`. `TRUST_PROXY` only affects HTTP/API traffic. For NGINX stream or Docker proxy deployments, set `SIGNAL_RATE_LIMIT_PER_IP` higher for very large fleets, or `0` only on trusted private networks. Current builds scope registration buckets by proxy/client address plus peer ID to avoid false positives when multiple devices share one proxy address.
 
 ### Environment-Only Variables
 
@@ -947,7 +950,7 @@ You can **upgrade to Let's Encrypt** or a custom certificate at any time using m
 | `RelayIdleTimeout` | 30s | Close idle relay sessions (extended on activity) |
 | `DefaultTotalBandwidth` | 1 GB/s | Global bandwidth limit |
 | `DefaultSingleBandwidth` | 16 MB/s | Per-session bandwidth limit |
-| `IPRateLimitRegistrations` | 20/min | Registration rate limit per IP |
+| `IPRateLimitRegistrations` | 20/min | Registration rate limit per signal bucket |
 | `IDChangeCooldown` | 5 min | Minimum interval between ID changes |
 | `MaxFrameSize` | 64 KB | Maximum wire protocol frame size |
 

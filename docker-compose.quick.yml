@@ -36,6 +36,7 @@ services:
       - betterdesk-data:/opt/rustdesk
     environment:
       - ENCRYPTED_ONLY=1
+      - SIGNAL_RATE_LIMIT_PER_IP=${SIGNAL_RATE_LIMIT_PER_IP:-20}
     networks:
       - betterdesk-net
     restart: unless-stopped

@@ -88,6 +88,7 @@ fi
 
 # Ensure Go server uses correct signal port (not NODE.js PORT)
 export SIGNAL_PORT="${SIGNAL_PORT:-21116}"
+export SIGNAL_RATE_LIMIT_PER_IP="${SIGNAL_RATE_LIMIT_PER_IP:-20}"
 
 # Ensure Node.js Client API binds to all interfaces (not just localhost)
 export API_HOST="${API_HOST:-0.0.0.0}"

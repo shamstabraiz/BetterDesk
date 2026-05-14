@@ -47,6 +47,30 @@ func (s *Server) handleUDPMessage(msg *pb.RendezvousMessage, raddr *net.UDPAddr)
 	}
 }
 
+func signalLimiterKey(kind, clientHost, peerID string) string {
+	if peerID == "" {
+		return fmt.Sprintf("%s:%s", kind, clientHost)
+	}
+	return fmt.Sprintf("%s:%s:%s", kind, clientHost, peerID)
+}
+
+func (s *Server) allowRegistration(clientHost, peerID string, knownPeer bool) bool {
+	if s.limiter == nil {
+		return true
+	}
+	if !knownPeer {
+		return s.limiter.Allow(signalLimiterKey("reg-new", clientHost, ""))
+	}
+	return s.limiter.Allow(signalLimiterKey("reg", clientHost, peerID))
+}
+
+func (s *Server) allowSignalConnection(clientHost string) bool {
+	if s.limiter == nil {
+		return true
+	}
+	return s.limiter.Allow(signalLimiterKey("conn", clientHost, ""))
+}
+
 // handleMessage dispatches a TCP/WS message. Returns a response or nil.
 // For PunchHoleRequest and RequestRelay, we return nil (no immediate response)
 // because the signal server holds the TCP connection open and forwards the
@@ -132,15 +156,10 @@ func (s *Server) handleRegisterPeer(msg *pb.RegisterPeer, raddr *net.UDPAddr) {
 		return
 	}
 
-	// IP rate limiting check
-	if s.limiter != nil && !s.limiter.Allow(raddr.IP.String()) {
-		log.Printf("[signal] Rate limited registration from %s", raddr.IP)
-		return
-	}
-
 	// Blocklist check (IP and ID)
+	clientHost := raddr.IP.String()
 	if s.blocklist != nil {
-		if s.blocklist.IsIPBlocked(raddr.IP.String()) {
+		if s.blocklist.IsIPBlocked(clientHost) {
 			log.Printf("[signal] Blocked IP %s tried to register", raddr.IP)
 			return
 		}
@@ -152,6 +171,22 @@ func (s *Server) handleRegisterPeer(msg *pb.RegisterPeer, raddr *net.UDPAddr) {
 
 	// Check if peer exists in memory map
 	existing := s.peers.Get(id)
+	var dbPeer *db.Peer
+	knownPeer := existing != nil
+	if !knownPeer {
+		if loadedPeer, err := s.db.GetPeer(id); err == nil && loadedPeer != nil {
+			dbPeer = loadedPeer
+			knownPeer = true
+		}
+	}
+	if !s.allowRegistration(clientHost, id, knownPeer) {
+		if knownPeer {
+			log.Printf("[signal] Rate limited registration from %s for peer %s", clientHost, id)
+		} else {
+			log.Printf("[signal] Rate limited new registration from %s for peer %s", clientHost, id)
+		}
+		return
+	}
 	if existing != nil {
 		// Reject banned peers — do not heartbeat or respond
 		if existing.Banned {
@@ -222,7 +257,10 @@ func (s *Server) handleRegisterPeer(msg *pb.RegisterPeer, raddr *net.UDPAddr) {
 	}
 
 	// Load PK and UUID from database if available (survives server restarts)
-	if dbPeer, err := s.db.GetPeer(id); err == nil && dbPeer != nil {
+	if dbPeer == nil {
+		dbPeer, _ = s.db.GetPeer(id)
+	}
+	if dbPeer != nil {
 		if len(dbPeer.PK) > 0 {
 			entry.PK = dbPeer.PK
 			log.Printf("[signal] Loaded PK from database for %s (%d bytes)", id, len(entry.PK))

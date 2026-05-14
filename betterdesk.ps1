@@ -1590,7 +1590,12 @@ function Setup-Services {
     
     # BetterDesk Go Server (single binary: signal + relay + API)
     $serverExe = Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe"
-    $serverArgs = "-mode all -relay-servers $serverIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT"
+    $signalRateLimit = if ($env:SIGNAL_RATE_LIMIT_PER_IP) { $env:SIGNAL_RATE_LIMIT_PER_IP } else { "20" }
+    if ($signalRateLimit -notmatch '^\d+$') {
+        Print-Warning "Invalid SIGNAL_RATE_LIMIT_PER_IP='$signalRateLimit'; using 20"
+        $signalRateLimit = "20"
+    }
+    $serverArgs = "-mode all -relay-servers $serverIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT -signal-rate-limit-per-ip $signalRateLimit"
     
     # Add -init-admin-pass to sync admin password with Node.js console
     $adminPass = $null
@@ -1738,7 +1743,12 @@ function Setup-ScheduledTasks {
     
     # BetterDesk Go Server Task
     $serverExe = Join-Path $script:RUSTDESK_PATH "betterdesk-server.exe"
-    $serverArgs = "-mode all -relay-servers $ServerIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT"
+    $signalRateLimit = if ($env:SIGNAL_RATE_LIMIT_PER_IP) { $env:SIGNAL_RATE_LIMIT_PER_IP } else { "20" }
+    if ($signalRateLimit -notmatch '^\d+$') {
+        Print-Warning "Invalid SIGNAL_RATE_LIMIT_PER_IP='$signalRateLimit'; using 20"
+        $signalRateLimit = "20"
+    }
+    $serverArgs = "-mode all -relay-servers $ServerIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT -signal-rate-limit-per-ip $signalRateLimit"
     
     # Add -init-admin-pass to sync admin password with Node.js console
     $adminPass = $null

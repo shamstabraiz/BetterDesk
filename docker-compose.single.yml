@@ -68,6 +68,8 @@ services:
       # Auto-detected if not set. MUST be set if auto-detection returns
       # Docker internal IP (172.x.x.x) — remote relay connections will fail otherwise.
       - RELAY_SERVERS=${RELAY_SERVERS:-}
+      # Raise this for very large NAT/proxy deployments; 0 disables signal rate limiting.
+      - SIGNAL_RATE_LIMIT_PER_IP=${SIGNAL_RATE_LIMIT_PER_IP:-20}
       # Admin credentials (first run only):
       # - ADMIN_USERNAME=admin
       # - ADMIN_PASSWORD=YourSecurePassword123

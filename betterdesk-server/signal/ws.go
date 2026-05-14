@@ -218,11 +218,6 @@ func (s *Server) handleRegisterPeerWS(msg *pb.RegisterPeer, remoteAddr string) *
 		return nil
 	}
 
-	if s.limiter != nil && !s.limiter.Allow(clientHost) {
-		log.Printf("[signal] Rate limited WS registration from %s", clientHost)
-		return nil
-	}
-
 	if s.blocklist != nil {
 		if s.blocklist.IsIPBlocked(clientHost) {
 			log.Printf("[signal] Blocked IP %s tried WS registration", clientHost)
@@ -235,6 +230,20 @@ func (s *Server) handleRegisterPeerWS(msg *pb.RegisterPeer, remoteAddr string) *
 	}
 
 	existing := s.peers.Get(id)
+	knownPeer := existing != nil
+	if !knownPeer {
+		if dbPeer, err := s.db.GetPeer(id); err == nil && dbPeer != nil {
+			knownPeer = true
+		}
+	}
+	if !s.allowRegistration(clientHost, id, knownPeer) {
+		if knownPeer {
+			log.Printf("[signal] Rate limited WS registration from %s for peer %s", clientHost, id)
+		} else {
+			log.Printf("[signal] Rate limited new WS registration from %s for peer %s", clientHost, id)
+		}
+		return nil
+	}
 	if existing != nil {
 		// Reject banned peers — do not heartbeat or respond
 		if existing.Banned {

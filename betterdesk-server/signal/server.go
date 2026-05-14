@@ -379,7 +379,7 @@ func (s *Server) serveTCP() {
 		// M4: Rate-limit TCP signal connections per IP to prevent resource exhaustion.
 		if s.limiter != nil {
 			host, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-			if !s.limiter.Allow(host) {
+			if !s.allowSignalConnection(host) {
 				conn.Close()
 				continue
 			}

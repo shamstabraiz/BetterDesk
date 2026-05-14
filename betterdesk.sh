@@ -1887,6 +1887,13 @@ setup_services() {
     
     print_info "Server IP: $server_ip"
     print_info "API Port: $API_PORT"
+
+    local signal_rate_limit="${SIGNAL_RATE_LIMIT_PER_IP:-20}"
+    if ! [[ "$signal_rate_limit" =~ ^[0-9]+$ ]]; then
+        print_warning "Invalid SIGNAL_RATE_LIMIT_PER_IP='$signal_rate_limit'; using 20"
+        signal_rate_limit="20"
+    fi
+    print_info "Signal registration rate limit: $signal_rate_limit/min (0 = disabled)"
     
     # Build database configuration
     local db_arg=""
@@ -1965,7 +1972,7 @@ After=network.target postgresql.service
 Type=simple
 User=root
 WorkingDirectory=$RUSTDESK_PATH
-ExecStart=$RUSTDESK_PATH/betterdesk-server -mode all -relay-servers $server_ip $systemd_db_arg -key-file $RUSTDESK_PATH/id_ed25519 -api-port $API_PORT $init_admin_arg $tls_arg
+ExecStart=$RUSTDESK_PATH/betterdesk-server -mode all -relay-servers $server_ip $systemd_db_arg -key-file $RUSTDESK_PATH/id_ed25519 -api-port $API_PORT -signal-rate-limit-per-ip $signal_rate_limit $init_admin_arg $tls_arg
 Restart=always
 RestartSec=5
 LimitNOFILE=1000000
@@ -2289,6 +2296,13 @@ setup_services_minimal() {
     if [ -n "$SERVER_IP" ]; then
         SERVER_ARGS="$SERVER_ARGS -relay-servers $SERVER_IP"
     fi
+
+    local signal_rate_limit="${SIGNAL_RATE_LIMIT_PER_IP:-20}"
+    if ! [[ "$signal_rate_limit" =~ ^[0-9]+$ ]]; then
+        print_warning "Invalid SIGNAL_RATE_LIMIT_PER_IP='$signal_rate_limit'; using 20"
+        signal_rate_limit="20"
+    fi
+    SERVER_ARGS="$SERVER_ARGS -signal-rate-limit-per-ip $signal_rate_limit"
     
     # Database configuration for Go server
     # Escape $ -> $$ for systemd (PostgreSQL passwords can contain $)

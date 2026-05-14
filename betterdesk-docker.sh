@@ -615,6 +615,12 @@ EOF
         local server_ip
         server_ip=$(get_public_ip)
 
+        local signal_rate_limit="${SIGNAL_RATE_LIMIT_PER_IP:-20}"
+        if ! [[ "$signal_rate_limit" =~ ^[0-9]+$ ]]; then
+            print_warning "Invalid SIGNAL_RATE_LIMIT_PER_IP='$signal_rate_limit'; using 20"
+            signal_rate_limit="20"
+        fi
+
         # Add BetterDesk server (Go single binary - signal + relay + API)
         cat >> "$COMPOSE_FILE" << EOF
     server:
@@ -636,6 +642,7 @@ EOF
         environment:
             - RELAY_SERVERS=$server_ip
             - INIT_ADMIN_PASS=$admin_password
+            - SIGNAL_RATE_LIMIT_PER_IP=$signal_rate_limit
 EOF
 
         if [ "$DB_TYPE" = "postgresql" ]; then

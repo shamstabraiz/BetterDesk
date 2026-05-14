@@ -38,6 +38,7 @@ services:
     environment:
       - ENCRYPTED_ONLY=1
       - DB_URL=${DB_URL:-/opt/rustdesk/db_v2.sqlite3}
+      - SIGNAL_RATE_LIMIT_PER_IP=${SIGNAL_RATE_LIMIT_PER_IP:-20}
     networks:
       - betterdesk-net
     restart: unless-stopped

@@ -11,6 +11,7 @@ import (
 	"github.com/unitronix/betterdesk-server/db"
 	"github.com/unitronix/betterdesk-server/peer"
 	pb "github.com/unitronix/betterdesk-server/proto"
+	"github.com/unitronix/betterdesk-server/ratelimit"
 )
 
 func newTestSignalServer(t *testing.T, mode string) (*Server, db.Database) {
@@ -85,6 +86,63 @@ func TestHandleRegisterPeerWSManagedRejectsUnknownPeer(t *testing.T) {
 	}
 	if peer != nil {
 		t.Fatalf("unknown WS peer was persisted: %+v", peer)
+	}
+}
+
+func TestRegistrationLimiterUsesPeerScopedBucket(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	limiter := ratelimit.NewIPLimiter(2, time.Minute, time.Minute)
+	t.Cleanup(limiter.Stop)
+	srv.SetRateLimiter(limiter)
+
+	clientHost := "172.29.1.20"
+	if !srv.allowRegistration(clientHost, "PROXYA1", true) {
+		t.Fatal("first registration for PROXYA1 should be allowed")
+	}
+	if !srv.allowRegistration(clientHost, "PROXYA1", true) {
+		t.Fatal("second registration for PROXYA1 should be allowed")
+	}
+	if srv.allowRegistration(clientHost, "PROXYA1", true) {
+		t.Fatal("third registration for the same peer should be rate limited")
+	}
+	if !srv.allowRegistration(clientHost, "PROXYB1", true) {
+		t.Fatal("different peer behind the same proxy should use a separate registration bucket")
+	}
+}
+
+func TestRegistrationLimiterKeepsUnknownPeersIPScoped(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	limiter := ratelimit.NewIPLimiter(2, time.Minute, time.Minute)
+	t.Cleanup(limiter.Stop)
+	srv.SetRateLimiter(limiter)
+
+	clientHost := "172.29.1.36"
+	if !srv.allowRegistration(clientHost, "NEWAAA1", false) {
+		t.Fatal("first unknown peer registration should be allowed")
+	}
+	if !srv.allowRegistration(clientHost, "NEWBBB1", false) {
+		t.Fatal("second unknown peer registration should be allowed")
+	}
+	if srv.allowRegistration(clientHost, "NEWCCC1", false) {
+		t.Fatal("third unknown peer behind the same proxy should be IP rate limited")
+	}
+}
+
+func TestSignalConnectionLimiterDoesNotConsumeRegistrationBucket(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	limiter := ratelimit.NewIPLimiter(1, time.Minute, time.Minute)
+	t.Cleanup(limiter.Stop)
+	srv.SetRateLimiter(limiter)
+
+	clientHost := "172.29.1.44"
+	if !srv.allowSignalConnection(clientHost) {
+		t.Fatal("first TCP signal connection should be allowed")
+	}
+	if srv.allowSignalConnection(clientHost) {
+		t.Fatal("second TCP signal connection should be rate limited")
+	}
+	if !srv.allowRegistration(clientHost, "PROXYC1", true) {
+		t.Fatal("TCP connection limit should not consume the registration bucket")
 	}
 }
 

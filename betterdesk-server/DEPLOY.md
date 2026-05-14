@@ -190,10 +190,13 @@ sudo firewall-cmd --reload
 | `ADMIN_PASSWORD`       | auto       | Initial admin password              |
 | `FORCE_HTTPS`          | N          | Require HTTPS for API               |
 | `RELAY_MAX_CONNS_PER_IP` | 20      | Max relay connections per IP        |
+| `SIGNAL_RATE_LIMIT_PER_IP` | 20   | Max signal registrations per proxy/client bucket per minute (`0` disables) |
 | `TLS_CERT`             | -          | TLS certificate path                |
 | `TLS_KEY`              | -          | TLS private key path                |
 | `PEER_TIMEOUT_SECS`    | 15         | Seconds before peer marked offline  |
 | `TRUST_PROXY`          | N          | Trust X-Forwarded-For header        |
+
+For NGINX `stream` or other UDP/TCP reverse proxy deployments, remember that signal traffic on `21116` is not HTTP and cannot carry `X-Forwarded-For`. `TRUST_PROXY` only applies to HTTP/API handlers. If many legitimate devices share the same proxy address, raise `SIGNAL_RATE_LIMIT_PER_IP` or set it to `0` only on trusted private networks.
 
 ## Migration from Rust (hbbs-patch-v2)
 
