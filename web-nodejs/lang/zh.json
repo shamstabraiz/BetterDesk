@@ -259,7 +259,28 @@
       "no_data": "暂无硬件数据",
       "title": "硬件信息",
       "gpu": "显卡"
-    }
+    },
+    "tags": "Tags",
+    "filter_by_tags": "Filter by tags",
+    "no_tags": "No tags",
+    "all_groups": "All groups",
+    "create_group": "Create group",
+    "manage_groups": "Manage Groups",
+    "group_name": "Group name",
+    "group_name_placeholder": "e.g. Media PCs",
+    "dynamic_group": "Dynamic group from tag",
+    "dynamic_group_hint": "Devices with this tag join automatically.",
+    "tag_filter": "Tag filter",
+    "group_allowed_users": "Allowed users",
+    "group_allowed_users_hint": "Leave empty to keep the group visible to everyone with device permissions.",
+    "group_tag_required": "Tag filter is required for dynamic groups",
+    "group_invalid": "Invalid group identifier",
+    "group_not_found": "Group not found",
+    "group_saved": "Device group saved",
+    "groups_saved": "Device groups saved",
+    "no_groups": "No groups yet",
+    "manual_groups": "Manual groups",
+    "dynamic_memberships": "Dynamic memberships"
   },
   "keys": {
     "title": "服务器密钥",
@@ -523,7 +544,16 @@
     "organizations": "组织",
     "user_organizations": "{username} 的组织",
     "no_organizations": "用户未分配到任何组织",
-    "org_removed": "组织分配已删除"
+    "org_removed": "组织分配已删除",
+    "server_role_label": "Server Role",
+    "server_role_hint": "Determines what the user can do across the whole console (panel access, server config, audit, etc.).",
+    "org_membership_section": "Organization Membership",
+    "org_membership_hint": "A user can belong to multiple organizations. The organization role only controls permissions inside that organization and is independent of the server role above.",
+    "column_organizations": "Organizations",
+    "no_orgs_short": "—",
+    "org_count_one": "{count} organization",
+    "org_count_many": "{count} organizations",
+    "all_orgs_assigned": "User is already a member of every organization."
   },
   "folders": {
     "title": "文件夹",

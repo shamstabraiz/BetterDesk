@@ -12,6 +12,16 @@ jest.mock('../services/database', () => ({
     getLatestPeerMetric: jest.fn().mockResolvedValue(null),
     getPeerMetrics: jest.fn().mockResolvedValue([]),
     getDeviceGroupsForPeer: jest.fn().mockResolvedValue([]),
+    getDeviceGroupAccessForUser: jest.fn().mockResolvedValue([]),
+    getAllDeviceGroups: jest.fn().mockResolvedValue([]),
+    getDeviceGroupMembers: jest.fn().mockResolvedValue([]),
+    getDeviceGroupByGuid: jest.fn().mockResolvedValue(null),
+    createDeviceGroup: jest.fn().mockResolvedValue({ guid: 'group-1', name: 'Group 1', source_type: 'manual', tag_filter: '', allowed_users: [] }),
+    updateDeviceGroup: jest.fn().mockResolvedValue(null),
+    deleteDeviceGroup: jest.fn().mockResolvedValue(undefined),
+    setDeviceGroupUserAccess: jest.fn().mockImplementation((_guid, users) => Promise.resolve({ guid: 'group-1', name: 'Group 1', allowed_users: users })),
+    addDeviceToGroup: jest.fn().mockResolvedValue(undefined),
+    removeDeviceFromGroup: jest.fn().mockResolvedValue(undefined),
     getAllFolders: jest.fn().mockResolvedValue([]),
     getAllFolderAssignments: jest.fn().mockResolvedValue({}),
     cleanupDeletedPeerData: jest.fn().mockResolvedValue(undefined)
@@ -180,6 +190,57 @@ describe('Devices Routes', () => {
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
             expect(res.body.data.tags).toEqual(['External', 'Internal', 'Windows']);
+        });
+    });
+
+    describe('Device groups', () => {
+        it('should count dynamic tag groups from visible devices', async () => {
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'LINUX1', tags: ['Linux', 'Kiosk'] },
+                { id: 'WIN1', tags: ['Windows'] }
+            ]);
+            db.getAllDeviceGroups.mockResolvedValue([
+                { guid: 'linux', name: 'Linux Devices', source_type: 'tag', tag_filter: 'Linux', allowed_users: [] }
+            ]);
+
+            const res = await request(app).get('/api/device-groups');
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data.groups[0].member_count).toBe(1);
+        });
+
+        it('should create a dynamic group with allowed users', async () => {
+            db.createDeviceGroup.mockResolvedValue({ guid: 'group-1', name: 'Linux', source_type: 'tag', tag_filter: 'Linux' });
+
+            const res = await request(app)
+                .post('/api/device-groups')
+                .send({ name: 'Linux', source_type: 'tag', tag_filter: 'Linux', allowed_users: 'operator1, operator2' });
+
+            expect(res.status).toBe(200);
+            expect(db.createDeviceGroup).toHaveBeenCalledWith(expect.objectContaining({
+                name: 'Linux',
+                source_type: 'tag',
+                tag_filter: 'Linux'
+            }));
+            expect(db.setDeviceGroupUserAccess).toHaveBeenCalledWith('group-1', ['operator1', 'operator2']);
+        });
+
+        it('should replace manual group memberships without touching dynamic groups', async () => {
+            serverBackend.getDeviceById.mockResolvedValue({ id: '123456789', tags: ['Linux'] });
+            serverBackend.getAllDevices.mockResolvedValue([{ id: '123456789', tags: ['Linux'] }]);
+            db.getAllDeviceGroups.mockResolvedValue([
+                { guid: 'manual-a', name: 'Manual A', source_type: 'manual' },
+                { guid: 'tag-linux', name: 'Linux', source_type: 'tag', tag_filter: 'Linux' }
+            ]);
+
+            const res = await request(app)
+                .put('/api/devices/123456789/groups')
+                .send({ groupGuids: ['manual-a', 'tag-linux'] });
+
+            expect(res.status).toBe(200);
+            expect(db.addDeviceToGroup).toHaveBeenCalledWith('manual-a', '123456789');
+            expect(db.addDeviceToGroup).not.toHaveBeenCalledWith('tag-linux', '123456789');
         });
     });
 

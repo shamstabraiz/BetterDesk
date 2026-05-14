@@ -402,6 +402,8 @@ function createSqliteAdapter(config) {
                 name TEXT NOT NULL,
                 note TEXT DEFAULT '',
                 team_id TEXT DEFAULT '',
+                source_type TEXT DEFAULT 'manual',
+                tag_filter TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS device_group_members (
@@ -410,6 +412,14 @@ function createSqliteAdapter(config) {
                 created_at TEXT DEFAULT (datetime('now')),
                 PRIMARY KEY (device_group_id, peer_id),
                 FOREIGN KEY (device_group_id) REFERENCES device_groups(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS device_group_user_access (
+                device_group_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (device_group_id, user_id),
+                FOREIGN KEY (device_group_id) REFERENCES device_groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
             CREATE TABLE IF NOT EXISTS strategies (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -467,6 +477,16 @@ function createSqliteAdapter(config) {
                 console.log('[DB] Migration: added branding_config.updated_at');
             }
         } catch (e) { console.warn('[DB] Migration branding_config columns error:', e.message); }
+
+        try {
+            const groupCols = new Set(db.prepare('PRAGMA table_info(device_groups)').all().map(c => c.name));
+            if (groupCols.size > 0 && !groupCols.has('source_type')) {
+                db.exec("ALTER TABLE device_groups ADD COLUMN source_type TEXT DEFAULT 'manual'");
+            }
+            if (groupCols.size > 0 && !groupCols.has('tag_filter')) {
+                db.exec("ALTER TABLE device_groups ADD COLUMN tag_filter TEXT DEFAULT ''");
+            }
+        } catch (e) { console.warn('[DB] Migration device_groups columns error:', e.message); }
 
         // Seed default groups if empty
         const ugCount = db.prepare('SELECT COUNT(*) as c FROM user_groups').get().c;
@@ -2280,19 +2300,42 @@ function createSqliteAdapter(config) {
             const groups = openAuth().prepare('SELECT * FROM device_groups ORDER BY name ASC').all();
             for (const g of groups) {
                 g.member_count = openAuth().prepare('SELECT COUNT(*) as c FROM device_group_members WHERE device_group_id = ?').get(g.id).c;
+                g.source_type = g.source_type || 'manual';
+                g.tag_filter = g.tag_filter || '';
+                g.allowed_users = openAuth().prepare(`
+                    SELECT u.username FROM device_group_user_access a
+                    INNER JOIN users u ON u.id = a.user_id
+                    WHERE a.device_group_id = ?
+                    ORDER BY u.username ASC
+                `).all(g.id).map(r => r.username);
             }
             return groups;
         },
 
         async getDeviceGroupByGuid(guid) {
-            return openAuth().prepare('SELECT * FROM device_groups WHERE guid = ?').get(guid) || null;
+            const group = openAuth().prepare('SELECT * FROM device_groups WHERE guid = ?').get(guid) || null;
+            if (!group) return null;
+            group.source_type = group.source_type || 'manual';
+            group.tag_filter = group.tag_filter || '';
+            group.allowed_users = openAuth().prepare(`
+                SELECT u.username FROM device_group_user_access a
+                INNER JOIN users u ON u.id = a.user_id
+                WHERE a.device_group_id = ?
+                ORDER BY u.username ASC
+            `).all(group.id).map(r => r.username);
+            return group;
         },
 
         async createDeviceGroup(data) {
             const crypto = require('crypto');
             const guid = data.guid || crypto.randomUUID();
-            openAuth().prepare('INSERT INTO device_groups (guid, name, note, team_id) VALUES (?, ?, ?, ?)').run(
-                guid, data.name, data.note || '', data.team_id || ''
+            openAuth().prepare('INSERT INTO device_groups (guid, name, note, team_id, source_type, tag_filter) VALUES (?, ?, ?, ?, ?, ?)').run(
+                guid,
+                data.name,
+                data.note || '',
+                data.team_id || '',
+                data.source_type === 'tag' ? 'tag' : 'manual',
+                data.source_type === 'tag' ? (data.tag_filter || '') : ''
             );
             return openAuth().prepare('SELECT * FROM device_groups WHERE guid = ?').get(guid);
         },
@@ -2302,6 +2345,8 @@ function createSqliteAdapter(config) {
             if (data.name !== undefined) { sets.push('name = ?'); params.push(data.name); }
             if (data.note !== undefined) { sets.push('note = ?'); params.push(data.note); }
             if (data.team_id !== undefined) { sets.push('team_id = ?'); params.push(data.team_id); }
+            if (data.source_type !== undefined) { sets.push('source_type = ?'); params.push(data.source_type === 'tag' ? 'tag' : 'manual'); }
+            if (data.tag_filter !== undefined) { sets.push('tag_filter = ?'); params.push(String(data.tag_filter || '').slice(0, 50)); }
             if (!sets.length) return null;
             params.push(guid);
             openAuth().prepare(`UPDATE device_groups SET ${sets.join(', ')} WHERE guid = ?`).run(...params);
@@ -2339,6 +2384,33 @@ function createSqliteAdapter(config) {
                 WHERE dgm.peer_id = ?
                 ORDER BY dg.name ASC
             `).all(peerId);
+        },
+
+        async setDeviceGroupUserAccess(groupGuid, usernames = []) {
+            const db = openAuth();
+            const group = db.prepare('SELECT id FROM device_groups WHERE guid = ?').get(groupGuid);
+            if (!group) return null;
+            const uniqueNames = Array.from(new Set((usernames || []).map(v => String(v || '').trim()).filter(Boolean)));
+            const tx = db.transaction((names) => {
+                db.prepare('DELETE FROM device_group_user_access WHERE device_group_id = ?').run(group.id);
+                const insert = db.prepare('INSERT OR IGNORE INTO device_group_user_access (device_group_id, user_id) VALUES (?, ?)');
+                const userByName = db.prepare('SELECT id FROM users WHERE username = ?');
+                for (const username of names) {
+                    const user = userByName.get(username);
+                    if (user) insert.run(group.id, user.id);
+                }
+            });
+            tx(uniqueNames);
+            return this.getDeviceGroupByGuid(groupGuid);
+        },
+
+        async getDeviceGroupAccessForUser(userId) {
+            return openAuth().prepare(`
+                SELECT dg.* FROM device_groups dg
+                INNER JOIN device_group_user_access a ON a.device_group_id = dg.id
+                WHERE a.user_id = ?
+                ORDER BY dg.name ASC
+            `).all(userId);
         },
 
         // ---- Strategies / Policies ----
@@ -3072,6 +3144,8 @@ function createPostgresAdapter() {
                 name TEXT NOT NULL,
                 note TEXT DEFAULT '',
                 team_id TEXT DEFAULT '',
+                source_type TEXT DEFAULT 'manual',
+                tag_filter TEXT DEFAULT '',
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
@@ -3082,6 +3156,15 @@ function createPostgresAdapter() {
                 peer_id TEXT NOT NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 PRIMARY KEY (device_group_id, peer_id)
+            )
+        `);
+
+        await q(`
+            CREATE TABLE IF NOT EXISTS device_group_user_access (
+                device_group_id INTEGER NOT NULL REFERENCES device_groups(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (device_group_id, user_id)
             )
         `);
 
@@ -3128,6 +3211,15 @@ function createPostgresAdapter() {
         }
         if (!existingCols.has('totp_recovery_codes')) {
             await q('ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_recovery_codes TEXT DEFAULT NULL');
+        }
+
+        const deviceGroupColumnCheck = await all(`SELECT column_name FROM information_schema.columns WHERE table_name = 'device_groups'`);
+        const existingDeviceGroupCols = new Set(deviceGroupColumnCheck.map(c => c.column_name));
+        if (!existingDeviceGroupCols.has('source_type')) {
+            await q("ALTER TABLE device_groups ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT 'manual'");
+        }
+        if (!existingDeviceGroupCols.has('tag_filter')) {
+            await q("ALTER TABLE device_groups ADD COLUMN IF NOT EXISTS tag_filter TEXT DEFAULT ''");
         }
 
         // Phase 4: operator identity profile columns
@@ -4529,19 +4621,46 @@ function createPostgresAdapter() {
             const groups = await all('SELECT * FROM device_groups ORDER BY name ASC');
             for (const g of groups) {
                 g.member_count = +(await one('SELECT COUNT(*)::INTEGER AS c FROM device_group_members WHERE device_group_id = $1', [g.id])).c;
+                g.source_type = g.source_type || 'manual';
+                g.tag_filter = g.tag_filter || '';
+                g.allowed_users = (await all(`
+                    SELECT u.username FROM device_group_user_access a
+                    INNER JOIN users u ON u.id = a.user_id
+                    WHERE a.device_group_id = $1
+                    ORDER BY u.username ASC
+                `, [g.id])).map(r => r.username);
             }
             return groups;
         },
 
         async getDeviceGroupByGuid(guid) {
-            return one('SELECT * FROM device_groups WHERE guid = $1', [guid]);
+            const group = await one('SELECT * FROM device_groups WHERE guid = $1', [guid]);
+            if (!group) return null;
+            group.source_type = group.source_type || 'manual';
+            group.tag_filter = group.tag_filter || '';
+            group.allowed_users = (await all(`
+                SELECT u.username FROM device_group_user_access a
+                INNER JOIN users u ON u.id = a.user_id
+                WHERE a.device_group_id = $1
+                ORDER BY u.username ASC
+            `, [group.id])).map(r => r.username);
+            return group;
         },
 
         async createDeviceGroup(data) {
             const crypto = require('crypto');
             const guid = data.guid || crypto.randomUUID();
-            return one('INSERT INTO device_groups (guid, name, note, team_id) VALUES ($1, $2, $3, $4) RETURNING *',
-                [guid, data.name, data.note || '', data.team_id || '']);
+            return one(`
+                INSERT INTO device_groups (guid, name, note, team_id, source_type, tag_filter)
+                VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+            `, [
+                guid,
+                data.name,
+                data.note || '',
+                data.team_id || '',
+                data.source_type === 'tag' ? 'tag' : 'manual',
+                data.source_type === 'tag' ? (data.tag_filter || '') : ''
+            ]);
         },
 
         async updateDeviceGroup(guid, data) {
@@ -4549,6 +4668,8 @@ function createPostgresAdapter() {
             if (data.name !== undefined) { sets.push(`name = $${idx++}`); params.push(data.name); }
             if (data.note !== undefined) { sets.push(`note = $${idx++}`); params.push(data.note); }
             if (data.team_id !== undefined) { sets.push(`team_id = $${idx++}`); params.push(data.team_id); }
+            if (data.source_type !== undefined) { sets.push(`source_type = $${idx++}`); params.push(data.source_type === 'tag' ? 'tag' : 'manual'); }
+            if (data.tag_filter !== undefined) { sets.push(`tag_filter = $${idx++}`); params.push(String(data.tag_filter || '').slice(0, 50)); }
             if (!sets.length) return null;
             params.push(guid);
             return one(`UPDATE device_groups SET ${sets.join(', ')} WHERE guid = $${idx} RETURNING *`, params);
@@ -4583,6 +4704,43 @@ function createPostgresAdapter() {
                 WHERE dgm.peer_id = $1
                 ORDER BY dg.name ASC
             `, [peerId]);
+        },
+
+        async setDeviceGroupUserAccess(groupGuid, usernames = []) {
+            const group = await one('SELECT id FROM device_groups WHERE guid = $1', [groupGuid]);
+            if (!group) return null;
+            const uniqueNames = Array.from(new Set((usernames || []).map(v => String(v || '').trim()).filter(Boolean)));
+            const client = await getPool().connect();
+            try {
+                await client.query('BEGIN');
+                await client.query('DELETE FROM device_group_user_access WHERE device_group_id = $1', [group.id]);
+                for (const username of uniqueNames) {
+                    const result = await client.query('SELECT id FROM users WHERE username = $1', [username]);
+                    const user = result.rows[0];
+                    if (user) {
+                        await client.query(
+                            'INSERT INTO device_group_user_access (device_group_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                            [group.id, user.id]
+                        );
+                    }
+                }
+                await client.query('COMMIT');
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+            return this.getDeviceGroupByGuid(groupGuid);
+        },
+
+        async getDeviceGroupAccessForUser(userId) {
+            return all(`
+                SELECT dg.* FROM device_groups dg
+                INNER JOIN device_group_user_access a ON a.device_group_id = dg.id
+                WHERE a.user_id = $1
+                ORDER BY dg.name ASC
+            `, [userId]);
         },
 
         // ---- Strategies / Policies ----

@@ -40,6 +40,7 @@ const authService = require('../services/authService');
 const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
 const addressBookSync = require('../services/rustdeskAddressBookSync');
+const deviceGroupService = require('../services/deviceGroupService');
 const config = require('../config/config');
 const { roleHasPermission } = require('../middleware/auth');
 
@@ -300,16 +301,25 @@ async function getSyncedAddressBookTags(user) {
 
 async function getRustDeskDeviceGroups() {
     const groups = [];
+    let devices = [];
 
     try {
-        const deviceGroups = await db.getAllDeviceGroups();
+        devices = await serverBackend.getAllDevices({});
+    } catch (err) {
+        console.warn('[API:DEVICE-GROUP] Failed to read devices for dynamic counts:', err.message);
+    }
+
+    try {
+        const deviceGroups = await deviceGroupService.enrichGroups(db, await db.getAllDeviceGroups(), devices);
         for (const group of deviceGroups) {
             groups.push({
                 guid: group.guid,
                 name: group.name,
                 note: group.note || '',
                 team_id: group.team_id || '',
-                member_count: group.member_count || 0
+                member_count: group.member_count || 0,
+                source_type: group.source_type || 'manual',
+                tag_filter: group.tag_filter || ''
             });
         }
     } catch (err) {
@@ -884,6 +894,8 @@ router.get('/api/device-group/accessible', requireAuth, async (req, res) => {
                 note: g.note || '',
                 team_id: g.team_id || '',
                 accessed_count: g.member_count || 0,
+                source_type: g.source_type || 'manual',
+                tag_filter: g.tag_filter || '',
                 folder_id: g.folder_id || null
             })),
             total: groups.length
@@ -912,6 +924,8 @@ router.get('/api/device-group', requireAuth, async (req, res) => {
                 note: g.note || '',
                 team_id: g.team_id || '',
                 member_count: g.member_count || 0,
+                source_type: g.source_type || 'manual',
+                tag_filter: g.tag_filter || '',
                 folder_id: g.folder_id || null
             })),
             total: groups.length
@@ -928,17 +942,22 @@ router.get('/api/device-group', requireAuth, async (req, res) => {
  */
 router.post('/api/device-group', requireAuth, requireAdmin, async (req, res) => {
     try {
-        const { guid, name, note, team_id } = req.body || {};
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        const payload = deviceGroupService.normalizeGroupPayload(req.body || {});
+        if (!payload.name) {
             return res.status(400).json({ error: 'Group name is required' });
         }
+        if (payload.source_type === 'tag' && !payload.tag_filter) {
+            return res.status(400).json({ error: 'Tag filter is required for dynamic groups' });
+        }
 
-        if (guid) {
+        if (payload.guid) {
             // Update existing
-            const updated = await db.updateDeviceGroup(guid, {
-                name: sanitizeStr(name, MAX_HOSTNAME_LEN),
-                note: sanitizeStr(note || '', MAX_STRING_LEN),
-                team_id: sanitizeStr(team_id || '', 64)
+            const updated = await db.updateDeviceGroup(payload.guid, {
+                name: sanitizeStr(payload.name, MAX_HOSTNAME_LEN),
+                note: sanitizeStr(payload.note || '', MAX_STRING_LEN),
+                team_id: sanitizeStr(payload.team_id || '', 64),
+                source_type: payload.source_type,
+                tag_filter: payload.tag_filter
             });
             if (!updated) {
                 return res.status(404).json({ error: 'Group not found' });
@@ -947,9 +966,11 @@ router.post('/api/device-group', requireAuth, requireAdmin, async (req, res) => 
         } else {
             // Create new
             const created = await db.createDeviceGroup({
-                name: sanitizeStr(name, MAX_HOSTNAME_LEN),
-                note: sanitizeStr(note || '', MAX_STRING_LEN),
-                team_id: sanitizeStr(team_id || '', 64)
+                name: sanitizeStr(payload.name, MAX_HOSTNAME_LEN),
+                note: sanitizeStr(payload.note || '', MAX_STRING_LEN),
+                team_id: sanitizeStr(payload.team_id || '', 64),
+                source_type: payload.source_type,
+                tag_filter: payload.tag_filter
             });
             return res.json(created);
         }

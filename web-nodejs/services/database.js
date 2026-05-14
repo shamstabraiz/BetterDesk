@@ -191,6 +191,8 @@ const facade = {
     removeDeviceFromGroup: (groupGuid, peerId) => adapter.removeDeviceFromGroup(groupGuid, peerId),
     getDeviceGroupMembers: (groupGuid) => adapter.getDeviceGroupMembers(groupGuid),
     getDeviceGroupsForPeer: (peerId) => adapter.getDeviceGroupsForPeer(peerId),
+    setDeviceGroupUserAccess: (groupGuid, usernames) => adapter.setDeviceGroupUserAccess(groupGuid, usernames),
+    getDeviceGroupAccessForUser: (userId) => adapter.getDeviceGroupAccessForUser(userId),
 
     // ---- Strategies / Policies ----
     getAllStrategies:  () => adapter.getAllStrategies(),

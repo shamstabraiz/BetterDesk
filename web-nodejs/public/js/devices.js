@@ -32,9 +32,13 @@
     let devices = [];
     let filteredDevices = [];
     let folders = [];
+    let deviceGroups = [];
+    let availableTags = [];
+    let selectedTags = new Set();
     let selectedIds = new Set();
     let currentFilter = 'all';
     let currentFolder = 'all';
+    let currentGroup = 'all';
     let currentSort = { field: 'last_online', order: 'desc' };
     let currentPage = 1;
     let perPage = 20;
@@ -54,14 +58,18 @@
         
         // Load data
         loadFolders();
+        loadDeviceGroups();
+        loadTags();
         loadDevices();
         
         // Event listeners
         initSearch();
         initFilters();
+        initTagFilter();
         initSorting();
         initSync();
         initFolders();
+        initDeviceGroups();
         initDragDrop();
         attachFolderDropEvents();  // For static folder chips
         initColumnVisibility();    // Column show/hide toggle
@@ -70,12 +78,16 @@
         // Refresh handler
         window.addEventListener('app:refresh', () => {
             loadFolders();
+            loadDeviceGroups();
+            loadTags();
             loadDevices();
         });
 
         // Listen for changes from DeviceDetail panel
         document.addEventListener('deviceDetail:changed', () => {
             loadFolders();
+            loadDeviceGroups();
+            loadTags();
             loadDevices();
         });
 
@@ -255,6 +267,7 @@
             
             // Update folder counts now that devices are loaded
             updateFolderCounts();
+            updateGroupCounts();
             
             applyFilters();
             
@@ -275,6 +288,16 @@
             return value.split(',').map(t => t.trim()).filter(Boolean);
         }
         return [];
+    }
+
+    function deviceMatchesGroup(device, group) {
+        if (!device || !group) return false;
+        if ((group.source_type || 'manual') === 'tag') {
+            const tag = String(group.tag_filter || '').toLowerCase();
+            return tag && normalizeTags(device.tags).some(t => t.toLowerCase() === tag);
+        }
+        const groups = Array.isArray(device.groups) ? device.groups : [];
+        return groups.some(g => g.guid === group.guid);
     }
 
     function renderTagsCell(device) {
@@ -301,6 +324,20 @@
             if (currentFolder === 'unassigned' && device.folder_id) return false;
             if (currentFolder !== 'all' && currentFolder !== 'unassigned') {
                 if (device.folder_id !== parseInt(currentFolder, 10)) return false;
+            }
+
+            // Device group filter (manual or dynamic)
+            if (currentGroup !== 'all') {
+                const group = deviceGroups.find(g => g.guid === currentGroup);
+                if (!group || !deviceMatchesGroup(device, group)) return false;
+            }
+
+            // Tag filters: all selected tags must be present
+            if (selectedTags.size > 0) {
+                const tags = normalizeTags(device.tags).map(t => t.toLowerCase());
+                for (const tag of selectedTags) {
+                    if (!tags.includes(tag.toLowerCase())) return false;
+                }
             }
             
             // Status filter
@@ -443,6 +480,10 @@
                             <button class="kebab-menu-item" data-action="edit" data-id="${eid}">
                                 <span class="material-icons">edit</span>
                                 <span>${_('actions.edit')}</span>
+                            </button>
+                            <button class="kebab-menu-item" data-action="groups" data-id="${eid}">
+                                <span class="material-icons">hub</span>
+                                <span>${_('devices.manage_groups') || 'Manage Groups'}</span>
                             </button>
                             <button class="kebab-menu-item" data-action="access-policy" data-id="${eid}">
                                 <span class="material-icons">lock</span>
@@ -599,6 +640,10 @@
             case 'edit':
                 showEditModal(deviceId);
                 break;
+
+            case 'groups':
+                showDeviceMembershipModal(deviceId);
+                break;
                 
             case 'toggle-ban':
                 await toggleBan(deviceId, data.banned === 'true');
@@ -623,6 +668,139 @@
      */
     function connectDesktopClient(deviceId) {
         window.open('rustdesk://' + encodeURIComponent(deviceId), '_blank');
+    }
+
+    function showDeviceGroupModal() {
+        const tagOptions = availableTags.map(tag => `<option value="${Utils.escapeHtml(tag)}"></option>`).join('');
+        const content = `
+            <div class="device-group-form">
+                <div class="form-group">
+                    <label>${_('devices.group_name') || 'Group name'}</label>
+                    <input type="text" id="dg-name" class="form-input" maxlength="80" placeholder="${_('devices.group_name_placeholder') || 'e.g. Media PCs'}">
+                </div>
+                <label class="toggle-row">
+                    <input type="checkbox" id="dg-dynamic">
+                    <span>${_('devices.dynamic_group') || 'Dynamic group from tag'}</span>
+                </label>
+                <div class="form-group" id="dg-tag-row" style="opacity:0.5;pointer-events:none">
+                    <label>${_('devices.tag_filter') || 'Tag filter'}</label>
+                    <input type="text" id="dg-tag" class="form-input" maxlength="50" list="dg-tag-options" placeholder="Linux">
+                    <datalist id="dg-tag-options">${tagOptions}</datalist>
+                    <p class="form-hint">${_('devices.dynamic_group_hint') || 'Devices with this tag join automatically.'}</p>
+                </div>
+                <div class="form-group">
+                    <label>${_('devices.group_allowed_users') || 'Allowed users'}</label>
+                    <input type="text" id="dg-users" class="form-input" placeholder="operator1, operator2">
+                    <p class="form-hint">${_('devices.group_allowed_users_hint') || 'Leave empty to keep the group visible to everyone with device permissions.'}</p>
+                </div>
+            </div>`;
+
+        Modal.show({
+            title: _('devices.create_group') || 'Create device group',
+            content,
+            size: 'medium',
+            buttons: [
+                { label: _('actions.cancel'), class: 'btn-secondary', onClick: () => Modal.close() },
+                {
+                    label: _('actions.save'), class: 'btn-primary', onClick: async () => {
+                        const dynamic = document.getElementById('dg-dynamic').checked;
+                        const payload = {
+                            name: document.getElementById('dg-name').value.trim(),
+                            source_type: dynamic ? 'tag' : 'manual',
+                            tag_filter: document.getElementById('dg-tag').value.trim(),
+                            allowed_users: document.getElementById('dg-users').value
+                        };
+                        if (!payload.name) {
+                            Notifications.error(_('common.name_required') || 'Name is required');
+                            return;
+                        }
+                        if (payload.source_type === 'tag' && !payload.tag_filter) {
+                            Notifications.error(_('devices.group_tag_required') || 'Tag filter is required');
+                            return;
+                        }
+                        try {
+                            await Utils.api('/api/device-groups', {
+                                method: 'POST',
+                                body: payload
+                            });
+                            Notifications.success(_('devices.group_saved') || 'Device group saved');
+                            Modal.close();
+                            loadDeviceGroups();
+                        } catch (err) {
+                            Notifications.error(err.message || _('errors.server_error'));
+                        }
+                    }
+                }
+            ]
+        });
+
+        const dynamicInput = document.getElementById('dg-dynamic');
+        const tagRow = document.getElementById('dg-tag-row');
+        dynamicInput?.addEventListener('change', () => {
+            tagRow.style.opacity = dynamicInput.checked ? '1' : '0.5';
+            tagRow.style.pointerEvents = dynamicInput.checked ? 'auto' : 'none';
+        });
+    }
+
+    async function showDeviceMembershipModal(deviceId) {
+        try {
+            const response = await Utils.api(`/api/devices/${encodeURIComponent(deviceId)}/groups`);
+            const groups = response.groups || [];
+            const memberships = response.memberships || [];
+            const selected = new Set(memberships.map(group => group.guid));
+            const manualGroups = groups.filter(group => (group.source_type || 'manual') !== 'tag');
+            const dynamicGroups = groups.filter(group => (group.source_type || 'manual') === 'tag' && selected.has(group.guid));
+
+            const manualHtml = manualGroups.length ? manualGroups.map(group => `
+                <label class="group-membership-option">
+                    <input type="checkbox" value="${Utils.escapeHtml(group.guid)}" ${selected.has(group.guid) ? 'checked' : ''}>
+                    <span class="material-icons">hub</span>
+                    <span>${Utils.escapeHtml(group.name)}</span>
+                </label>`).join('') : `<div class="tag-filter-empty">${_('devices.no_groups') || 'No groups yet'}</div>`;
+
+            const dynamicHtml = dynamicGroups.length ? `
+                <div class="form-group">
+                    <label>${_('devices.dynamic_memberships') || 'Dynamic memberships'}</label>
+                    <div class="device-tags">
+                        ${dynamicGroups.map(group => `<span class="device-tag-pill" title="${Utils.escapeHtml(group.tag_filter || '')}">${Utils.escapeHtml(group.name)}</span>`).join('')}
+                    </div>
+                </div>` : '';
+
+            Modal.show({
+                title: (_('devices.manage_groups') || 'Manage Groups') + ' — ' + deviceId,
+                content: `
+                    <div class="device-group-memberships">
+                        <div class="form-group">
+                            <label>${_('devices.manual_groups') || 'Manual groups'}</label>
+                            <div class="group-membership-list">${manualHtml}</div>
+                        </div>
+                        ${dynamicHtml}
+                    </div>`,
+                size: 'medium',
+                buttons: [
+                    { label: _('actions.cancel'), class: 'btn-secondary', onClick: () => Modal.close() },
+                    {
+                        label: _('actions.save'), class: 'btn-primary', onClick: async () => {
+                            const groupGuids = Array.from(document.querySelectorAll('.group-membership-list input:checked')).map(input => input.value);
+                            try {
+                                await Utils.api(`/api/devices/${encodeURIComponent(deviceId)}/groups`, {
+                                    method: 'PUT',
+                                    body: { groupGuids }
+                                });
+                                Notifications.success(_('devices.groups_saved') || 'Groups saved');
+                                Modal.close();
+                                loadDevices();
+                                loadDeviceGroups();
+                            } catch (err) {
+                                Notifications.error(err.message || _('errors.server_error'));
+                            }
+                        }
+                    }
+                ]
+            });
+        } catch (error) {
+            Notifications.error(error.message || _('errors.server_error'));
+        }
     }
     
     /**
@@ -1280,6 +1458,117 @@
                 Notifications.error(error.message || _('errors.sync_failed'));
             }
         });
+    }
+
+    // ==================== Tag and Device Group Filters ====================
+
+    async function loadTags() {
+        try {
+            const response = await Utils.api('/api/tags');
+            availableTags = response.tags || [];
+            renderTagFilters();
+        } catch (error) {
+            console.error('Failed to load tags:', error);
+        }
+    }
+
+    function renderTagFilters() {
+        const menu = document.getElementById('tags-filter-menu');
+        const btn = document.getElementById('tags-filter-btn');
+        if (!menu) return;
+
+        if (!availableTags.length) {
+            menu.innerHTML = `<div class="tag-filter-empty">${_('devices.no_tags') || 'No tags'}</div>`;
+        } else {
+            menu.innerHTML = availableTags.map(tag => {
+                const checked = selectedTags.has(tag) ? 'checked' : '';
+                return `<label class="tag-filter-option">
+                    <input type="checkbox" value="${Utils.escapeHtml(tag)}" ${checked}>
+                    <span>${Utils.escapeHtml(tag)}</span>
+                </label>`;
+            }).join('');
+        }
+
+        menu.querySelectorAll('input[type="checkbox"]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (input.checked) selectedTags.add(input.value);
+                else selectedTags.delete(input.value);
+                currentPage = 1;
+                if (btn) btn.classList.toggle('tag-filter-active', selectedTags.size > 0);
+                applyFilters();
+            });
+        });
+
+        if (btn) btn.classList.toggle('tag-filter-active', selectedTags.size > 0);
+    }
+
+    function initTagFilter() {
+        const btn = document.getElementById('tags-filter-btn');
+        const menu = document.getElementById('tags-filter-menu');
+        if (!btn || !menu) return;
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            menu.classList.toggle('show');
+        });
+        menu.addEventListener('click', (e) => e.stopPropagation());
+        document.addEventListener('click', (e) => {
+            if (!btn.contains(e.target) && !menu.contains(e.target)) menu.classList.remove('show');
+        });
+    }
+
+    async function loadDeviceGroups() {
+        try {
+            const response = await Utils.api('/api/device-groups');
+            deviceGroups = response.groups || [];
+            window._betterdesk_device_groups = deviceGroups;
+            renderDeviceGroups();
+            updateGroupCounts();
+        } catch (error) {
+            console.error('Failed to load device groups:', error);
+        }
+    }
+
+    function renderDeviceGroups() {
+        const container = document.getElementById('custom-device-groups');
+        if (!container) return;
+        container.innerHTML = deviceGroups.map(group => {
+            const isDynamic = (group.source_type || 'manual') === 'tag';
+            return `<button class="group-chip ${currentGroup === group.guid ? 'active' : ''} ${isDynamic ? 'dynamic' : ''}" data-group="${Utils.escapeHtml(group.guid)}" title="${Utils.escapeHtml(isDynamic ? (_('devices.dynamic_group_hint') || 'Dynamic tag group') + ': ' + group.tag_filter : group.name)}">
+                <span class="material-icons chip-icon">${isDynamic ? 'sell' : 'hub'}</span>
+                <span class="chip-label">${Utils.escapeHtml(group.name)}</span>
+                <span class="chip-count">${group.member_count || 0}</span>
+            </button>`;
+        }).join('');
+
+        container.querySelectorAll('.group-chip').forEach(el => {
+            el.addEventListener('click', () => selectDeviceGroup(el.dataset.group));
+        });
+    }
+
+    function updateGroupCounts() {
+        const allCount = document.getElementById('group-count-all');
+        if (allCount) allCount.textContent = devices.length;
+        for (const group of deviceGroups) {
+            const count = devices.filter(device => deviceMatchesGroup(device, group)).length;
+            const chip = Array.from(document.querySelectorAll('.group-chip[data-group]')).find(el => el.dataset.group === group.guid);
+            const countEl = chip ? chip.querySelector('.chip-count') : null;
+            if (countEl) countEl.textContent = count;
+        }
+    }
+
+    function selectDeviceGroup(groupGuid) {
+        currentGroup = groupGuid || 'all';
+        currentPage = 1;
+        document.querySelectorAll('.group-chip').forEach(el => {
+            el.classList.toggle('active', el.dataset.group === currentGroup);
+        });
+        applyFilters();
+    }
+
+    function initDeviceGroups() {
+        document.getElementById('add-device-group-btn')?.addEventListener('click', () => showDeviceGroupModal());
+        document.querySelector('.group-chip[data-group="all"]')?.addEventListener('click', () => selectDeviceGroup('all'));
     }
     
     // ==================== Folder Functions ====================

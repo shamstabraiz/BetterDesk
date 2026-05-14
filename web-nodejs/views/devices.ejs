@@ -40,6 +40,21 @@
                 </button>
             </div>
 
+            <!-- Device Group Chips -->
+            <div class="groups-bar" id="groups-bar">
+                <div class="groups-chips" id="groups-chips">
+                    <button class="group-chip active" data-group="all">
+                        <span class="material-icons chip-icon">hub</span>
+                        <span class="chip-label">${_('devices.all_groups')}</span>
+                        <span class="chip-count" id="group-count-all">0</span>
+                    </button>
+                    <span id="custom-device-groups"></span>
+                </div>
+                <button class="group-chip chip-add" id="add-device-group-btn" title="${_('devices.create_group')}">
+                    <span class="material-icons">add</span>
+                </button>
+            </div>
+
             <!-- Toolbar -->
             <div class="devices-toolbar">
                 <div class="toolbar-search search-wrapper">
@@ -52,6 +67,14 @@
                     <button class="filter-btn" data-filter="online">${_('devices.filter_online')}</button>
                     <button class="filter-btn" data-filter="offline">${_('devices.filter_offline')}</button>
                     <button class="filter-btn" data-filter="banned">${_('devices.filter_banned')}</button>
+                </div>
+                <div class="tag-filter-dropdown">
+                    <button class="btn-icon toolbar-icon" id="tags-filter-btn" title="${_('devices.filter_by_tags')}">
+                        <span class="material-icons">sell</span>
+                    </button>
+                    <div class="tag-filter-menu" id="tags-filter-menu">
+                        <div class="tag-filter-empty">${_('devices.no_tags')}</div>
+                    </div>
                 </div>
                 <div class="column-visibility-dropdown">
                     <button class="btn-icon toolbar-icon" id="columns-btn" title="${_('devices.toggle_columns')}">

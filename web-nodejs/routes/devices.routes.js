@@ -7,6 +7,7 @@ const router = express.Router();
 const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
 const addressBookSync = require('../services/rustdeskAddressBookSync');
+const deviceGroupService = require('../services/deviceGroupService');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
 /**
@@ -26,7 +27,7 @@ router.get('/devices', requireAuth, (req, res) => {
 const ALLOWED_SORT_FIELDS = ['last_online', 'id', 'hostname', 'created_at', 'os', 'version', 'username', 'note'];
 const ALLOWED_SORT_ORDERS = ['asc', 'desc'];
 
-router.get('/api/devices', requireAuth, async (req, res) => {
+router.get('/api/devices', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
         // Validate and sanitize sort parameters
         const sortBy = ALLOWED_SORT_FIELDS.includes(req.query.sortBy) 
@@ -42,7 +43,16 @@ router.get('/api/devices', requireAuth, async (req, res) => {
             sortOrder
         };
         
-        const devices = await serverBackend.getAllDevices(filters);
+        let devices = await serverBackend.getAllDevices(filters);
+        const scope = await deviceGroupService.getDeviceScopeForUser(db, req.session.user, devices);
+        devices = deviceGroupService.filterDevicesByScope(devices, scope);
+        for (const device of devices) {
+            try {
+                device.groups = await db.getDeviceGroupsForPeer(device.id);
+            } catch (_) {
+                device.groups = [];
+            }
+        }
         
         res.json({
             success: true,
@@ -81,10 +91,178 @@ router.get('/api/tags', requireAuth, requirePermission('device.view'), async (re
     }
 });
 
+function isValidGroupGuid(guid) {
+    return typeof guid === 'string' && guid.length > 0 && guid.length <= 80 && /^[A-Za-z0-9_.:-]+$/.test(guid);
+}
+
+async function getVisibleDevicesForRequest(req) {
+    const devices = await serverBackend.getAllDevices({});
+    const scope = await deviceGroupService.getDeviceScopeForUser(db, req.session.user, devices);
+    return deviceGroupService.filterDevicesByScope(devices, scope);
+}
+
+async function getVisibleDeviceGroupsForRequest(req) {
+    let groups = await db.getAllDeviceGroups();
+    const accessGroups = await db.getDeviceGroupAccessForUser(req.session.userId);
+    if (accessGroups && accessGroups.length > 0) {
+        const allowedGroupGuids = new Set(accessGroups.map(group => group.guid));
+        groups = groups.filter(group => allowedGroupGuids.has(group.guid));
+    }
+    return groups;
+}
+
+async function rejectIfDeviceOutOfScope(req, res, device) {
+    if (await deviceGroupService.userCanAccessDevice(db, req.session.user, device)) return false;
+    res.status(403).json({ success: false, error: req.t('errors.forbidden') });
+    return true;
+}
+
+/**
+ * GET /api/device-groups - List device groups for the panel.
+ */
+router.get('/api/device-groups', requireAuth, requirePermission('device.view'), async (req, res) => {
+    try {
+        const devices = await getVisibleDevicesForRequest(req);
+        const groups = await getVisibleDeviceGroupsForRequest(req);
+        const enriched = await deviceGroupService.enrichGroups(db, groups, devices);
+        res.json({
+            success: true,
+            data: { groups: enriched, total: enriched.length }
+        });
+    } catch (err) {
+        console.error('Get device groups error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
+/**
+ * POST /api/device-groups - Create or update a device group.
+ */
+router.post('/api/device-groups', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    try {
+        const payload = deviceGroupService.normalizeGroupPayload(req.body || {});
+        if (!payload.name) {
+            return res.status(400).json({ success: false, error: req.t('folders.name_required') });
+        }
+        if (payload.source_type === 'tag' && !payload.tag_filter) {
+            return res.status(400).json({ success: false, error: req.t('devices.group_tag_required') });
+        }
+
+        let group;
+        if (payload.guid) {
+            if (!isValidGroupGuid(payload.guid)) {
+                return res.status(400).json({ success: false, error: req.t('devices.group_invalid') });
+            }
+            group = await db.updateDeviceGroup(payload.guid, payload);
+            if (!group) {
+                return res.status(404).json({ success: false, error: req.t('devices.group_not_found') });
+            }
+        } else {
+            group = await db.createDeviceGroup(payload);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'allowed_users')) {
+            group = await db.setDeviceGroupUserAccess(group.guid, payload.allowed_users);
+        }
+
+        await db.logAction(req.session.userId, 'device_group_saved', `Device group ${group.name} saved`, req.ip);
+        res.json({ success: true, data: group });
+    } catch (err) {
+        console.error('Save device group error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
+/**
+ * DELETE /api/device-groups/:guid - Delete a device group.
+ */
+router.delete('/api/device-groups/:guid', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    try {
+        const guid = String(req.params.guid || '');
+        if (!isValidGroupGuid(guid)) {
+            return res.status(400).json({ success: false, error: req.t('devices.group_invalid') });
+        }
+        const group = await db.getDeviceGroupByGuid(guid);
+        if (!group) {
+            return res.status(404).json({ success: false, error: req.t('devices.group_not_found') });
+        }
+        await db.deleteDeviceGroup(guid);
+        await db.logAction(req.session.userId, 'device_group_deleted', `Device group ${group.name} deleted`, req.ip);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete device group error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
+/**
+ * GET /api/devices/:id/groups - Get manual and dynamic memberships for a device.
+ */
+router.get('/api/devices/:id/groups', requireAuth, requirePermission('device.view'), async (req, res) => {
+    try {
+        const device = await serverBackend.getDeviceById(req.params.id);
+        if (!device) return res.status(404).json({ success: false, error: req.t('devices.not_found') });
+        const allDevices = await getVisibleDevicesForRequest(req);
+        if (!await deviceGroupService.userCanAccessDevice(db, req.session.user, device, allDevices)) {
+            return res.status(403).json({ success: false, error: req.t('errors.forbidden') });
+        }
+        const groups = await deviceGroupService.enrichGroups(db, await getVisibleDeviceGroupsForRequest(req), allDevices);
+        const memberships = groups.filter(group => {
+            if (group.source_type === 'tag') return deviceGroupService.normalizeTags(device.tags).some(t => t.toLowerCase() === String(group.tag_filter || '').toLowerCase());
+            return false;
+        });
+        const manual = await db.getDeviceGroupsForPeer(req.params.id);
+        const manualGuids = new Set(manual.map(group => group.guid));
+        for (const group of groups) {
+            if (manualGuids.has(group.guid) && !memberships.some(g => g.guid === group.guid)) memberships.push(group);
+        }
+        res.json({ success: true, data: { groups, memberships } });
+    } catch (err) {
+        console.error('Get device memberships error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
+/**
+ * PUT /api/devices/:id/groups - Replace manual group memberships for a device.
+ */
+router.put('/api/devices/:id/groups', requireAuth, requirePermission('device.edit'), async (req, res) => {
+    try {
+        const deviceId = req.params.id;
+        const groupGuids = Array.isArray(req.body.groupGuids) ? req.body.groupGuids.map(String) : [];
+        if (groupGuids.length > 100 || groupGuids.some(guid => !isValidGroupGuid(guid))) {
+            return res.status(400).json({ success: false, error: req.t('devices.group_invalid') });
+        }
+
+        const device = await serverBackend.getDeviceById(deviceId);
+        if (!device) return res.status(404).json({ success: false, error: req.t('devices.not_found') });
+        const allDevices = await getVisibleDevicesForRequest(req);
+        if (!await deviceGroupService.userCanAccessDevice(db, req.session.user, device, allDevices)) {
+            return res.status(403).json({ success: false, error: req.t('errors.forbidden') });
+        }
+
+        const groups = await getVisibleDeviceGroupsForRequest(req);
+        const manualGroups = groups.filter(group => (group.source_type || 'manual') !== 'tag');
+        const manualGuidSet = new Set(manualGroups.map(group => group.guid));
+        const selected = Array.from(new Set(groupGuids.filter(guid => manualGuidSet.has(guid))));
+
+        for (const group of manualGroups) {
+            if (selected.includes(group.guid)) await db.addDeviceToGroup(group.guid, deviceId);
+            else await db.removeDeviceFromGroup(group.guid, deviceId);
+        }
+
+        await db.logAction(req.session.userId, 'device_group_membership_updated', `Device ${deviceId} groups set to [${selected.join(', ')}]`, req.ip);
+        res.json({ success: true, data: { groupGuids: selected } });
+    } catch (err) {
+        console.error('Update device memberships error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
 /**
  * GET /api/devices/:id - Get single device with sysinfo and latest metrics
  */
-router.get('/api/devices/:id', requireAuth, async (req, res) => {
+router.get('/api/devices/:id', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
         const device = await serverBackend.getDeviceById(req.params.id);
         
@@ -94,6 +272,7 @@ router.get('/api/devices/:id', requireAuth, async (req, res) => {
                 error: req.t('devices.not_found')
             });
         }
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
 
         // Enrich with sysinfo data (from peer_sysinfo table)
         try {
@@ -176,6 +355,7 @@ router.patch('/api/devices/:id', requireAuth, requirePermission('device.edit'), 
                 error: req.t('devices.not_found')
             });
         }
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
         
         const result = await serverBackend.updateDevice(id, { user, note, display_name });
         if (result && result.error) {
@@ -222,6 +402,7 @@ router.delete('/api/devices/:id', requireAuth, requirePermission('device.delete'
                 error: req.t('devices.not_found')
             });
         }
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
         
         const result = await serverBackend.deleteDevice(id, { revoke, cascade });
         
@@ -273,6 +454,7 @@ router.post('/api/devices/:id/ban', requireAuth, requirePermission('device.ban')
                 error: req.t('devices.not_found')
             });
         }
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
         
         await serverBackend.setBanStatus(id, true, reason || '');
         
@@ -303,6 +485,7 @@ router.post('/api/devices/:id/unban', requireAuth, requirePermission('device.ban
                 error: req.t('devices.not_found')
             });
         }
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
         
         await serverBackend.setBanStatus(id, false);
         
@@ -451,8 +634,15 @@ router.post('/api/devices/bulk-delete', requireAuth, requirePermission('device.d
             });
         }
         
-        let deleted = 0;
+        const devicesToDelete = [];
         for (const id of ids) {
+            const device = await serverBackend.getDeviceById(id);
+            if (!device || await rejectIfDeviceOutOfScope(req, res, device)) return;
+            devicesToDelete.push(String(id));
+        }
+
+        let deleted = 0;
+        for (const id of devicesToDelete) {
             const result = await serverBackend.deleteDevice(id);
             // In betterdesk mode, result is {success, data}; in rustdesk, result has .changes
             if (result && (result.success || result.changes)) deleted++;
@@ -483,6 +673,9 @@ router.post('/api/devices/bulk-delete', requireAuth, requirePermission('device.d
  */
 router.get('/api/devices/:id/access-policy', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
+        const device = await serverBackend.getDeviceById(req.params.id);
+        if (!device) return res.status(404).json({ success: false, error: req.t('devices.not_found') });
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
         const goApi = require('../services/betterdeskApi');
         const result = await goApi.getAccessPolicy(req.params.id);
         res.json(result);
@@ -497,6 +690,9 @@ router.get('/api/devices/:id/access-policy', requireAuth, requirePermission('dev
  */
 router.put('/api/devices/:id/access-policy', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
+        const device = await serverBackend.getDeviceById(req.params.id);
+        if (!device) return res.status(404).json({ success: false, error: req.t('devices.not_found') });
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
         const goApi = require('../services/betterdeskApi');
         const result = await goApi.saveAccessPolicy(req.params.id, req.body);
         res.json(result);
@@ -511,6 +707,9 @@ router.put('/api/devices/:id/access-policy', requireAuth, requirePermission('dev
  */
 router.delete('/api/devices/:id/access-policy', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
+        const device = await serverBackend.getDeviceById(req.params.id);
+        if (!device) return res.status(404).json({ success: false, error: req.t('devices.not_found') });
+        if (await rejectIfDeviceOutOfScope(req, res, device)) return;
         const goApi = require('../services/betterdeskApi');
         const result = await goApi.deleteAccessPolicy(req.params.id);
         res.json(result);

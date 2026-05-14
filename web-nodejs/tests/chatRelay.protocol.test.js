@@ -152,7 +152,7 @@ describe('Chat Relay Protocol', () => {
         const message = await waitForMessage(operator, (msg) => msg.type === 'message' && msg.text === 'hello operator');
 
         expect(message.from).toBe(deviceId);
-        expect(goApi.post).toHaveBeenCalledWith('/api/chat/messages', expect.objectContaining({
+        expect(goApi.post).toHaveBeenCalledWith('/chat/messages', expect.objectContaining({
             conversation_id: deviceId,
             from_id: deviceId,
             text: 'hello operator',
