@@ -39,6 +39,20 @@ describe('rustdeskAddressBookSync', () => {
         expect(result.tags).toEqual([]);
     });
 
+    it('removes stale folder names from stored address book tags', () => {
+        const result = JSON.parse(sync.mergeAddressBookData(JSON.stringify({
+            peers: [{ id: '123456789', tags: ['Servers', 'Windows'] }],
+            tags: ['Servers', 'Windows']
+        }), {
+            devices: [{ id: '123456789', tags: ['Servers', 'Internal'] }],
+            folders: [{ id: 1, name: 'Servers' }],
+            includeDevices: false
+        }));
+
+        expect(result.tags).toEqual(['Windows', 'Internal']);
+        expect(result.peers[0].tags).toEqual(['Windows', 'Internal']);
+    });
+
     it('collects a sorted unique tag list for suggestions', () => {
         const tags = sync.collectVisibleTags(
             [
@@ -55,11 +69,11 @@ describe('rustdeskAddressBookSync', () => {
     it('extracts peer tag updates from client address book data', () => {
         const updates = sync.collectPeerTagUpdates(JSON.stringify({
             peers: [
-                { id: '123456789', tags: ['Client', 'Windows'] },
+                { id: '123456789', tags: ['Client', 'Windows', 'Servers'] },
                 { id: '987654321' }
             ],
             tags: ['Client']
-        }));
+        }), { folders: [{ id: 1, name: 'Servers' }] });
 
         expect(updates).toEqual([
             { id: '123456789', tags: ['Client', 'Windows'] }

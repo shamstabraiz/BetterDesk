@@ -1873,6 +1873,7 @@
                 initColorPicker();
                 document.getElementById('folder-name').value = folder.name;
                 document.getElementById('folder-color').value = folder.color;
+                document.getElementById('folder-allowed-users').value = (folder.allowed_users || []).join(', ');
                 
                 // Set active color
                 document.querySelectorAll('.color-option').forEach(btn => {
@@ -1901,6 +1902,7 @@
     async function submitFolderForm(folderId = null) {
         const name = document.getElementById('folder-name')?.value.trim();
         const color = document.getElementById('folder-color')?.value;
+        const allowedUsers = document.getElementById('folder-allowed-users')?.value || '';
         
         if (!name) {
             Notifications.error(_('folders.name_required'));
@@ -1911,13 +1913,13 @@
             if (folderId) {
                 await Utils.api(`/api/folders/${folderId}`, {
                     method: 'PATCH',
-                    body: { name, color }
+                    body: { name, color, allowed_users: allowedUsers }
                 });
                 Notifications.success(_('folders.updated'));
             } else {
                 await Utils.api('/api/folders', {
                     method: 'POST',
-                    body: { name, color }
+                    body: { name, color, allowed_users: allowedUsers }
                 });
                 Notifications.success(_('folders.created'));
             }

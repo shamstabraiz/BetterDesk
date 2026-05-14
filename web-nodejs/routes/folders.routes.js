@@ -7,7 +7,46 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
+const deviceGroupService = require('../services/deviceGroupService');
 const { requireAuth } = require('../middleware/auth');
+
+function folderGroupGuid(folderId) {
+    return `folder_${folderId}`;
+}
+
+async function getFolderAllowedUsers(folderId) {
+    try {
+        const group = await db.getDeviceGroupByGuid(folderGroupGuid(folderId));
+        return Array.isArray(group && group.allowed_users) ? group.allowed_users : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+async function ensureFolderDeviceGroup(folder) {
+    const guid = folderGroupGuid(folder.id);
+    const payload = {
+        guid,
+        name: folder.name,
+        note: 'BetterDesk folder access scope',
+        source_type: 'manual',
+        tag_filter: ''
+    };
+
+    let group = await db.getDeviceGroupByGuid(guid);
+    if (group) {
+        await db.updateDeviceGroup(guid, payload);
+        group = await db.getDeviceGroupByGuid(guid);
+    } else {
+        group = await db.createDeviceGroup(payload);
+    }
+    return group;
+}
+
+async function setFolderAllowedUsers(folder, allowedUsers) {
+    const group = await ensureFolderDeviceGroup(folder);
+    return db.setDeviceGroupUserAccess(group.guid, deviceGroupService.normalizeUsernames(allowedUsers));
+}
 
 /**
  * GET /api/folders - Get all folders
@@ -25,6 +64,7 @@ router.get('/api/folders', requireAuth, async (req, res) => {
             }
             for (const f of folders) {
                 f.device_count = countMap[f.id] || 0;
+                f.allowed_users = await getFolderAllowedUsers(f.id);
             }
         } catch (err) {
             console.error('Failed to compute folder device counts:', err.message);
@@ -51,7 +91,7 @@ router.get('/api/folders', requireAuth, async (req, res) => {
  */
 router.post('/api/folders', requireAuth, async (req, res) => {
     try {
-        const { name, color, icon } = req.body;
+        const { name, color, icon, allowed_users } = req.body;
         
         if (!name || name.trim().length === 0) {
             return res.status(400).json({
@@ -68,6 +108,16 @@ router.post('/api/folders', requireAuth, async (req, res) => {
         }
         
         const result = await db.createFolder(name.trim(), color || '#6366f1', icon || 'folder');
+        const folder = {
+            id: result.id,
+            name: name.trim(),
+            color: color || '#6366f1',
+            icon: icon || 'folder'
+        };
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'allowed_users')) {
+            await setFolderAllowedUsers(folder, allowed_users);
+        }
+        folder.allowed_users = await getFolderAllowedUsers(folder.id);
         
         // Log action
         await db.logAction(req.session.userId, 'folder_created', `Created folder: ${name}`, req.ip);
@@ -75,10 +125,7 @@ router.post('/api/folders', requireAuth, async (req, res) => {
         res.json({
             success: true,
             data: {
-                id: result.id,
-                name: name.trim(),
-                color: color || '#6366f1',
-                icon: icon || 'folder'
+                ...folder
             }
         });
     } catch (err) {
@@ -96,7 +143,7 @@ router.post('/api/folders', requireAuth, async (req, res) => {
 router.patch('/api/folders/:id', requireAuth, async (req, res) => {
     try {
         const folderId = parseInt(req.params.id, 10);
-        const { name, color, icon } = req.body;
+        const { name, color, icon, allowed_users } = req.body;
         
         const folder = await db.getFolderById(folderId);
         if (!folder) {
@@ -126,6 +173,18 @@ router.patch('/api/folders/:id', requireAuth, async (req, res) => {
             color,
             icon
         });
+        const updatedFolder = {
+            ...folder,
+            id: folderId,
+            name: name !== undefined ? name.trim() : folder.name,
+            color: color !== undefined ? color : folder.color,
+            icon: icon !== undefined ? icon : folder.icon
+        };
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'allowed_users')) {
+            await setFolderAllowedUsers(updatedFolder, allowed_users);
+        } else {
+            await ensureFolderDeviceGroup(updatedFolder);
+        }
         
         // Log action
         await db.logAction(req.session.userId, 'folder_updated', `Updated folder: ${name || folder.name}`, req.ip);
@@ -160,6 +219,9 @@ router.delete('/api/folders/:id', requireAuth, async (req, res) => {
         
         // Delete folder
         await db.deleteFolder(folderId);
+        try {
+            await db.deleteDeviceGroup(folderGroupGuid(folderId));
+        } catch (_) { /* non-critical */ }
         
         // Log action
         await db.logAction(req.session.userId, 'folder_deleted', `Deleted folder: ${folder.name}`, req.ip);

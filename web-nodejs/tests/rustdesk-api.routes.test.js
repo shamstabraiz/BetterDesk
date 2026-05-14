@@ -10,7 +10,12 @@ jest.mock('../services/database', () => ({
     getAllFolderAssignments: jest.fn(),
     getAllFolders: jest.fn(),
     getAllPeerSysinfo: jest.fn(),
-    getAddressBook: jest.fn()
+    getAddressBook: jest.fn(),
+    getAddressBookTags: jest.fn(),
+    saveAddressBook: jest.fn(),
+    getAllDeviceGroups: jest.fn(),
+    getDeviceGroupByGuid: jest.fn(),
+    getDeviceGroupMembers: jest.fn()
 }));
 
 jest.mock('../services/authService', () => ({
@@ -47,6 +52,11 @@ describe('RustDesk Client API routes', () => {
         db.getAllFolderAssignments.mockResolvedValue({});
         db.getAllFolders.mockResolvedValue([]);
         db.getAllPeerSysinfo.mockResolvedValue([]);
+        db.getAddressBookTags.mockResolvedValue([]);
+        db.saveAddressBook.mockResolvedValue(undefined);
+        db.getAllDeviceGroups.mockResolvedValue([]);
+        db.getDeviceGroupByGuid.mockResolvedValue(null);
+        db.getDeviceGroupMembers.mockResolvedValue([]);
         db.getAddressBook.mockImplementation(async (_userId, abType) => {
             if (abType === 'legacy') {
                 return { data: JSON.stringify({ peers: [{ id: 'OWNED1' }] }) };
@@ -92,6 +102,44 @@ describe('RustDesk Client API routes', () => {
             expect(res.body.data.map(peer => peer.id)).toEqual(['OWNED1', 'OTHER1']);
             expect(db.getAddressBook).not.toHaveBeenCalled();
         });
+
+        it('always returns only online peers to the RustDesk reachable devices list', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            db.getAllDevices.mockResolvedValue([
+                { id: 'ONLINE1', hostname: 'Online', online: true, tags: 'Allowed' },
+                { id: 'OFFLINE1', hostname: 'Offline', online: false, tags: 'Allowed' }
+            ]);
+
+            const res = await request(app)
+                .get('/api/peers?include_offline=true')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.data.map(peer => peer.id)).toEqual(['ONLINE1']);
+        });
+
+        it('filters reachable devices by folder device group guid', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            db.getAllDevices.mockResolvedValue([
+                { id: 'FOLDER1', hostname: 'Folder device', online: true, tags: 'Allowed' },
+                { id: 'OTHER1', hostname: 'Other', online: true, tags: 'Allowed' }
+            ]);
+            db.getAllFolders.mockResolvedValue([{ id: 7, name: 'Servers' }]);
+            db.getAllFolderAssignments.mockResolvedValue({ FOLDER1: 7 });
+
+            const res = await request(app)
+                .get('/api/peers?device_group_guid=folder_7')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.data[0]).toMatchObject({
+                id: 'FOLDER1',
+                folder_id: 7,
+                device_group_guid: 'folder_7'
+            });
+        });
     });
 
     describe('GET /api/ab', () => {
@@ -133,6 +181,27 @@ describe('RustDesk Client API routes', () => {
             const data = JSON.parse(res.body.data);
             expect(data.peers).toEqual([]);
             expect(data.tags).toEqual([]);
+        });
+    });
+
+    describe('POST /api/ab', () => {
+        it('syncs client-side peer tag changes back to the console without folder names', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            db.getAllFolders.mockResolvedValue([{ id: 7, name: 'Servers' }]);
+
+            const res = await request(app)
+                .post('/api/ab')
+                .set('Authorization', 'Bearer operator-token')
+                .send({
+                    data: JSON.stringify({
+                        peers: [{ id: 'OWNED1', tags: ['ClientTag', 'Servers'] }],
+                        tags: ['ClientTag', 'Servers']
+                    })
+                });
+
+            expect(res.status).toBe(200);
+            expect(db.saveAddressBook).toHaveBeenCalled();
+            expect(serverBackend.setPeerTags).toHaveBeenCalledWith('OWNED1', ['ClientTag']);
         });
     });
 });

@@ -102,7 +102,8 @@ async function getVisibleDevicesForRequest(req) {
 }
 
 async function getVisibleDeviceGroupsForRequest(req) {
-    let groups = await db.getAllDeviceGroups();
+    let groups = (await db.getAllDeviceGroups())
+        .filter(group => deviceGroupService.folderIdFromGroupGuid(group.guid) === null);
     const accessGroups = await db.getDeviceGroupAccessForUser(req.session.userId);
     if (accessGroups && accessGroups.length > 0) {
         const allowedGroupGuids = new Set(accessGroups.map(group => group.guid));

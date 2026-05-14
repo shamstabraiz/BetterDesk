@@ -40,8 +40,44 @@ function hasTag(device, tag) {
     return normalizeTags(device && device.tags).some(t => t.toLowerCase() === expected);
 }
 
+function folderIdFromGroupGuid(value) {
+    const match = String(value || '').trim().match(/^folder_(\d+)$/i);
+    if (!match) return null;
+    const id = Number.parseInt(match[1], 10);
+    return Number.isFinite(id) ? id : null;
+}
+
+function getGroupFolderId(group) {
+    const explicit = group && group.folder_id;
+    if (explicit !== undefined && explicit !== null && explicit !== '') {
+        const id = Number.parseInt(explicit, 10);
+        if (Number.isFinite(id)) return id;
+    }
+    return folderIdFromGroupGuid(group && group.guid);
+}
+
+function groupAllowedForUser(group, user) {
+    if (!user || isSuperAdminRole(user.role) || user.role === 'global_admin' || user.role === 'server_admin') {
+        return true;
+    }
+    const allowedUsers = normalizeUsernames(group && group.allowed_users);
+    if (allowedUsers.length === 0) return true;
+    return allowedUsers.includes(user.username);
+}
+
 async function getGroupPeerIds(db, group, devices = []) {
     const ids = new Set();
+    const folderId = getGroupFolderId(group);
+    if (folderId !== null) {
+        for (const device of devices || []) {
+            const deviceFolderId = Number.parseInt(device && device.folder_id, 10);
+            if (Number.isFinite(deviceFolderId) && deviceFolderId === folderId) {
+                ids.add(String(device.id));
+            }
+        }
+        return ids;
+    }
+
     if (group && group.guid) {
         try {
             const staticIds = await db.getDeviceGroupMembers(group.guid);
@@ -78,15 +114,27 @@ async function getDeviceScopeForUser(db, user, devices = []) {
         return null;
     }
 
-    const groups = await db.getDeviceGroupAccessForUser(user.id);
-    if (!groups || groups.length === 0) return null;
+    if (typeof db.getAllDeviceGroups !== 'function') return null;
 
-    const allowed = new Set();
-    for (const group of groups) {
+    const groups = await db.getAllDeviceGroups();
+    const restrictedGroups = (groups || []).filter(group => normalizeUsernames(group.allowed_users).length > 0);
+    if (restrictedGroups.length === 0) return null;
+
+    const allowedIds = new Set();
+    const restrictedIds = new Set();
+    for (const group of restrictedGroups) {
         const ids = await getGroupPeerIds(db, group, devices);
-        for (const id of ids) allowed.add(id);
+        const target = groupAllowedForUser(group, user) ? allowedIds : restrictedIds;
+        for (const id of ids) target.add(id);
     }
-    return allowed;
+
+    const visible = new Set();
+    for (const device of devices || []) {
+        const id = String(device && device.id || '');
+        if (!id) continue;
+        if (!restrictedIds.has(id) || allowedIds.has(id)) visible.add(id);
+    }
+    return visible;
 }
 
 function filterDevicesByScope(devices, allowedIds) {
@@ -104,6 +152,9 @@ module.exports = {
     normalizeTags,
     normalizeUsernames,
     normalizeGroupPayload,
+    folderIdFromGroupGuid,
+    getGroupFolderId,
+    groupAllowedForUser,
     getGroupPeerIds,
     enrichGroups,
     getDeviceScopeForUser,

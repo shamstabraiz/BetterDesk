@@ -53,6 +53,21 @@ function normalizeTags(value) {
     return tags;
 }
 
+function buildFolderTagSet(folders) {
+    const folderTags = new Set();
+    for (const folder of Array.isArray(folders) ? folders : []) {
+        const name = sanitizeTag(folder && folder.name);
+        if (name) folderTags.add(name.toLowerCase());
+    }
+    return folderTags;
+}
+
+function filterFolderTags(tags, folderTags) {
+    const normalized = normalizeTags(tags);
+    if (!folderTags || folderTags.size === 0) return normalized;
+    return normalized.filter(tag => !folderTags.has(tag.toLowerCase()));
+}
+
 function parseAddressBookData(data) {
     let parsed = {};
 
@@ -76,9 +91,9 @@ function parseAddressBookData(data) {
     return parsed;
 }
 
-function getDeviceTags(device) {
+function getDeviceTags(device, folderTags) {
     const tags = normalizeTags(device && device.tags);
-    return tags;
+    return filterFolderTags(tags, folderTags);
 }
 
 function mergePeerFields(existing, device, tags) {
@@ -100,7 +115,9 @@ function mergeAddressBookData(data, options = {}) {
     const ab = parseAddressBookData(data);
     const devices = Array.isArray(options.devices) ? options.devices : [];
     const includeDevices = options.includeDevices !== false;
+    const folderTags = buildFolderTagSet(options.folders);
 
+    ab.tags = filterFolderTags(ab.tags, folderTags);
     const globalSeen = new Set(ab.tags);
 
     const peerById = new Map();
@@ -108,7 +125,7 @@ function mergeAddressBookData(data, options = {}) {
         if (!peer || typeof peer !== 'object') continue;
         const id = String(peer.id || '').trim();
         if (!id) continue;
-        peer.tags = normalizeTags(peer.tags);
+        peer.tags = filterFolderTags(peer.tags, folderTags);
         peerById.set(id, peer);
         for (const tag of peer.tags) {
             uniquePush(ab.tags, globalSeen, tag);
@@ -122,9 +139,9 @@ function mergeAddressBookData(data, options = {}) {
         const existing = peerById.get(id);
         if (!existing && !includeDevices) continue;
 
-        const mergedTags = normalizeTags(existing && existing.tags);
+        const mergedTags = filterFolderTags(existing && existing.tags, folderTags);
         const tagSeen = new Set(mergedTags);
-        for (const tag of getDeviceTags(device)) {
+        for (const tag of getDeviceTags(device, folderTags)) {
             uniquePush(mergedTags, tagSeen, tag);
             uniquePush(ab.tags, globalSeen, tag);
         }
@@ -142,9 +159,10 @@ function mergeAddressBookData(data, options = {}) {
 function collectVisibleTags(devices, folders, assignments) {
     const tags = [];
     const seen = new Set();
+    const folderTags = buildFolderTagSet(folders);
 
     for (const device of Array.isArray(devices) ? devices : []) {
-        for (const tag of getDeviceTags(device)) {
+        for (const tag of getDeviceTags(device, folderTags)) {
             uniquePush(tags, seen, tag);
         }
     }
@@ -152,10 +170,11 @@ function collectVisibleTags(devices, folders, assignments) {
     return tags.sort((a, b) => a.localeCompare(b));
 }
 
-function collectPeerTagUpdates(data) {
+function collectPeerTagUpdates(data, options = {}) {
     const ab = parseAddressBookData(data);
     const updates = [];
     const seen = new Set();
+    const folderTags = buildFolderTagSet(options.folders);
 
     for (const peer of ab.peers) {
         if (!peer || typeof peer !== 'object') continue;
@@ -163,7 +182,7 @@ function collectPeerTagUpdates(data) {
         if (!id || seen.has(id)) continue;
         if (!Object.prototype.hasOwnProperty.call(peer, 'tags')) continue;
         seen.add(id);
-        updates.push({ id, tags: normalizeTags(peer.tags) });
+        updates.push({ id, tags: filterFolderTags(peer.tags, folderTags) });
     }
 
     return updates;
@@ -172,6 +191,7 @@ function collectPeerTagUpdates(data) {
 module.exports = {
     normalizeTags,
     parseAddressBookData,
+    filterFolderTags,
     mergeAddressBookData,
     collectVisibleTags,
     collectPeerTagUpdates
