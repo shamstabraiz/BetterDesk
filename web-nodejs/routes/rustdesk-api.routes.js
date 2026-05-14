@@ -282,7 +282,7 @@ async function buildSyncedAddressBook(user, abType) {
 
     return addressBookSync.mergeAddressBookData(abData, {
         ...context,
-        includeDevices: canSyncDeviceInventory(user)
+        includeDevices: false
     });
 }
 
