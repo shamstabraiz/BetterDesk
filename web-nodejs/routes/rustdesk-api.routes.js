@@ -41,6 +41,7 @@ const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
 const addressBookSync = require('../services/rustdeskAddressBookSync');
 const config = require('../config/config');
+const { roleHasPermission } = require('../middleware/auth');
 
 // ==================== Constants ====================
 
@@ -160,6 +161,59 @@ function canSyncDeviceInventory(user) {
     return user && user.role !== 'pro';
 }
 
+function canSyncDeviceTags(user) {
+    return user && user.role !== 'pro' && roleHasPermission(user.role, 'device.edit');
+}
+
+function getDeviceFolderId(device) {
+    const raw = device && device.folder_id;
+    if (raw === undefined || raw === null || raw === '') return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function folderIdFromGroupGuid(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const raw = String(value).trim();
+    const match = raw.match(/^folder_(\d+)$/i) || raw.match(/^(\d+)$/);
+    if (!match) return null;
+    const parsed = Number.parseInt(match[1], 10);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function requestedFolderId(query = {}) {
+    return folderIdFromGroupGuid(
+        query.folder_id ||
+        query.device_group_guid ||
+        query.device_group_id ||
+        query.group_guid ||
+        query.group_id ||
+        query.group
+    );
+}
+
+async function syncAddressBookTagsToConsole(user, dataStr, abType) {
+    if (!canSyncDeviceTags(user)) return;
+
+    const updates = addressBookSync.collectPeerTagUpdates(dataStr);
+    if (updates.length === 0) return;
+
+    let synced = 0;
+    for (const update of updates) {
+        if (!isValidDeviceId(update.id)) continue;
+        try {
+            const result = await serverBackend.setPeerTags(update.id, update.tags);
+            if (result && result.success !== false) synced++;
+        } catch (err) {
+            console.warn(`[API:AB] Failed to sync tags for peer ${update.id}:`, err.message);
+        }
+    }
+
+    if (synced > 0) {
+        console.log(`[API:AB] Synced ${synced} peer tag set(s) from ${abType} address book for user ${user.username}`);
+    }
+}
+
 async function getConsoleDeviceContext(user) {
     const context = {
         devices: [],
@@ -213,16 +267,7 @@ async function buildSyncedAddressBook(user, abType) {
 
 async function getSyncedAddressBookTags(user) {
     const context = await getConsoleDeviceContext(user);
-    let folders = context.folders;
-    if (!canSyncDeviceInventory(user)) {
-        const visibleFolderIds = new Set();
-        for (const device of context.devices) {
-            const folderId = context.assignments[String(device.id)] ?? device.folder_id;
-            if (folderId !== undefined && folderId !== null) visibleFolderIds.add(String(folderId));
-        }
-        folders = context.folders.filter(folder => visibleFolderIds.has(String(folder.id)));
-    }
-    const tags = addressBookSync.collectVisibleTags(context.devices, folders, context.assignments);
+    const tags = addressBookSync.collectVisibleTags(context.devices, [], {});
 
     try {
         for (const tag of await db.getAddressBookTags(user.id)) {
@@ -255,12 +300,24 @@ async function getRustDeskDeviceGroups() {
         const folders = await db.getAllFolders();
         const assignments = await db.getAllFolderAssignments();
         const counts = {};
-        for (const folderId of Object.values(assignments || {})) {
+        let onlineDevices = [];
+        let countedOnline = false;
+        try {
+            onlineDevices = await serverBackend.getAllDevices({ status: 'online' });
+            countedOnline = true;
+        } catch (err) {
+            console.warn('[API:DEVICE-GROUP] Failed to count online folder devices:', err.message);
+        }
+        const onlineIds = new Set(onlineDevices.map(device => String(device.id)));
+        for (const [deviceId, folderId] of Object.entries(assignments || {})) {
+            if (countedOnline && !onlineIds.has(String(deviceId))) continue;
             counts[folderId] = (counts[folderId] || 0) + 1;
         }
         for (const folder of folders) {
+            const guid = `folder_${folder.id}`;
             groups.push({
-                guid: `folder_${folder.id}`,
+                id: guid,
+                guid,
                 name: folder.name,
                 note: 'BetterDesk folder',
                 team_id: '',
@@ -543,6 +600,7 @@ router.post('/api/ab', async (req, res) => {
         const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
         try {
             await db.saveAddressBook(user.id, dataStr, 'legacy');
+            await syncAddressBookTagsToConsole(user, dataStr, 'legacy');
             console.log(`[API:AB] Saved legacy address book for user ${user.username} (${dataStr.length} bytes)`);
         } catch (err) {
             console.error('[API:AB] Error saving legacy address book:', err.message);
@@ -618,6 +676,7 @@ router.post('/api/ab/personal', async (req, res) => {
         const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
         try {
             await db.saveAddressBook(user.id, dataStr, 'personal');
+            await syncAddressBookTagsToConsole(user, dataStr, 'personal');
             console.log(`[API:AB] Saved personal address book for user ${user.username} (${dataStr.length} bytes)`);
         } catch (err) {
             console.error('[API:AB] Error saving personal address book:', err.message);
@@ -693,17 +752,42 @@ router.get('/api/peers', async (req, res, next) => {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    // Pro users cannot see the device list — only their own address book
+    // Pro users are API-only accounts for RustDesk PRO activation/telemetry.
+    // They intentionally do not receive reachable device inventory.
     if (user.role === 'pro') {
         return res.json({ data: [], total: 0 });
     }
 
     try {
         // Get all devices from peer table
-        const devices = await db.getAllDevices({
+        const requestedFolder = requestedFolderId(req.query);
+        let devices = await db.getAllDevices({
             search: req.query.search || '',
-            status: req.query.status || ''
+            status: req.query.status || 'online'
         });
+
+        let assignments = {};
+        try {
+            assignments = await db.getAllFolderAssignments();
+            for (const device of devices) {
+                const assigned = assignments[String(device.id)];
+                if (assigned !== undefined) device.folder_id = assigned;
+            }
+        } catch (_) { /* non-critical */ }
+
+        if (req.query.include_offline !== 'true') {
+            devices = devices.filter(device => !!device.online);
+        }
+
+        if (requestedFolder !== null) {
+            devices = devices.filter(device => getDeviceFolderId(device) === requestedFolder);
+        }
+
+        let folderNames = new Map();
+        try {
+            const folders = await db.getAllFolders();
+            folderNames = new Map(folders.map(folder => [Number.parseInt(folder.id, 10), folder.name]));
+        } catch (_) { /* non-critical */ }
 
         // Build sysinfo lookup map
         const allSysinfo = await db.getAllPeerSysinfo();
@@ -716,6 +800,8 @@ router.get('/api/peers', async (req, res, next) => {
         const enrichedPeers = devices.map(device => {
             const si = sysinfoMap[device.id] || {};
             const tags = addressBookSync.normalizeTags(device.tags);
+            const folderId = getDeviceFolderId(device);
+            const deviceGroupGuid = folderId ? `folder_${folderId}` : '';
             return {
                 id: device.id,
                 hostname: si.hostname || device.hostname || '',
@@ -734,8 +820,11 @@ router.get('/api/peers', async (req, res, next) => {
                 os: si.os_full || '',
                 displays: si.displays || [],
                 tags,
-                folder_id: device.folder_id,
-                device_group_guid: device.folder_id ? `folder_${device.folder_id}` : ''
+                folder_id: folderId,
+                device_group_guid: deviceGroupGuid,
+                device_group_id: deviceGroupGuid,
+                group_id: deviceGroupGuid,
+                group_name: folderId ? (folderNames.get(folderId) || '') : ''
             };
         });
 

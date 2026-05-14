@@ -1,9 +1,9 @@
 /**
  * RustDesk address book sync helpers.
  *
- * RustDesk stores folders as peer tags in the address book JSON. The web panel
- * has separate device tags and folders, so the client API merges both into the
- * address book response without changing the user's saved JSON on read.
+ * The web panel stores device tags and folders separately. RustDesk address
+ * books only own explicit peer tags; BetterDesk folders are exposed through the
+ * RustDesk device-group API instead of being injected into the global tag list.
  */
 
 'use strict';
@@ -76,35 +76,8 @@ function parseAddressBookData(data) {
     return parsed;
 }
 
-function collectFolderTags(folders) {
-    const byId = new Map();
-    const all = [];
-    const seen = new Set();
-
-    for (const folder of Array.isArray(folders) ? folders : []) {
-        const tag = sanitizeTag(folder && folder.name);
-        if (!tag) continue;
-        if (folder.id !== undefined && folder.id !== null) {
-            byId.set(String(folder.id), tag);
-        }
-        uniquePush(all, seen, tag);
-    }
-
-    return { byId, all };
-}
-
-function getDeviceTags(device, folderTags, assignments) {
+function getDeviceTags(device) {
     const tags = normalizeTags(device && device.tags);
-    const seen = new Set(tags);
-    const deviceId = device && device.id !== undefined ? String(device.id) : '';
-    const folderId = assignments && deviceId && assignments[deviceId] !== undefined
-        ? assignments[deviceId]
-        : device && device.folder_id;
-    const folderTag = folderId !== undefined && folderId !== null
-        ? folderTags.byId.get(String(folderId))
-        : '';
-
-    uniquePush(tags, seen, folderTag);
     return tags;
 }
 
@@ -126,16 +99,9 @@ function mergePeerFields(existing, device, tags) {
 function mergeAddressBookData(data, options = {}) {
     const ab = parseAddressBookData(data);
     const devices = Array.isArray(options.devices) ? options.devices : [];
-    const assignments = options.assignments || {};
     const includeDevices = options.includeDevices !== false;
-    const folderTags = collectFolderTags(options.folders || []);
 
     const globalSeen = new Set(ab.tags);
-    if (includeDevices) {
-        for (const tag of folderTags.all) {
-            uniquePush(ab.tags, globalSeen, tag);
-        }
-    }
 
     const peerById = new Map();
     for (const peer of ab.peers) {
@@ -158,7 +124,7 @@ function mergeAddressBookData(data, options = {}) {
 
         const mergedTags = normalizeTags(existing && existing.tags);
         const tagSeen = new Set(mergedTags);
-        for (const tag of getDeviceTags(device, folderTags, assignments)) {
+        for (const tag of getDeviceTags(device)) {
             uniquePush(mergedTags, tagSeen, tag);
             uniquePush(ab.tags, globalSeen, tag);
         }
@@ -174,15 +140,11 @@ function mergeAddressBookData(data, options = {}) {
 }
 
 function collectVisibleTags(devices, folders, assignments) {
-    const folderTags = collectFolderTags(folders || []);
     const tags = [];
     const seen = new Set();
 
-    for (const tag of folderTags.all) {
-        uniquePush(tags, seen, tag);
-    }
     for (const device of Array.isArray(devices) ? devices : []) {
-        for (const tag of getDeviceTags(device, folderTags, assignments || {})) {
+        for (const tag of getDeviceTags(device)) {
             uniquePush(tags, seen, tag);
         }
     }
@@ -190,9 +152,27 @@ function collectVisibleTags(devices, folders, assignments) {
     return tags.sort((a, b) => a.localeCompare(b));
 }
 
+function collectPeerTagUpdates(data) {
+    const ab = parseAddressBookData(data);
+    const updates = [];
+    const seen = new Set();
+
+    for (const peer of ab.peers) {
+        if (!peer || typeof peer !== 'object') continue;
+        const id = String(peer.id || '').trim();
+        if (!id || seen.has(id)) continue;
+        if (!Object.prototype.hasOwnProperty.call(peer, 'tags')) continue;
+        seen.add(id);
+        updates.push({ id, tags: normalizeTags(peer.tags) });
+    }
+
+    return updates;
+}
+
 module.exports = {
     normalizeTags,
     parseAddressBookData,
     mergeAddressBookData,
-    collectVisibleTags
+    collectVisibleTags,
+    collectPeerTagUpdates
 };

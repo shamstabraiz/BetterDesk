@@ -167,7 +167,7 @@ describe('Devices Routes', () => {
     });
 
     describe('GET /api/tags', () => {
-        it('should return unique device tags and folder names', async () => {
+        it('should return unique device tags without folder names', async () => {
             serverBackend.getAllDevices.mockResolvedValue([
                 { id: '123456789', tags: ['Internal', 'Windows'], folder_id: 1 },
                 { id: '987654321', tags: 'External,Windows' }
@@ -179,7 +179,7 @@ describe('Devices Routes', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
-            expect(res.body.data.tags).toEqual(['External', 'Internal', 'Servers', 'Windows']);
+            expect(res.body.data.tags).toEqual(['External', 'Internal', 'Windows']);
         });
     });
 

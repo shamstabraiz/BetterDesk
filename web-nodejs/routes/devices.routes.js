@@ -61,25 +61,15 @@ router.get('/api/devices', requireAuth, async (req, res) => {
 });
 
 /**
- * GET /api/tags - Get all visible device tags and folder-backed tags.
+ * GET /api/tags - Get all visible device tags.
  */
 router.get('/api/tags', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
         const devices = await serverBackend.getAllDevices({});
-        let folders = [];
-        let assignments = {};
-
-        try {
-            folders = await db.getAllFolders();
-            assignments = await db.getAllFolderAssignments();
-        } catch (err) {
-            console.warn('Get tags folder overlay failed:', err.message);
-        }
-
         res.json({
             success: true,
             data: {
-                tags: addressBookSync.collectVisibleTags(devices, folders, assignments)
+                tags: addressBookSync.collectVisibleTags(devices, [], {})
             }
         });
     } catch (err) {

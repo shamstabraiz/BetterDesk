@@ -5,7 +5,7 @@
 const sync = require('../services/rustdeskAddressBookSync');
 
 describe('rustdeskAddressBookSync', () => {
-    it('merges panel tags and folders into existing address book peers', () => {
+    it('merges panel tags into existing address book peers without turning folders into tags', () => {
         const result = JSON.parse(sync.mergeAddressBookData(JSON.stringify({
             peers: [{ id: '123456789', tags: ['Existing'] }],
             tags: ['Existing']
@@ -19,9 +19,9 @@ describe('rustdeskAddressBookSync', () => {
             includeDevices: true
         }));
 
-        expect(result.tags).toEqual(['Existing', 'Workstations', 'Internal', 'External']);
+        expect(result.tags).toEqual(['Existing', 'Internal', 'External']);
         expect(result.peers).toHaveLength(2);
-        expect(result.peers[0].tags).toEqual(['Existing', 'Internal', 'Workstations']);
+        expect(result.peers[0].tags).toEqual(['Existing', 'Internal']);
         expect(result.peers[1]).toMatchObject({
             id: '987654321',
             hostname: 'PC-2',
@@ -49,6 +49,20 @@ describe('rustdeskAddressBookSync', () => {
             {}
         );
 
-        expect(tags).toEqual(['External', 'Internal', 'Laptops', 'Windows']);
+        expect(tags).toEqual(['External', 'Internal', 'Windows']);
+    });
+
+    it('extracts peer tag updates from client address book data', () => {
+        const updates = sync.collectPeerTagUpdates(JSON.stringify({
+            peers: [
+                { id: '123456789', tags: ['Client', 'Windows'] },
+                { id: '987654321' }
+            ],
+            tags: ['Client']
+        }));
+
+        expect(updates).toEqual([
+            { id: '123456789', tags: ['Client', 'Windows'] }
+        ]);
     });
 });

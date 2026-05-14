@@ -304,6 +304,7 @@ func (s *Server) handleClientCurrentUser(w http.ResponseWriter, r *http.Request)
 // POST /api/ab — update legacy address book
 func (s *Server) handleClientAddressBook(w http.ResponseWriter, r *http.Request) {
 	username := getUsernameFromCtx(r)
+	role := getRoleFromCtx(r)
 	if username == "" {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Not authenticated"})
 		return
@@ -351,6 +352,7 @@ func (s *Server) handleClientAddressBook(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal error"})
 			return
 		}
+		s.syncAddressBookTagsToPeers(username, role, "legacy", dataStr)
 		log.Printf("[api] Saved legacy address book for %s (%d bytes)", username, len(dataStr))
 		writeJSON(w, http.StatusOK, map[string]any{})
 
@@ -364,6 +366,7 @@ func (s *Server) handleClientAddressBook(w http.ResponseWriter, r *http.Request)
 // POST /api/ab/personal — update personal address book
 func (s *Server) handleClientAddressBookPersonal(w http.ResponseWriter, r *http.Request) {
 	username := getUsernameFromCtx(r)
+	role := getRoleFromCtx(r)
 	if username == "" {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Not authenticated"})
 		return
@@ -408,11 +411,99 @@ func (s *Server) handleClientAddressBookPersonal(w http.ResponseWriter, r *http.
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal error"})
 			return
 		}
+		s.syncAddressBookTagsToPeers(username, role, "personal", dataStr)
 		log.Printf("[api] Saved personal address book for %s (%d bytes)", username, len(dataStr))
 		writeJSON(w, http.StatusOK, map[string]any{})
 
 	default:
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+	}
+}
+
+func normalizeClientTags(value any) []string {
+	var raw []string
+	switch v := value.(type) {
+	case []any:
+		for _, item := range v {
+			if tag, ok := item.(string); ok {
+				raw = append(raw, tag)
+			}
+		}
+	case []string:
+		raw = append(raw, v...)
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return nil
+		}
+		if strings.HasPrefix(strings.TrimSpace(v), "[") {
+			var arr []string
+			if err := json.Unmarshal([]byte(v), &arr); err == nil {
+				raw = append(raw, arr...)
+			} else {
+				raw = strings.Split(v, ",")
+			}
+		} else {
+			raw = strings.Split(v, ",")
+		}
+	default:
+		return nil
+	}
+
+	seen := make(map[string]bool, len(raw))
+	tags := make([]string, 0, len(raw))
+	for _, tag := range raw {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		if len(tag) > 50 {
+			tag = tag[:50]
+		}
+		if seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		tags = append(tags, tag)
+		if len(tags) >= 20 {
+			break
+		}
+	}
+	return tags
+}
+
+func (s *Server) syncAddressBookTagsToPeers(username, role, abType, data string) {
+	if role == auth.RolePro || !auth.RoleHasPermission(role, auth.PermDeviceEdit) {
+		return
+	}
+
+	var ab struct {
+		Peers []map[string]any `json:"peers"`
+	}
+	if err := json.Unmarshal([]byte(data), &ab); err != nil || len(ab.Peers) == 0 {
+		return
+	}
+
+	synced := 0
+	seenPeers := make(map[string]bool, len(ab.Peers))
+	for _, peer := range ab.Peers {
+		id, _ := peer["id"].(string)
+		id = strings.TrimSpace(id)
+		if id == "" || seenPeers[id] {
+			continue
+		}
+		if _, hasTags := peer["tags"]; !hasTags {
+			continue
+		}
+		seenPeers[id] = true
+		tags := normalizeClientTags(peer["tags"])
+		if err := s.db.UpdatePeerTags(id, strings.Join(tags, ",")); err != nil {
+			log.Printf("[api] Address book tag sync failed for peer %s user=%s: %v", id, username, err)
+			continue
+		}
+		synced++
+	}
+	if synced > 0 {
+		log.Printf("[api] Synced %d peer tag set(s) from %s address book for %s", synced, abType, username)
 	}
 }
 
@@ -550,7 +641,7 @@ func (s *Server) handleClientAddressBookTags(w http.ResponseWriter, r *http.Requ
 		ab.Tags = []string{}
 	}
 
-	if auth.RoleHasPermission(role, auth.PermDeviceView) {
+	if role != auth.RolePro && auth.RoleHasPermission(role, auth.PermDeviceView) {
 		if peers, err := s.db.ListPeers(false); err == nil {
 			seen := make(map[string]bool, len(ab.Tags))
 			for _, tag := range ab.Tags {
