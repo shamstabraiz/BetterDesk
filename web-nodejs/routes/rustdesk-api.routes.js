@@ -158,7 +158,7 @@ function isValidDeviceId(id) {
 }
 
 function canSyncDeviceInventory(user) {
-    return user && user.role !== 'pro';
+    return user && user.role !== 'pro' && roleHasPermission(user.role, 'device.edit');
 }
 
 function canSyncDeviceTags(user) {
@@ -190,6 +190,35 @@ function requestedFolderId(query = {}) {
         query.group_id ||
         query.group
     );
+}
+
+async function getAddressBookPeerIds(user) {
+    const allowedIds = new Set();
+    if (!user || !user.id) return allowedIds;
+
+    for (const abType of ['legacy', 'personal']) {
+        try {
+            const row = await db.getAddressBook(user.id, abType);
+            const parsed = addressBookSync.parseAddressBookData(row && row.data);
+            for (const peer of parsed.peers) {
+                const id = String(peer && peer.id || '').trim();
+                if (id) allowedIds.add(id);
+            }
+        } catch (err) {
+            console.warn(`[API:AB] Failed to read ${abType} address book for user ${user.username}:`, err.message);
+        }
+    }
+
+    return allowedIds;
+}
+
+async function filterDevicesForRustDeskUser(user, devices) {
+    if (canSyncDeviceInventory(user)) return devices;
+
+    const allowedIds = await getAddressBookPeerIds(user);
+    if (allowedIds.size === 0) return [];
+
+    return devices.filter(device => allowedIds.has(String(device.id)));
 }
 
 async function syncAddressBookTagsToConsole(user, dataStr, abType) {
@@ -236,16 +265,7 @@ async function getConsoleDeviceContext(user) {
     try {
         context.devices = await serverBackend.getAllDevices({});
         if (!canSyncDeviceInventory(user)) {
-            const allowedIds = new Set();
-            const legacy = await db.getAddressBook(user.id, 'legacy');
-            const personal = await db.getAddressBook(user.id, 'personal');
-            for (const row of [legacy, personal]) {
-                const parsed = addressBookSync.parseAddressBookData(row && row.data);
-                for (const peer of parsed.peers) {
-                    if (peer && peer.id) allowedIds.add(String(peer.id));
-                }
-            }
-            context.devices = context.devices.filter(device => allowedIds.has(String(device.id)));
+            context.devices = await filterDevicesForRustDeskUser(user, context.devices);
         }
     } catch (err) {
         console.warn('[API:AB] Failed to read panel devices:', err.message);
@@ -774,6 +794,8 @@ router.get('/api/peers', async (req, res, next) => {
                 if (assigned !== undefined) device.folder_id = assigned;
             }
         } catch (_) { /* non-critical */ }
+
+        devices = await filterDevicesForRustDeskUser(user, devices);
 
         if (req.query.include_offline !== 'true') {
             devices = devices.filter(device => !!device.online);
