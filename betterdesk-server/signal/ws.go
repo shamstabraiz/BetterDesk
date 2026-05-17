@@ -16,6 +16,8 @@ import (
 	pb "github.com/unitronix/betterdesk-server/proto"
 )
 
+var wsSignalKeepAliveInterval = time.Duration(config.HeartbeatSuggestion) * time.Second / 2
+
 // serveWS starts the WebSocket signal listener (e.g., port 21118).
 // RustDesk web clients connect here for the same signal protocol,
 // using raw protobuf in binary WS frames (no 2-byte TCP header).
@@ -28,10 +30,9 @@ func (s *Server) serveWS() {
 
 	addr := fmt.Sprintf(":%d", s.cfg.WSSignalPort())
 	s.wsHTTP = &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  config.WSConnTimeout,
-		WriteTimeout: config.WSConnTimeout,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: config.WSConnTimeout,
 		BaseContext: func(l net.Listener) context.Context {
 			return s.ctx
 		},
@@ -108,6 +109,9 @@ func (s *Server) wsSignalLoop(wsc *codec.WSConn) {
 	defer wsc.Close()
 
 	remoteAddr := wsc.RemoteAddr()
+	keepAliveDone := make(chan struct{})
+	go s.wsSignalKeepAlive(wsc, keepAliveDone)
+	defer close(keepAliveDone)
 
 	for {
 		msg, err := wsc.ReadMessage()
@@ -200,6 +204,31 @@ func (s *Server) wsSignalLoop(wsc *codec.WSConn) {
 
 		default:
 			log.Printf("[signal] WS: unhandled message from %s", remoteAddr)
+		}
+	}
+}
+
+func (s *Server) wsSignalKeepAlive(wsc *codec.WSConn, done <-chan struct{}) {
+	if wsSignalKeepAliveInterval <= 0 {
+		return
+	}
+
+	ticker := time.NewTicker(wsSignalKeepAliveInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-done:
+			return
+		case <-ticker.C:
+			if err := wsc.WriteKeepAlive(); err != nil {
+				if !isNormalClose(err) {
+					log.Printf("[signal] WS keepalive write to %s: %v", wsc.RemoteAddr(), err)
+				}
+				return
+			}
 		}
 	}
 }

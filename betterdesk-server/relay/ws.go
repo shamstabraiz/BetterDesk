@@ -27,10 +27,10 @@ func (s *Server) serveWS() {
 
 	addr := fmt.Sprintf(":%d", s.cfg.WSRelayPort())
 	s.wsHTTP = &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  config.RelayPairTimeout,
-		WriteTimeout: 0, // No write timeout for relay pipe
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: config.WSConnTimeout,
+		WriteTimeout:      0, // No write timeout for relay pipe
 		BaseContext: func(l net.Listener) context.Context {
 			return s.ctx
 		},

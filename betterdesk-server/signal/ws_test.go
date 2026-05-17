@@ -77,6 +77,171 @@ func TestWSSignalHealthCheck(t *testing.T) {
 	}
 }
 
+func TestWSSignalHealthCheckProxyPath(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.SignalPort = 29120
+	cfg.RelayPort = 29121
+
+	dir := t.TempDir()
+	cfg.DBPath = dir + "/test.db"
+	cfg.KeyFile = dir + "/id_ed25519"
+
+	database, err := db.OpenSQLite(cfg.DBPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database.Migrate()
+	defer database.Close()
+
+	kp, err := crypto.LoadOrGenerateKeyPair(cfg.KeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := New(cfg, kp, database)
+	ctx := t.Context()
+	if err := srv.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Stop()
+	time.Sleep(200 * time.Millisecond)
+
+	ws, _, err := websocket.Dial(ctx, "ws://127.0.0.1:29122/ws/id", nil)
+	if err != nil {
+		t.Fatalf("WS dial: %v", err)
+	}
+	defer ws.CloseNow()
+
+	hc := &pb.RendezvousMessage{
+		Union: &pb.RendezvousMessage_Hc{
+			Hc: &pb.HealthCheck{Token: "ws-proxy-path"},
+		},
+	}
+	data, _ := proto.Marshal(hc)
+	if err := ws.Write(ctx, websocket.MessageBinary, data); err != nil {
+		t.Fatalf("WS write: %v", err)
+	}
+
+	resp := readWSProtoSkippingKeepAlive(t, ctx, ws)
+	if resp.GetHc() == nil || resp.GetHc().Token != "ws-proxy-path" {
+		t.Errorf("unexpected response: %v", resp)
+	}
+}
+
+func TestWSSignalRustDeskKeepAlive(t *testing.T) {
+	oldInterval := wsSignalKeepAliveInterval
+	wsSignalKeepAliveInterval = 50 * time.Millisecond
+	defer func() { wsSignalKeepAliveInterval = oldInterval }()
+
+	cfg := config.DefaultConfig()
+	cfg.SignalPort = 29140
+	cfg.RelayPort = 29141
+
+	dir := t.TempDir()
+	cfg.DBPath = dir + "/test.db"
+	cfg.KeyFile = dir + "/id_ed25519"
+
+	database, err := db.OpenSQLite(cfg.DBPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database.Migrate()
+	defer database.Close()
+
+	kp, err := crypto.LoadOrGenerateKeyPair(cfg.KeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := New(cfg, kp, database)
+	ctx := t.Context()
+	if err := srv.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Stop()
+	time.Sleep(200 * time.Millisecond)
+
+	ws, _, err := websocket.Dial(ctx, "ws://127.0.0.1:29142/ws/id", nil)
+	if err != nil {
+		t.Fatalf("WS dial: %v", err)
+	}
+	defer ws.CloseNow()
+
+	reg := &pb.RendezvousMessage{
+		Union: &pb.RendezvousMessage_RegisterPk{
+			RegisterPk: &pb.RegisterPk{
+				Id:   "WSKEEP1",
+				Uuid: []byte("ws-keepalive-uuid"),
+				Pk:   make([]byte, 32),
+			},
+		},
+	}
+	data, _ := proto.Marshal(reg)
+	if err := ws.Write(ctx, websocket.MessageBinary, data); err != nil {
+		t.Fatalf("WS register write: %v", err)
+	}
+
+	resp := readWSProtoSkippingKeepAlive(t, ctx, ws)
+	if resp.GetRegisterPkResponse() == nil {
+		t.Fatalf("expected RegisterPkResponse, got: %v", resp)
+	}
+
+	readCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	typ, frame, err := ws.Read(readCtx)
+	if err != nil {
+		t.Fatalf("WS keepalive read: %v", err)
+	}
+	if typ != websocket.MessageBinary || len(frame) != 0 {
+		t.Fatalf("expected empty binary keepalive frame, got type=%v len=%d", typ, len(frame))
+	}
+
+	if err := ws.Write(ctx, websocket.MessageBinary, nil); err != nil {
+		t.Fatalf("WS keepalive reply write: %v", err)
+	}
+
+	hc := &pb.RendezvousMessage{
+		Union: &pb.RendezvousMessage_Hc{
+			Hc: &pb.HealthCheck{Token: "after-keepalive"},
+		},
+	}
+	data, _ = proto.Marshal(hc)
+	if err := ws.Write(ctx, websocket.MessageBinary, data); err != nil {
+		t.Fatalf("WS health write after keepalive: %v", err)
+	}
+
+	resp = readWSProtoSkippingKeepAlive(t, ctx, ws)
+	if resp.GetHc() == nil || resp.GetHc().Token != "after-keepalive" {
+		t.Fatalf("expected HealthCheck response after keepalive, got: %v", resp)
+	}
+}
+
+func readWSProtoSkippingKeepAlive(t *testing.T, ctx context.Context, ws *websocket.Conn) *pb.RendezvousMessage {
+	t.Helper()
+
+	readCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	for {
+		typ, data, err := ws.Read(readCtx)
+		if err != nil {
+			t.Fatalf("WS read: %v", err)
+		}
+		if typ != websocket.MessageBinary {
+			t.Fatalf("expected binary frame, got %v", typ)
+		}
+		if len(data) == 0 {
+			continue
+		}
+
+		resp := &pb.RendezvousMessage{}
+		if err := proto.Unmarshal(data, resp); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		return resp
+	}
+}
+
 func TestWSSignalRegisterPeer(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.SignalPort = 29200

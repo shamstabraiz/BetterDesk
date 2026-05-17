@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/coder/websocket"
 	pb "github.com/unitronix/betterdesk-server/proto"
@@ -16,9 +17,10 @@ import (
 
 // WSConn wraps a WebSocket connection for protobuf message I/O.
 type WSConn struct {
-	WS   *websocket.Conn
-	Ctx  context.Context
-	Addr string // remote address string (for logging)
+	WS      *websocket.Conn
+	Ctx     context.Context
+	Addr    string // remote address string (for logging)
+	writeMu sync.Mutex
 }
 
 // NewWSConn creates a WSConn from an accepted WebSocket connection.
@@ -28,19 +30,24 @@ func NewWSConn(ws *websocket.Conn, ctx context.Context, remoteAddr string) *WSCo
 
 // ReadMessage reads one binary WS frame and decodes it as a RendezvousMessage.
 func (c *WSConn) ReadMessage() (*pb.RendezvousMessage, error) {
-	typ, data, err := c.WS.Read(c.Ctx)
-	if err != nil {
-		return nil, fmt.Errorf("ws read: %w", err)
-	}
-	if typ != websocket.MessageBinary {
-		return nil, fmt.Errorf("ws: expected binary frame, got %v", typ)
-	}
+	for {
+		typ, data, err := c.WS.Read(c.Ctx)
+		if err != nil {
+			return nil, fmt.Errorf("ws read: %w", err)
+		}
+		if typ != websocket.MessageBinary {
+			return nil, fmt.Errorf("ws: expected binary frame, got %v", typ)
+		}
+		if len(data) == 0 {
+			continue
+		}
 
-	msg := &pb.RendezvousMessage{}
-	if err := proto.Unmarshal(data, msg); err != nil {
-		return nil, fmt.Errorf("ws unmarshal: %w", err)
+		msg := &pb.RendezvousMessage{}
+		if err := proto.Unmarshal(data, msg); err != nil {
+			return nil, fmt.Errorf("ws unmarshal: %w", err)
+		}
+		return msg, nil
 	}
-	return msg, nil
 }
 
 // WriteMessage encodes a RendezvousMessage and sends it as a binary WS frame.
@@ -49,12 +56,20 @@ func (c *WSConn) WriteMessage(msg *pb.RendezvousMessage) error {
 	if err != nil {
 		return fmt.Errorf("ws marshal: %w", err)
 	}
-	return c.WS.Write(c.Ctx, websocket.MessageBinary, data)
+	return c.WriteRaw(data)
 }
 
 // WriteRaw sends raw bytes as a binary WS frame (for relay passthrough).
 func (c *WSConn) WriteRaw(data []byte) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	return c.WS.Write(c.Ctx, websocket.MessageBinary, data)
+}
+
+// WriteKeepAlive sends an empty binary WS frame. RustDesk clients treat empty
+// signal-stream frames as keepalive pings and reply with an empty frame.
+func (c *WSConn) WriteKeepAlive() error {
+	return c.WriteRaw(nil)
 }
 
 // ReadRaw reads one binary WS frame and returns raw bytes.
@@ -76,6 +91,8 @@ func (c *WSConn) RemoteAddr() string {
 
 // Close closes the WebSocket connection with a normal closure status.
 func (c *WSConn) Close() error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	return c.WS.Close(websocket.StatusNormalClosure, "")
 }
 

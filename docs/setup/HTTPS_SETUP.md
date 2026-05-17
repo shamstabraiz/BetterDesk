@@ -130,8 +130,9 @@ server {
     client_max_body_size 100M;
 
     # ─────────────────────────────────────────────────────────────────────────
-    # WebSocket endpoints (Web Remote Client, Chat, Relay)
-    # These require special handling for long-lived connections
+    # Console WebSocket endpoints (Web Remote Client, Chat, Relay)
+    # These require special handling for long-lived connections.
+    # RustDesk client WSS uses exact /ws/id and /ws/relay locations below.
     # ─────────────────────────────────────────────────────────────────────────
     location ~ ^/ws/ {
         proxy_pass http://127.0.0.1:5000;
@@ -192,6 +193,66 @@ With Nginx reverse proxy, leave `HTTPS_ENABLED=false` in `.env`.
 - The `proxy_buffering off` directive is critical for real-time JPEG streaming
 - Long timeouts (86400s) prevent WebSocket disconnections during idle periods
 - The `map` directive ensures proper WebSocket upgrade handling
+
+### RustDesk Client WSS Through Nginx
+
+RustDesk's native client and web client use the Go server WebSocket ports, not
+the Node.js console WebSocket routes:
+
+| Public path | Upstream | Purpose |
+|-------------|----------|---------|
+| `/ws/id` | `21118` | Rendezvous / ID server over WebSocket |
+| `/ws/relay` | `21119` | Relay server over WebSocket |
+
+If Nginx runs on the Docker host, proxy to the published localhost ports. If
+Nginx runs in the same Docker network, replace `127.0.0.1` with the BetterDesk
+server container name, for example `betterdesk-server` or `betterdesk`.
+
+```nginx
+# RustDesk / BetterDesk signal WebSocket (hbbs-compatible)
+location = /ws/id {
+    proxy_pass http://127.0.0.1:21118;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+}
+
+# RustDesk / BetterDesk relay WebSocket (hbbr-compatible)
+location = /ws/relay {
+    proxy_pass http://127.0.0.1:21119;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+}
+```
+
+Notes:
+
+- Build or configure RustDesk clients with `allow-websocket=Y` when you want the
+    native client to use WSS instead of TCP/UDP signaling.
+- Do not point `/ws/id` or `/ws/relay` at the console port (`5000`). These paths
+    must reach the Go server ports `21118` and `21119`.
+- Keep these as exact `location = ...` entries when your server block also has a
+    generic console `location ~ ^/ws/` rule.
+- Keep `proxy_read_timeout` above 60 seconds. RustDesk expects long-lived signal
+    WebSockets and uses empty binary frames as keepalive traffic.
+- When using only WSS on port 443, remove hard-coded relay values such as
+    `host:21117` from the client or console relay settings; otherwise the client
+    may still try the raw TCP relay port.
 
 ---
 
