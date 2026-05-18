@@ -3,7 +3,8 @@
  *
  * The web panel stores device tags and folders separately. RustDesk address
  * books only own explicit peer tags; BetterDesk folders are exposed through the
- * RustDesk device-group API instead of being injected into the global tag list.
+ * RustDesk device-group API. Folder names must not be used to infer or remove
+ * address book tags because users can intentionally use the same label for both.
  */
 
 'use strict';
@@ -53,19 +54,8 @@ function normalizeTags(value) {
     return tags;
 }
 
-function buildFolderTagSet(folders) {
-    const folderTags = new Set();
-    for (const folder of Array.isArray(folders) ? folders : []) {
-        const name = sanitizeTag(folder && folder.name);
-        if (name) folderTags.add(name.toLowerCase());
-    }
-    return folderTags;
-}
-
-function filterFolderTags(tags, folderTags) {
-    const normalized = normalizeTags(tags);
-    if (!folderTags || folderTags.size === 0) return normalized;
-    return normalized.filter(tag => !folderTags.has(tag.toLowerCase()));
+function filterFolderTags(tags) {
+    return normalizeTags(tags);
 }
 
 function parseAddressBookData(data) {
@@ -91,9 +81,8 @@ function parseAddressBookData(data) {
     return parsed;
 }
 
-function getDeviceTags(device, folderTags) {
-    const tags = normalizeTags(device && device.tags);
-    return filterFolderTags(tags, folderTags);
+function getDeviceTags(device) {
+    return normalizeTags(device && device.tags);
 }
 
 function mergePeerFields(existing, device, tags) {
@@ -115,9 +104,8 @@ function mergeAddressBookData(data, options = {}) {
     const ab = parseAddressBookData(data);
     const devices = Array.isArray(options.devices) ? options.devices : [];
     const includeDevices = options.includeDevices !== false;
-    const folderTags = buildFolderTagSet(options.folders);
 
-    ab.tags = filterFolderTags(ab.tags, folderTags);
+    ab.tags = normalizeTags(ab.tags);
     const globalSeen = new Set(ab.tags);
 
     const peerById = new Map();
@@ -125,7 +113,7 @@ function mergeAddressBookData(data, options = {}) {
         if (!peer || typeof peer !== 'object') continue;
         const id = String(peer.id || '').trim();
         if (!id) continue;
-        peer.tags = filterFolderTags(peer.tags, folderTags);
+        peer.tags = normalizeTags(peer.tags);
         peerById.set(id, peer);
         for (const tag of peer.tags) {
             uniquePush(ab.tags, globalSeen, tag);
@@ -139,9 +127,9 @@ function mergeAddressBookData(data, options = {}) {
         const existing = peerById.get(id);
         if (!existing && !includeDevices) continue;
 
-        const mergedTags = filterFolderTags(existing && existing.tags, folderTags);
+        const mergedTags = normalizeTags(existing && existing.tags);
         const tagSeen = new Set(mergedTags);
-        for (const tag of getDeviceTags(device, folderTags)) {
+        for (const tag of getDeviceTags(device)) {
             uniquePush(mergedTags, tagSeen, tag);
             uniquePush(ab.tags, globalSeen, tag);
         }
@@ -159,10 +147,9 @@ function mergeAddressBookData(data, options = {}) {
 function collectVisibleTags(devices, folders, assignments) {
     const tags = [];
     const seen = new Set();
-    const folderTags = buildFolderTagSet(folders);
 
     for (const device of Array.isArray(devices) ? devices : []) {
-        for (const tag of getDeviceTags(device, folderTags)) {
+        for (const tag of getDeviceTags(device)) {
             uniquePush(tags, seen, tag);
         }
     }
@@ -174,7 +161,6 @@ function collectPeerTagUpdates(data, options = {}) {
     const ab = parseAddressBookData(data);
     const updates = [];
     const seen = new Set();
-    const folderTags = buildFolderTagSet(options.folders);
 
     for (const peer of ab.peers) {
         if (!peer || typeof peer !== 'object') continue;
@@ -182,7 +168,7 @@ function collectPeerTagUpdates(data, options = {}) {
         if (!id || seen.has(id)) continue;
         if (!Object.prototype.hasOwnProperty.call(peer, 'tags')) continue;
         seen.add(id);
-        updates.push({ id, tags: filterFolderTags(peer.tags, folderTags) });
+        updates.push({ id, tags: normalizeTags(peer.tags) });
     }
 
     return updates;

@@ -105,7 +105,7 @@ describe('RustDesk Client API routes', () => {
 
         it('always returns only online peers to the RustDesk reachable devices list', async () => {
             authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
-            db.getAllDevices.mockResolvedValue([
+            serverBackend.getAllDevices.mockResolvedValue([
                 { id: 'ONLINE1', hostname: 'Online', online: true, tags: 'Allowed' },
                 { id: 'OFFLINE1', hostname: 'Offline', online: false, tags: 'Allowed' }
             ]);
@@ -121,7 +121,7 @@ describe('RustDesk Client API routes', () => {
 
         it('filters reachable devices by folder device group guid', async () => {
             authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
-            db.getAllDevices.mockResolvedValue([
+            serverBackend.getAllDevices.mockResolvedValue([
                 { id: 'FOLDER1', hostname: 'Folder device', online: true, tags: 'Allowed' },
                 { id: 'OTHER1', hostname: 'Other', online: true, tags: 'Allowed' }
             ]);
@@ -139,6 +139,7 @@ describe('RustDesk Client API routes', () => {
                 folder_id: 7,
                 device_group_guid: 'folder_7'
             });
+            expect(serverBackend.getAllDevices).toHaveBeenCalledWith(expect.objectContaining({ status: 'online' }));
         });
     });
 
@@ -184,8 +185,26 @@ describe('RustDesk Client API routes', () => {
         });
     });
 
+    describe('GET /api/ab/tags', () => {
+        it('keeps address book tags when they match console folder names', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            db.getAllFolders.mockResolvedValue([{ id: 7, name: 'Servers' }]);
+            db.getAddressBookTags.mockResolvedValue(['Servers', 'Clients']);
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'OWNED1', hostname: 'Owned', online: true, tags: ['Servers'] }
+            ]);
+
+            const res = await request(app)
+                .get('/api/ab/tags')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.data).toEqual(['Clients', 'Servers']);
+        });
+    });
+
     describe('POST /api/ab', () => {
-        it('syncs client-side peer tag changes back to the console without folder names', async () => {
+        it('syncs client-side peer tag changes back to the console even when they match folder names', async () => {
             authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
             db.getAllFolders.mockResolvedValue([{ id: 7, name: 'Servers' }]);
 
@@ -201,7 +220,7 @@ describe('RustDesk Client API routes', () => {
 
             expect(res.status).toBe(200);
             expect(db.saveAddressBook).toHaveBeenCalled();
-            expect(serverBackend.setPeerTags).toHaveBeenCalledWith('OWNED1', ['ClientTag']);
+            expect(serverBackend.setPeerTags).toHaveBeenCalledWith('OWNED1', ['ClientTag', 'Servers']);
         });
     });
 });

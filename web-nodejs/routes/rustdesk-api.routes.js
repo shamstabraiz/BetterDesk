@@ -254,12 +254,7 @@ async function filterDevicesForRustDeskUser(user, devices) {
 async function syncAddressBookTagsToConsole(user, dataStr, abType) {
     if (!canSyncDeviceTags(user)) return;
 
-    let folders = [];
-    try {
-        folders = await db.getAllFolders();
-    } catch (_) { /* non-critical */ }
-
-    const updates = addressBookSync.collectPeerTagUpdates(dataStr, { folders });
+    const updates = addressBookSync.collectPeerTagUpdates(dataStr);
     if (updates.length === 0) return;
 
     let synced = 0;
@@ -323,12 +318,16 @@ async function buildSyncedAddressBook(user, abType) {
 async function getSyncedAddressBookTags(user) {
     const context = await getConsoleDeviceContext(user);
     const tags = addressBookSync.collectVisibleTags(context.devices, context.folders, context.assignments);
-    const folderTags = new Set((context.folders || []).map(folder => String(folder.name || '').trim().toLowerCase()).filter(Boolean));
+    const seen = new Set(tags.map(tag => String(tag || '').trim().toLowerCase()).filter(Boolean));
 
     try {
         for (const tag of await db.getAddressBookTags(user.id)) {
-            const normalized = String(tag || '').trim().toLowerCase();
-            if (normalized && !folderTags.has(normalized) && !tags.includes(tag)) tags.push(tag);
+            const value = String(tag || '').trim();
+            const normalized = value.toLowerCase();
+            if (normalized && !seen.has(normalized)) {
+                seen.add(normalized);
+                tags.push(value);
+            }
         }
     } catch (_) { /* non-critical */ }
 
@@ -840,7 +839,7 @@ router.get('/api/peers', async (req, res, next) => {
         } catch (_) { /* non-critical */ }
         const requestedFolder = resolveRequestedFolderId(req.query, folders);
         const requestedGroup = requestedGroupValue(req.query);
-        let devices = await db.getAllDevices({
+        let devices = await serverBackend.getAllDevices({
             search: req.query.search || '',
             status: req.query.status || 'online'
         });
