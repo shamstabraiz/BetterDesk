@@ -32,6 +32,23 @@
                 <li><span class="material-icons">check_circle</span> ${_('users.tip_audit_logs')}</li>
             </ul>
         </div>
+
+        <!-- User Groups Manager -->
+        <div class="user-groups-card">
+            <div class="user-groups-card-header">
+                <div>
+                    <h3>${_('users.user_groups')}</h3>
+                    <p>${_('users.user_groups_hint')}</p>
+                </div>
+                <button class="btn btn-secondary" id="add-user-group-btn">
+                    <span class="material-icons">group_add</span>
+                    ${_('users.create_user_group')}
+                </button>
+            </div>
+            <div class="user-groups-manager-list" id="user-groups-manager-list">
+                <div class="empty-state-inline">${_('users.loading_user_groups')}</div>
+            </div>
+        </div>
         
         <!-- Users Table -->
         <div class="users-table-container">

@@ -70,6 +70,45 @@ function validateGroupGuidsFromBody(body) {
     return groupGuids;
 }
 
+function serializeUserGroup(group) {
+    return {
+        guid: group.guid,
+        name: group.name,
+        note: group.note || '',
+        team_id: group.team_id || '',
+        member_count: group.member_count || 0
+    };
+}
+
+function normalizeUserGroupPayload(body) {
+    const name = String((body && body.name) || '').trim();
+    const note = String((body && body.note) || '').trim();
+    const teamId = String((body && body.team_id) || '').trim();
+
+    if (!name) {
+        const error = new Error('Group name is required');
+        error.status = 400;
+        throw error;
+    }
+    if (name.length > 80) {
+        const error = new Error('Group name is too long');
+        error.status = 400;
+        throw error;
+    }
+    if (note.length > 500) {
+        const error = new Error('Group note is too long');
+        error.status = 400;
+        throw error;
+    }
+    if (teamId && !isValidGroupGuid(teamId)) {
+        const error = new Error('Invalid team identifier');
+        error.status = 400;
+        throw error;
+    }
+
+    return { name, note, team_id: teamId };
+}
+
 async function getUserGroupGuids(userId) {
     if (typeof db.getUserGroupsForUser !== 'function') return [];
     const groups = await db.getUserGroupsForUser(userId);
@@ -144,18 +183,82 @@ router.get('/api/panel/user-groups', requireAuth, requirePermission('user.view')
         res.json({
             success: true,
             data: {
-                groups: (groups || []).map(group => ({
-                    guid: group.guid,
-                    name: group.name,
-                    note: group.note || '',
-                    team_id: group.team_id || '',
-                    member_count: group.member_count || 0
-                })),
+                groups: (groups || []).map(serializeUserGroup),
                 total: groups.length
             }
         });
     } catch (err) {
         console.error('Get user groups error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
+    }
+});
+
+/**
+ * POST /api/panel/user-groups - Create a user group for panel access scoping.
+ */
+router.post('/api/panel/user-groups', requireAuth, requirePermission('user.edit'), async (req, res) => {
+    try {
+        const payload = normalizeUserGroupPayload(req.body || {});
+        const group = await db.createUserGroup(payload);
+        await db.logAction(req.session.userId, 'user_group_created', `Created user group: ${group.name}`, req.ip);
+        res.json({ success: true, data: { group: serializeUserGroup(group) } });
+    } catch (err) {
+        console.error('Create user group error:', err);
+        res.status(err.status || 500).json({
+            success: false,
+            error: err.status === 400 ? err.message : req.t('errors.server_error')
+        });
+    }
+});
+
+/**
+ * PATCH /api/panel/user-groups/:guid - Update a user group.
+ */
+router.patch('/api/panel/user-groups/:guid', requireAuth, requirePermission('user.edit'), async (req, res) => {
+    try {
+        const guid = String(req.params.guid || '').trim();
+        if (!isValidGroupGuid(guid)) {
+            return res.status(400).json({ success: false, error: 'Invalid user group identifier' });
+        }
+
+        const existing = await db.getUserGroupByGuid(guid);
+        if (!existing) {
+            return res.status(404).json({ success: false, error: req.t('users.user_group_not_found') });
+        }
+
+        const payload = normalizeUserGroupPayload(req.body || {});
+        const group = await db.updateUserGroup(guid, payload);
+        await db.logAction(req.session.userId, 'user_group_updated', `Updated user group: ${group.name}`, req.ip);
+        res.json({ success: true, data: { group: serializeUserGroup(group) } });
+    } catch (err) {
+        console.error('Update user group error:', err);
+        res.status(err.status || 500).json({
+            success: false,
+            error: err.status === 400 ? err.message : req.t('errors.server_error')
+        });
+    }
+});
+
+/**
+ * DELETE /api/panel/user-groups/:guid - Delete a user group.
+ */
+router.delete('/api/panel/user-groups/:guid', requireAuth, requirePermission('user.edit'), async (req, res) => {
+    try {
+        const guid = String(req.params.guid || '').trim();
+        if (!isValidGroupGuid(guid)) {
+            return res.status(400).json({ success: false, error: 'Invalid user group identifier' });
+        }
+
+        const group = await db.getUserGroupByGuid(guid);
+        if (!group) {
+            return res.status(404).json({ success: false, error: req.t('users.user_group_not_found') });
+        }
+
+        await db.deleteUserGroup(guid);
+        await db.logAction(req.session.userId, 'user_group_deleted', `Deleted user group: ${group.name}`, req.ip);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete user group error:', err);
         res.status(500).json({ success: false, error: req.t('errors.server_error') });
     }
 });

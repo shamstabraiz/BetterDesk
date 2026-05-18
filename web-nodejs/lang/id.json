@@ -571,7 +571,21 @@
     "user_groups": "User groups",
     "user_groups_hint": "User groups can be used to grant access to selected device groups.",
     "loading_user_groups": "Loading user groups...",
-    "no_user_groups": "No user groups available"
+    "no_user_groups": "No user groups available",
+    "create_user_group": "Create group",
+    "edit_user_group": "Edit user group",
+    "delete_user_group": "Delete user group",
+    "delete_user_group_confirm": "Delete user group {name}? Members will lose access granted through this group.",
+    "user_group_created": "User group created",
+    "user_group_updated": "User group updated",
+    "user_group_deleted": "User group deleted",
+    "user_group_not_found": "User group not found",
+    "group_name": "Group name",
+    "group_name_placeholder": "Operators",
+    "group_note": "Note",
+    "group_note_placeholder": "Optional note",
+    "group_name_required": "Group name is required",
+    "group_members_count": "{count} members"
   },
   "folders": {
     "title": "Folders",

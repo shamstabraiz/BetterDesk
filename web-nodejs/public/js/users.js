@@ -17,11 +17,12 @@
     const userOrgsCache = new Map();
     
     // Elements
-    let tableBody, emptyState;
+    let tableBody, emptyState, userGroupsManager;
     
     function init() {
         tableBody = document.getElementById('users-tbody');
         emptyState = document.getElementById('users-empty');
+        userGroupsManager = document.getElementById('user-groups-manager-list');
         
         loadUserGroups();
         loadUsers();
@@ -33,6 +34,7 @@
     function initEventListeners() {
         // Add user button
         document.getElementById('add-user-btn')?.addEventListener('click', showAddUserModal);
+        document.getElementById('add-user-group-btn')?.addEventListener('click', () => showUserGroupModal());
     }
     
     /**
@@ -60,10 +62,12 @@
             const response = await Utils.api('/api/panel/user-groups');
             userGroups = response.groups || [];
             userGroupsLoaded = true;
+            renderUserGroupsManager();
             if (users.length > 0) renderUsers();
         } catch (error) {
             userGroups = [];
             userGroupsLoaded = true;
+            renderUserGroupsManager();
             console.error('Failed to load user groups:', error);
         }
     }
@@ -104,6 +108,121 @@
 
     function selectedUserGroupGuids() {
         return Array.from(document.querySelectorAll('#user-groups-list input:checked')).map(input => input.value);
+    }
+
+    function renderUserGroupsManager() {
+        if (!userGroupsManager) return;
+        if (!userGroupsLoaded) {
+            userGroupsManager.innerHTML = `<div class="empty-state-inline">${_('users.loading_user_groups') || 'Loading user groups...'}</div>`;
+            return;
+        }
+        if (!userGroups.length) {
+            userGroupsManager.innerHTML = `<div class="empty-state-inline">${_('users.no_user_groups') || 'No user groups available'}</div>`;
+            return;
+        }
+
+        userGroupsManager.innerHTML = userGroups.map(group => `
+            <div class="user-group-manager-item" data-guid="${Utils.escapeHtml(group.guid)}">
+                <div class="user-group-manager-main">
+                    <span class="material-icons">groups</span>
+                    <div class="user-group-manager-text">
+                        <strong>${Utils.escapeHtml(group.name || group.guid)}</strong>
+                        ${group.note ? `<span>${Utils.escapeHtml(group.note)}</span>` : ''}
+                    </div>
+                </div>
+                <span class="user-group-member-count">${_('users.group_members_count', { count: group.member_count || 0 }) || (group.member_count || 0)}</span>
+                <div class="user-group-manager-actions">
+                    <button class="action-btn" data-action="edit-user-group" data-guid="${Utils.escapeHtml(group.guid)}" title="${_('users.edit_user_group') || 'Edit user group'}">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="action-btn danger" data-action="delete-user-group" data-guid="${Utils.escapeHtml(group.guid)}" title="${_('users.delete_user_group') || 'Delete user group'}">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        userGroupsManager.querySelectorAll('[data-action="edit-user-group"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const group = userGroups.find(item => item.guid === btn.dataset.guid);
+                if (group) showUserGroupModal(group);
+            });
+        });
+        userGroupsManager.querySelectorAll('[data-action="delete-user-group"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const group = userGroups.find(item => item.guid === btn.dataset.guid);
+                if (group) deleteUserGroup(group);
+            });
+        });
+    }
+
+    function showUserGroupModal(group = null) {
+        const editing = !!group;
+        Modal.show({
+            title: editing ? (_('users.edit_user_group') || 'Edit user group') : (_('users.create_user_group') || 'Create user group'),
+            content: `
+                <form id="user-group-form" class="user-form">
+                    <div class="form-group">
+                        <label for="user-group-name">${_('users.group_name') || 'Group name'}</label>
+                        <input type="text" id="user-group-name" class="form-input" maxlength="80" required value="${Utils.escapeHtml(group?.name || '')}" placeholder="${_('users.group_name_placeholder') || 'Operators'}">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-group-note">${_('users.group_note') || 'Note'}</label>
+                        <textarea id="user-group-note" class="form-input" maxlength="500" rows="3" placeholder="${_('users.group_note_placeholder') || 'Optional note'}">${Utils.escapeHtml(group?.note || '')}</textarea>
+                    </div>
+                </form>
+            `,
+            size: 'medium',
+            buttons: [
+                { label: _('actions.cancel'), class: 'btn-secondary', onClick: () => Modal.close() },
+                { label: _('actions.save'), class: 'btn-primary', onClick: () => saveUserGroup(group) }
+            ],
+            onOpen: () => document.getElementById('user-group-name')?.focus()
+        });
+    }
+
+    async function saveUserGroup(group = null) {
+        const name = document.getElementById('user-group-name')?.value.trim() || '';
+        const note = document.getElementById('user-group-note')?.value.trim() || '';
+        if (!name) {
+            Notifications.error(_('users.group_name_required') || 'Group name is required');
+            return;
+        }
+
+        try {
+            const url = group ? `/api/panel/user-groups/${encodeURIComponent(group.guid)}` : '/api/panel/user-groups';
+            await Utils.api(url, {
+                method: group ? 'PATCH' : 'POST',
+                body: { name, note }
+            });
+            Notifications.success(group ? (_('users.user_group_updated') || 'User group updated') : (_('users.user_group_created') || 'User group created'));
+            Modal.close();
+            userGroupsLoaded = false;
+            await loadUserGroups();
+            await loadUsers();
+        } catch (error) {
+            Notifications.error(error.message || _('errors.server_error'));
+        }
+    }
+
+    async function deleteUserGroup(group) {
+        const confirmed = await Modal.confirm({
+            title: _('users.delete_user_group') || 'Delete user group',
+            message: (_('users.delete_user_group_confirm') || 'Delete user group {name}?').replace('{name}', group.name || group.guid),
+            confirmLabel: _('actions.delete'),
+            danger: true
+        });
+        if (!confirmed) return;
+
+        try {
+            await Utils.api(`/api/panel/user-groups/${encodeURIComponent(group.guid)}`, { method: 'DELETE' });
+            Notifications.success(_('users.user_group_deleted') || 'User group deleted');
+            userGroupsLoaded = false;
+            await loadUserGroups();
+            await loadUsers();
+        } catch (error) {
+            Notifications.error(error.message || _('errors.server_error'));
+        }
     }
 
     /**

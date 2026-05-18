@@ -10,6 +10,10 @@ const mockDb = {
     getUserById: jest.fn(),
     getUserByUsername: jest.fn(),
     getAllUserGroups: jest.fn(),
+    getUserGroupByGuid: jest.fn(),
+    createUserGroup: jest.fn(),
+    updateUserGroup: jest.fn(),
+    deleteUserGroup: jest.fn(),
     getUserGroupsForUser: jest.fn(),
     setUserGroupMemberships: jest.fn(),
     createUser: jest.fn(),
@@ -49,6 +53,10 @@ describe('Users Routes', () => {
         mockDb.getAllUserGroups.mockResolvedValue([
             { guid: 'volunteers', name: 'Volunteers', member_count: 1 },
         ]);
+        mockDb.getUserGroupByGuid.mockResolvedValue({ guid: 'volunteers', name: 'Volunteers', note: '', member_count: 1 });
+        mockDb.createUserGroup.mockResolvedValue({ guid: 'new-group', name: 'New Group', note: 'Ops', member_count: 0 });
+        mockDb.updateUserGroup.mockResolvedValue({ guid: 'volunteers', name: 'Field Operators', note: 'Updated', member_count: 1 });
+        mockDb.deleteUserGroup.mockResolvedValue(true);
         mockDb.getUserByUsername.mockResolvedValue(null);
         mockDb.getUserGroupsForUser.mockImplementation(async (userId) => (
             Number(userId) === 12 ? [{ guid: 'volunteers', name: 'Volunteers' }] : []
@@ -81,6 +89,47 @@ describe('Users Routes', () => {
         expect(res.body.data.groups).toEqual([
             expect.objectContaining({ guid: 'volunteers', name: 'Volunteers' }),
         ]);
+    });
+
+    it('creates a user group from the panel API', async () => {
+        const app = createTestApp();
+        withAuth(app, { id: 1, username: 'admin', role: 'global_admin' });
+        app.use(usersRoutes);
+
+        const res = await request(app)
+            .post('/api/panel/user-groups')
+            .send({ name: 'New Group', note: 'Ops' });
+
+        expect(res.status).toBe(200);
+        expect(mockDb.createUserGroup).toHaveBeenCalledWith({ name: 'New Group', note: 'Ops', team_id: '' });
+        expect(res.body.data.group).toEqual(expect.objectContaining({ guid: 'new-group', name: 'New Group' }));
+    });
+
+    it('updates a user group from the panel API', async () => {
+        const app = createTestApp();
+        withAuth(app, { id: 1, username: 'admin', role: 'global_admin' });
+        app.use(usersRoutes);
+
+        const res = await request(app)
+            .patch('/api/panel/user-groups/volunteers')
+            .send({ name: 'Field Operators', note: 'Updated' });
+
+        expect(res.status).toBe(200);
+        expect(mockDb.getUserGroupByGuid).toHaveBeenCalledWith('volunteers');
+        expect(mockDb.updateUserGroup).toHaveBeenCalledWith('volunteers', { name: 'Field Operators', note: 'Updated', team_id: '' });
+        expect(res.body.data.group).toEqual(expect.objectContaining({ guid: 'volunteers', name: 'Field Operators' }));
+    });
+
+    it('deletes a user group from the panel API', async () => {
+        const app = createTestApp();
+        withAuth(app, { id: 1, username: 'admin', role: 'global_admin' });
+        app.use(usersRoutes);
+
+        const res = await request(app).delete('/api/panel/user-groups/volunteers');
+
+        expect(res.status).toBe(200);
+        expect(mockDb.getUserGroupByGuid).toHaveBeenCalledWith('volunteers');
+        expect(mockDb.deleteUserGroup).toHaveBeenCalledWith('volunteers');
     });
 
     it('stores user group memberships when creating a user', async () => {

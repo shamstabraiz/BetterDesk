@@ -135,7 +135,7 @@
 }
 
 /* Chip actions (edit/delete) — shown on hover for custom folders */
-.chip-actions {
+.group-chip .chip-actions {
     display: inline-flex;
     align-items: center;
     gap: 2px;
@@ -182,6 +182,10 @@
 .chip-add {
     padding: 4px 8px;
     border-style: dashed;
+}
+
+.group-chip.chip-add {
+    gap: 4px;
 }
 
 .chip-add:hover {
@@ -263,8 +267,13 @@
     align-items: center;
     gap: 2px;
     margin-left: 2px;
-    opacity: 0;
-    pointer-events: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    position: static;
+    transform: none;
+    background: transparent;
+    padding: 0;
     transition: opacity 0.15s ease;
 }
 
