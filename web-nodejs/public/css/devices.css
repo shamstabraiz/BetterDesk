@@ -135,36 +135,44 @@
 }
 
 /* Chip actions (edit/delete) — shown on hover for custom folders */
-.group-chip .chip-actions {
+.folder-chip .chip-actions {
     display: inline-flex;
     align-items: center;
     gap: 2px;
     margin-left: 2px;
     opacity: 0;
     visibility: hidden;
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
+    pointer-events: none;
+    position: static;
+    transform: none;
     transition: opacity 0.15s ease, visibility 0.15s ease;
-    background: inherit;
-    padding: 0 2px;
+    background: transparent;
+    padding: 0;
     border-radius: var(--radius-sm);
 }
 
-.folder-chip:hover .chip-actions {
+.folder-chip:hover .chip-actions,
+.folder-chip:focus-within .chip-actions {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
 }
 
 .folder-chip:hover .chip-count {
-    opacity: 0;
+    opacity: 1;
 }
 
 .chip-action {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
     font-size: 14px !important;
     cursor: pointer;
-    padding: 1px;
+    padding: 0;
     border-radius: var(--radius-sm);
     transition: color 0.1s;
     color: var(--text-tertiary);
@@ -262,7 +270,7 @@
     border-style: dashed;
 }
 
-.chip-actions {
+.group-chip .chip-actions {
     display: inline-flex;
     align-items: center;
     gap: 2px;

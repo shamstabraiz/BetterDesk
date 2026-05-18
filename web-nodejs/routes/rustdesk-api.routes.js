@@ -162,6 +162,10 @@ function canSyncDeviceInventory(user) {
     return user && user.role !== 'pro' && roleHasPermission(user.role, 'device.edit');
 }
 
+function canBrowseDeviceInventory(user) {
+    return user && user.role !== 'pro' && roleHasPermission(user.role, 'device.view');
+}
+
 function canSyncDeviceTags(user) {
     return user && user.role !== 'pro' && roleHasPermission(user.role, 'device.edit');
 }
@@ -197,6 +201,26 @@ function requestedGroupValue(query = {}) {
         query.group_name ||
         query.group ||
         '';
+}
+
+function queryListValue(value) {
+    const raw = Array.isArray(value) ? value : String(value || '').split(',');
+    return Array.from(new Set(raw
+        .map(item => String(item || '').trim())
+        .filter(Boolean)
+        .map(item => sanitizeStr(item, 50))
+        .filter(Boolean)
+    ));
+}
+
+function requestedTagValues(query = {}) {
+    return queryListValue(query.tag || query.tags || query.tag_name || query.tag_filter || '');
+}
+
+function deviceHasAllTags(device, expectedTags) {
+    if (!expectedTags || expectedTags.length === 0) return true;
+    const tags = new Set(addressBookSync.normalizeTags(device && device.tags).map(tag => tag.toLowerCase()));
+    return expectedTags.every(tag => tags.has(String(tag || '').toLowerCase()));
 }
 
 function resolveRequestedFolderId(query = {}, folders = []) {
@@ -243,7 +267,7 @@ async function filterDevicesForRustDeskUser(user, devices) {
         console.warn(`[API:PEERS] Failed to apply device group scope for ${user && user.username}:`, err.message);
     }
 
-    if (canSyncDeviceInventory(user)) return scoped;
+    if (canBrowseDeviceInventory(user)) return scoped;
 
     const allowedIds = await getAddressBookPeerIds(user);
     if (allowedIds.size === 0) return [];
@@ -294,7 +318,7 @@ async function getConsoleDeviceContext(user) {
 
     try {
         context.devices = await serverBackend.getAllDevices({});
-        if (!canSyncDeviceInventory(user)) {
+        if (!canBrowseDeviceInventory(user)) {
             context.devices = await filterDevicesForRustDeskUser(user, context.devices);
         }
     } catch (err) {
@@ -839,6 +863,7 @@ router.get('/api/peers', async (req, res, next) => {
         } catch (_) { /* non-critical */ }
         const requestedFolder = resolveRequestedFolderId(req.query, folders);
         const requestedGroup = requestedGroupValue(req.query);
+        const requestedTags = requestedTagValues(req.query);
         let devices = await serverBackend.getAllDevices({
             search: req.query.search || '',
             status: req.query.status || 'online'
@@ -873,7 +898,15 @@ router.get('/api/peers', async (req, res, next) => {
             if (group && deviceGroupService.groupAllowedForUser(group, accessUser)) {
                 const groupPeerIds = await deviceGroupService.getGroupPeerIds(db, group, devices);
                 devices = devices.filter(device => groupPeerIds.has(String(device.id)));
+            } else if (!group && normalizedGroup) {
+                devices = devices.filter(device => deviceHasAllTags(device, [normalizedGroup]));
+            } else {
+                devices = [];
             }
+        }
+
+        if (requestedTags.length > 0) {
+            devices = devices.filter(device => deviceHasAllTags(device, requestedTags));
         }
 
         let folderNames = new Map();

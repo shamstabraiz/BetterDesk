@@ -1716,21 +1716,23 @@
         container.innerHTML = folders.map(folder => {
             const safeColor = (Utils.sanitizeColor || _sanitizeColorFallback)(folder.color);
             return `
-            <button class="folder-chip ${currentFolder == folder.id ? 'active' : ''}" 
+            <span class="folder-chip ${currentFolder == folder.id ? 'active' : ''}"
                  data-folder="${folder.id}" 
+                 role="button"
+                 tabindex="0"
                  style="--folder-color: ${safeColor}">
                 <span class="material-icons chip-icon" style="color: ${safeColor}">folder</span>
                 <span class="chip-label">${Utils.escapeHtml(folder.name)}</span>
                 <span class="chip-count">${folder.device_count || 0}</span>
                 <span class="chip-actions">
-                    <span class="chip-action folder-edit" data-id="${folder.id}" title="${_('actions.edit')}">
+                    <button type="button" class="chip-action folder-edit" data-id="${folder.id}" title="${_('actions.edit')}">
                         <span class="material-icons">edit</span>
-                    </span>
-                    <span class="chip-action folder-delete" data-id="${folder.id}" title="${_('actions.delete')}">
+                    </button>
+                    <button type="button" class="chip-action folder-delete" data-id="${folder.id}" title="${_('actions.delete')}">
                         <span class="material-icons">delete</span>
-                    </span>
+                    </button>
                 </span>
-            </button>
+            </span>
         `}).join('');
         
         // Attach folder click listeners
@@ -1740,10 +1742,17 @@
                     selectFolder(el.dataset.folder);
                 }
             });
+            el.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                if (e.target.closest('.chip-actions')) return;
+                e.preventDefault();
+                selectFolder(el.dataset.folder);
+            });
         });
         
         container.querySelectorAll('.folder-edit').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 editFolder(btn.dataset.id);
             });
@@ -1751,6 +1760,7 @@
         
         container.querySelectorAll('.folder-delete').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 deleteFolder(btn.dataset.id);
             });

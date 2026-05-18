@@ -66,24 +66,23 @@ describe('RustDesk Client API routes', () => {
     });
 
     describe('GET /api/peers', () => {
-        it('limits viewer inventory to peers in the authenticated user address book', async () => {
+        it('allows view-only users to browse reachable inventory without address book membership', async () => {
             const res = await request(app)
                 .get('/api/peers?include_offline=true')
                 .set('Authorization', 'Bearer viewer-token');
 
             expect(res.status).toBe(200);
-            expect(res.body.total).toBe(1);
-            expect(res.body.data.map(peer => peer.id)).toEqual(['OWNED1']);
-            expect(db.getAddressBook).toHaveBeenCalledWith(2, 'legacy');
-            expect(db.getAddressBook).toHaveBeenCalledWith(2, 'personal');
+            expect(res.body.total).toBe(2);
+            expect(res.body.data.map(peer => peer.id)).toEqual(['OWNED1', 'OTHER1']);
+            expect(db.getAddressBook).not.toHaveBeenCalled();
         });
 
-        it('returns an empty list for viewer users without address book peers', async () => {
-            db.getAddressBook.mockResolvedValue(null);
+        it('returns an empty list for users without device inventory permissions', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 4, username: 'pro1', role: 'pro' });
 
             const res = await request(app)
                 .get('/api/peers?include_offline=true')
-                .set('Authorization', 'Bearer viewer-token');
+                .set('Authorization', 'Bearer pro-token');
 
             expect(res.status).toBe(200);
             expect(res.body.total).toBe(0);
@@ -140,6 +139,40 @@ describe('RustDesk Client API routes', () => {
                 device_group_guid: 'folder_7'
             });
             expect(serverBackend.getAllDevices).toHaveBeenCalledWith(expect.objectContaining({ status: 'online' }));
+        });
+
+        it('filters reachable devices by tag query parameters', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'TAG1', hostname: 'Tagged', online: true, tags: ['KUZZEL', 'Servers'] },
+                { id: 'OTHER1', hostname: 'Other', online: true, tags: ['Servers'] }
+            ]);
+
+            const res = await request(app)
+                .get('/api/peers?tag=KUZZEL')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.data.map(peer => peer.id)).toEqual(['TAG1']);
+        });
+
+        it('falls back to tag matching when a requested group name has no saved group record', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'TAG1', hostname: 'Tagged', online: true, tags: ['KUZZEL'] },
+                { id: 'OTHER1', hostname: 'Other', online: true, tags: ['Other'] }
+            ]);
+            db.getDeviceGroupByGuid.mockResolvedValue(null);
+            db.getAllDeviceGroups.mockResolvedValue([]);
+
+            const res = await request(app)
+                .get('/api/peers?group=KUZZEL')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.data.map(peer => peer.id)).toEqual(['TAG1']);
         });
     });
 
