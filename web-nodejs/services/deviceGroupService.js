@@ -20,6 +20,14 @@ function normalizeUsernames(value) {
     return Array.from(new Set(raw.map(v => String(v || '').trim()).filter(Boolean))).slice(0, 100);
 }
 
+function normalizeGroupGuids(value) {
+    const raw = Array.isArray(value) ? value : String(value || '').split(',');
+    return Array.from(new Set(raw.map(item => {
+        if (item && typeof item === 'object') return String(item.guid || '').trim();
+        return String(item || '').trim();
+    }).filter(Boolean))).slice(0, 100);
+}
+
 function normalizeGroupPayload(body = {}) {
     const sourceType = body.source_type === 'tag' || body.dynamic === true ? 'tag' : 'manual';
     const tagFilter = sourceType === 'tag' ? String(body.tag_filter || body.tag || '').trim().slice(0, 50) : '';
@@ -30,7 +38,8 @@ function normalizeGroupPayload(body = {}) {
         team_id: String(body.team_id || '').trim().slice(0, 64),
         source_type: sourceType,
         tag_filter: tagFilter,
-        allowed_users: normalizeUsernames(body.allowed_users)
+        allowed_users: normalizeUsernames(body.allowed_users),
+        allowed_groups: normalizeGroupGuids(body.allowed_groups || body.allowed_user_groups || body.user_group_guids)
     };
 }
 
@@ -61,8 +70,28 @@ function groupAllowedForUser(group, user) {
         return true;
     }
     const allowedUsers = normalizeUsernames(group && group.allowed_users);
-    if (allowedUsers.length === 0) return true;
-    return allowedUsers.includes(user.username);
+    const allowedGroups = normalizeGroupGuids(group && (group.allowed_groups || group.allowed_user_groups));
+    if (allowedUsers.length === 0 && allowedGroups.length === 0) return true;
+    if (allowedUsers.includes(user.username)) return true;
+
+    const userGroups = new Set(normalizeGroupGuids(user.user_groups || user.group_guids || user.allowed_groups));
+    return allowedGroups.some(guid => userGroups.has(guid));
+}
+
+async function getUserAccessContext(db, user) {
+    if (!user || !user.id || isSuperAdminRole(user.role) || user.role === 'global_admin' || user.role === 'server_admin') {
+        return user;
+    }
+    if (Array.isArray(user.user_groups) || typeof db.getUserGroupsForUser !== 'function') return user;
+    try {
+        const groups = await db.getUserGroupsForUser(user.id);
+        return {
+            ...user,
+            user_groups: (groups || []).map(group => group.guid).filter(Boolean)
+        };
+    } catch (_) {
+        return user;
+    }
 }
 
 async function getGroupPeerIds(db, group, devices = []) {
@@ -103,6 +132,8 @@ async function enrichGroups(db, groups, devices = []) {
             source_type: group.source_type || 'manual',
             tag_filter: group.tag_filter || '',
             allowed_users: Array.isArray(group.allowed_users) ? group.allowed_users : normalizeUsernames(group.allowed_users),
+            allowed_groups: Array.isArray(group.allowed_groups) ? group.allowed_groups : normalizeGroupGuids(group.allowed_groups),
+            allowed_user_groups: Array.isArray(group.allowed_user_groups) ? group.allowed_user_groups : [],
             member_count: memberIds.size
         });
     }
@@ -116,15 +147,19 @@ async function getDeviceScopeForUser(db, user, devices = []) {
 
     if (typeof db.getAllDeviceGroups !== 'function') return null;
 
+    const accessUser = await getUserAccessContext(db, user);
     const groups = await db.getAllDeviceGroups();
-    const restrictedGroups = (groups || []).filter(group => normalizeUsernames(group.allowed_users).length > 0);
+    const restrictedGroups = (groups || []).filter(group =>
+        normalizeUsernames(group.allowed_users).length > 0 ||
+        normalizeGroupGuids(group.allowed_groups || group.allowed_user_groups).length > 0
+    );
     if (restrictedGroups.length === 0) return null;
 
     const allowedIds = new Set();
     const restrictedIds = new Set();
     for (const group of restrictedGroups) {
         const ids = await getGroupPeerIds(db, group, devices);
-        const target = groupAllowedForUser(group, user) ? allowedIds : restrictedIds;
+        const target = groupAllowedForUser(group, accessUser) ? allowedIds : restrictedIds;
         for (const id of ids) target.add(id);
     }
 
@@ -151,10 +186,12 @@ async function userCanAccessDevice(db, user, device, allDevices) {
 module.exports = {
     normalizeTags,
     normalizeUsernames,
+    normalizeGroupGuids,
     normalizeGroupPayload,
     folderIdFromGroupGuid,
     getGroupFolderId,
     groupAllowedForUser,
+    getUserAccessContext,
     getGroupPeerIds,
     enrichGroups,
     getDeviceScopeForUser,

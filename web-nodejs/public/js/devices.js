@@ -33,6 +33,8 @@
     let filteredDevices = [];
     let folders = [];
     let deviceGroups = [];
+    let availableUserGroups = [];
+    let userGroupsLoaded = false;
     let availableTags = [];
     let selectedTags = new Set();
     let selectedIds = new Set();
@@ -58,6 +60,7 @@
         
         // Load data
         loadFolders();
+        loadUserGroups();
         loadDeviceGroups();
         loadTags();
         loadDevices();
@@ -78,6 +81,7 @@
         // Refresh handler
         window.addEventListener('app:refresh', () => {
             loadFolders();
+            loadUserGroups();
             loadDeviceGroups();
             loadTags();
             loadDevices();
@@ -86,6 +90,7 @@
         // Listen for changes from DeviceDetail panel
         document.addEventListener('deviceDetail:changed', () => {
             loadFolders();
+            loadUserGroups();
             loadDeviceGroups();
             loadTags();
             loadDevices();
@@ -288,6 +293,50 @@
             return value.split(',').map(t => t.trim()).filter(Boolean);
         }
         return [];
+    }
+
+    function normalizeGuids(value) {
+        if (!value) return [];
+        const raw = Array.isArray(value) ? value : String(value || '').split(',');
+        const seen = new Set();
+        const guids = [];
+        raw.forEach(item => {
+            const guid = typeof item === 'object' ? String(item.guid || '').trim() : String(item || '').trim();
+            if (guid && !seen.has(guid)) {
+                seen.add(guid);
+                guids.push(guid);
+            }
+        });
+        return guids;
+    }
+
+    async function loadUserGroups() {
+        try {
+            const response = await Utils.api('/api/panel/user-groups');
+            availableUserGroups = response.groups || [];
+            userGroupsLoaded = true;
+        } catch (error) {
+            availableUserGroups = [];
+            userGroupsLoaded = true;
+            console.error('Failed to load user groups:', error);
+        }
+    }
+
+    async function ensureUserGroupsLoaded() {
+        if (!userGroupsLoaded) await loadUserGroups();
+    }
+
+    function renderUserGroupAccessOptions(selectedGuids) {
+        const selected = new Set(normalizeGuids(selectedGuids));
+        if (!availableUserGroups.length) {
+            return `<div class="tag-filter-empty">${_('devices.no_user_groups') || 'No user groups'}</div>`;
+        }
+        return availableUserGroups.map(group => `
+            <label class="group-membership-option compact">
+                <input type="checkbox" class="dg-user-group" value="${Utils.escapeHtml(group.guid)}" ${selected.has(group.guid) ? 'checked' : ''}>
+                <span class="material-icons">group</span>
+                <span>${Utils.escapeHtml(group.name || group.guid)}</span>
+            </label>`).join('');
     }
 
     function deviceMatchesGroup(device, group) {
@@ -670,33 +719,43 @@
         window.open('rustdesk://' + encodeURIComponent(deviceId), '_blank');
     }
 
-    function showDeviceGroupModal() {
+    async function showDeviceGroupModal(group = null) {
+        await ensureUserGroupsLoaded();
+        const editing = !!group;
+        const sourceType = group?.source_type || 'manual';
+        const selectedUserGroups = normalizeGuids(group?.allowed_groups || group?.allowed_user_groups);
+        const allowedUsersValue = Array.isArray(group?.allowed_users) ? group.allowed_users.join(', ') : String(group?.allowed_users || '');
         const tagOptions = availableTags.map(tag => `<option value="${Utils.escapeHtml(tag)}"></option>`).join('');
         const content = `
             <div class="device-group-form">
                 <div class="form-group">
                     <label>${_('devices.group_name') || 'Group name'}</label>
-                    <input type="text" id="dg-name" class="form-input" maxlength="80" placeholder="${_('devices.group_name_placeholder') || 'e.g. Media PCs'}">
+                    <input type="text" id="dg-name" class="form-input" maxlength="80" placeholder="${_('devices.group_name_placeholder') || 'e.g. Media PCs'}" value="${Utils.escapeHtml(group?.name || '')}">
                 </div>
                 <label class="toggle-row">
-                    <input type="checkbox" id="dg-dynamic">
+                    <input type="checkbox" id="dg-dynamic" ${sourceType === 'tag' ? 'checked' : ''}>
                     <span>${_('devices.dynamic_group') || 'Dynamic group from tag'}</span>
                 </label>
-                <div class="form-group" id="dg-tag-row" style="opacity:0.5;pointer-events:none">
+                <div class="form-group" id="dg-tag-row" style="opacity:${sourceType === 'tag' ? '1' : '0.5'};pointer-events:${sourceType === 'tag' ? 'auto' : 'none'}">
                     <label>${_('devices.tag_filter') || 'Tag filter'}</label>
-                    <input type="text" id="dg-tag" class="form-input" maxlength="50" list="dg-tag-options" placeholder="Linux">
+                    <input type="text" id="dg-tag" class="form-input" maxlength="50" list="dg-tag-options" placeholder="Linux" value="${Utils.escapeHtml(group?.tag_filter || '')}">
                     <datalist id="dg-tag-options">${tagOptions}</datalist>
                     <p class="form-hint">${_('devices.dynamic_group_hint') || 'Devices with this tag join automatically.'}</p>
                 </div>
                 <div class="form-group">
                     <label>${_('devices.group_allowed_users') || 'Allowed users'}</label>
-                    <input type="text" id="dg-users" class="form-input" placeholder="operator1, operator2">
+                    <input type="text" id="dg-users" class="form-input" placeholder="operator1, operator2" value="${Utils.escapeHtml(allowedUsersValue)}">
                     <p class="form-hint">${_('devices.group_allowed_users_hint') || 'Leave empty to keep the group visible to everyone with device permissions.'}</p>
+                </div>
+                <div class="form-group">
+                    <label>${_('devices.group_allowed_user_groups') || 'Allowed user groups'}</label>
+                    <div class="group-membership-list compact">${renderUserGroupAccessOptions(selectedUserGroups)}</div>
+                    <p class="form-hint">${_('devices.group_allowed_user_groups_hint') || 'Users in selected user groups can access this device group.'}</p>
                 </div>
             </div>`;
 
         Modal.show({
-            title: _('devices.create_group') || 'Create device group',
+            title: editing ? (_('devices.edit_group') || 'Edit device group') : (_('devices.create_group') || 'Create device group'),
             content,
             size: 'medium',
             buttons: [
@@ -705,10 +764,12 @@
                     label: _('actions.save'), class: 'btn-primary', onClick: async () => {
                         const dynamic = document.getElementById('dg-dynamic').checked;
                         const payload = {
+                            guid: group?.guid || '',
                             name: document.getElementById('dg-name').value.trim(),
                             source_type: dynamic ? 'tag' : 'manual',
                             tag_filter: document.getElementById('dg-tag').value.trim(),
-                            allowed_users: document.getElementById('dg-users').value
+                            allowed_users: document.getElementById('dg-users').value,
+                            allowed_groups: Array.from(document.querySelectorAll('.dg-user-group:checked')).map(input => input.value)
                         };
                         if (!payload.name) {
                             Notifications.error(_('common.name_required') || 'Name is required');
@@ -1534,16 +1595,66 @@
         if (!container) return;
         container.innerHTML = deviceGroups.map(group => {
             const isDynamic = (group.source_type || 'manual') === 'tag';
-            return `<button class="group-chip ${currentGroup === group.guid ? 'active' : ''} ${isDynamic ? 'dynamic' : ''}" data-group="${Utils.escapeHtml(group.guid)}" title="${Utils.escapeHtml(isDynamic ? (_('devices.dynamic_group_hint') || 'Dynamic tag group') + ': ' + group.tag_filter : group.name)}">
+            return `<span class="group-chip ${currentGroup === group.guid ? 'active' : ''} ${isDynamic ? 'dynamic' : ''}" data-group="${Utils.escapeHtml(group.guid)}" role="button" tabindex="0" title="${Utils.escapeHtml(isDynamic ? (_('devices.dynamic_group_hint') || 'Dynamic tag group') + ': ' + group.tag_filter : group.name)}">
                 <span class="material-icons chip-icon">${isDynamic ? 'sell' : 'hub'}</span>
                 <span class="chip-label">${Utils.escapeHtml(group.name)}</span>
                 <span class="chip-count">${group.member_count || 0}</span>
-            </button>`;
+                <span class="chip-actions">
+                    <button type="button" class="group-chip-action" data-action="edit" data-group="${Utils.escapeHtml(group.guid)}" title="${_('devices.edit_group') || 'Edit group'}">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button type="button" class="group-chip-action danger" data-action="delete" data-group="${Utils.escapeHtml(group.guid)}" title="${_('devices.delete_group') || 'Delete group'}">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </span>
+            </span>`;
         }).join('');
 
         container.querySelectorAll('.group-chip').forEach(el => {
-            el.addEventListener('click', () => selectDeviceGroup(el.dataset.group));
+            el.addEventListener('click', (event) => {
+                if (event.target.closest('.group-chip-action')) return;
+                selectDeviceGroup(el.dataset.group);
+            });
+            el.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                selectDeviceGroup(el.dataset.group);
+            });
         });
+
+        container.querySelectorAll('.group-chip-action').forEach(btn => {
+            btn.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const group = deviceGroups.find(item => item.guid === btn.dataset.group);
+                if (!group) return;
+                if (btn.dataset.action === 'edit') {
+                    await showDeviceGroupModal(group);
+                } else if (btn.dataset.action === 'delete') {
+                    await deleteDeviceGroup(group);
+                }
+            });
+        });
+    }
+
+    async function deleteDeviceGroup(group) {
+        const confirmed = await Modal.confirm({
+            title: _('devices.delete_group') || 'Delete group',
+            message: (_('devices.delete_group_confirm') || 'Delete device group {name}?').replace('{name}', group.name),
+            confirmLabel: _('actions.delete'),
+            danger: true
+        });
+        if (!confirmed) return;
+
+        try {
+            await Utils.api(`/api/device-groups/${encodeURIComponent(group.guid)}`, { method: 'DELETE' });
+            Notifications.success(_('devices.group_deleted') || 'Device group deleted');
+            if (currentGroup === group.guid) selectDeviceGroup('all');
+            loadDeviceGroups();
+            loadDevices();
+        } catch (error) {
+            Notifications.error(error.message || _('errors.server_error'));
+        }
     }
 
     function updateGroupCounts() {

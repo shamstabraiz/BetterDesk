@@ -338,6 +338,7 @@ async function getSyncedAddressBookTags(user) {
 async function getRustDeskDeviceGroups(user) {
     const groups = [];
     let devices = [];
+    const accessUser = await deviceGroupService.getUserAccessContext(db, user);
 
     try {
         devices = await serverBackend.getAllDevices({ status: 'online' });
@@ -349,7 +350,7 @@ async function getRustDeskDeviceGroups(user) {
     try {
         const rawGroups = (await db.getAllDeviceGroups())
             .filter(group => folderIdFromGroupGuid(group.guid) === null)
-            .filter(group => deviceGroupService.groupAllowedForUser(group, user));
+            .filter(group => deviceGroupService.groupAllowedForUser(group, accessUser));
         const deviceGroups = await deviceGroupService.enrichGroups(db, rawGroups, devices);
         for (const group of deviceGroups) {
             groups.push({
@@ -382,7 +383,8 @@ async function getRustDeskDeviceGroups(user) {
                 mirrorGroup = await db.getDeviceGroupByGuid(guid);
             } catch (_) { /* non-critical */ }
             const allowedUsers = mirrorGroup && Array.isArray(mirrorGroup.allowed_users) ? mirrorGroup.allowed_users : [];
-            if (!deviceGroupService.groupAllowedForUser({ allowed_users: allowedUsers }, user)) continue;
+            const allowedGroups = mirrorGroup && Array.isArray(mirrorGroup.allowed_groups) ? mirrorGroup.allowed_groups : [];
+            if (!deviceGroupService.groupAllowedForUser({ allowed_users: allowedUsers, allowed_groups: allowedGroups }, accessUser)) continue;
             groups.push({
                 id: guid,
                 guid,
@@ -393,7 +395,8 @@ async function getRustDeskDeviceGroups(user) {
                 source_type: 'folder',
                 tag_filter: '',
                 folder_id: folder.id,
-                allowed_users: allowedUsers
+                allowed_users: allowedUsers,
+                allowed_groups: allowedGroups
             });
         }
     } catch (err) {
@@ -852,6 +855,7 @@ router.get('/api/peers', async (req, res, next) => {
         } catch (_) { /* non-critical */ }
 
         devices = await filterDevicesForRustDeskUser(user, devices);
+        const accessUser = await deviceGroupService.getUserAccessContext(db, user);
 
         devices = devices.filter(device => !!device.online);
 
@@ -867,7 +871,7 @@ router.get('/api/peers', async (req, res, next) => {
                     group = (allGroups || []).find(item => String(item.name || '').trim().toLowerCase() === normalizedGroup) || null;
                 }
             } catch (_) { /* non-critical */ }
-            if (group && deviceGroupService.groupAllowedForUser(group, user)) {
+            if (group && deviceGroupService.groupAllowedForUser(group, accessUser)) {
                 const groupPeerIds = await deviceGroupService.getGroupPeerIds(db, group, devices);
                 devices = devices.filter(device => groupPeerIds.has(String(device.id)));
             }
@@ -1043,15 +1047,22 @@ router.post('/api/device-group', requireAuth, requireAdmin, async (req, res) => 
  */
 router.get('/api/user/group', requireAuth, async (req, res) => {
     try {
-        const groups = await db.getAllUserGroups();
-        if (groups.length === 0) {
+        const groups = typeof db.getUserGroupsForUser === 'function'
+            ? await db.getUserGroupsForUser(req.authUser.id)
+            : await db.getAllUserGroups();
+        if (!groups || groups.length === 0) {
             return res.json({ data: { name: 'Default', guid: 'default' } });
         }
-        // Return the first user group (user group assignment is future work)
         return res.json({
             data: {
                 name: groups[0].name,
-                guid: groups[0].guid
+                guid: groups[0].guid,
+                groups: groups.map(group => ({
+                    name: group.name,
+                    guid: group.guid,
+                    note: group.note || '',
+                    team_id: group.team_id || ''
+                }))
             }
         });
     } catch (err) {

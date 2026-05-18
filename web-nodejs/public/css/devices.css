@@ -258,6 +258,49 @@
     border-style: dashed;
 }
 
+.chip-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.group-chip:hover .chip-actions,
+.group-chip:focus-within .chip-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.group-chip-action {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+}
+
+.group-chip-action:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.group-chip-action.danger:hover {
+    color: var(--danger, #f85149);
+}
+
+.group-chip-action .material-icons {
+    font-size: 14px;
+}
+
 .group-chip.active .chip-count {
     background: rgba(168, 85, 247, 0.22);
 }
@@ -908,6 +951,10 @@ td.column-hidden {
     background: var(--bg-secondary);
 }
 
+.group-membership-list.compact {
+    max-height: 150px;
+}
+
 .group-membership-option {
     display: flex;
     align-items: center;
@@ -931,6 +978,10 @@ td.column-hidden {
 .group-membership-option .material-icons {
     font-size: 18px;
     color: var(--accent-purple, #a855f7);
+}
+
+.group-membership-option.compact {
+    padding: 6px 8px;
 }
 
 .folder-form .form-group label {

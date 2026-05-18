@@ -13,6 +13,7 @@ jest.mock('../services/database', () => ({
     getPeerMetrics: jest.fn().mockResolvedValue([]),
     getDeviceGroupsForPeer: jest.fn().mockResolvedValue([]),
     getDeviceGroupAccessForUser: jest.fn().mockResolvedValue([]),
+    getUserGroupsForUser: jest.fn().mockResolvedValue([]),
     getAllDeviceGroups: jest.fn().mockResolvedValue([]),
     getDeviceGroupMembers: jest.fn().mockResolvedValue([]),
     getDeviceGroupByGuid: jest.fn().mockResolvedValue(null),
@@ -20,6 +21,7 @@ jest.mock('../services/database', () => ({
     updateDeviceGroup: jest.fn().mockResolvedValue(null),
     deleteDeviceGroup: jest.fn().mockResolvedValue(undefined),
     setDeviceGroupUserAccess: jest.fn().mockImplementation((_guid, users) => Promise.resolve({ guid: 'group-1', name: 'Group 1', allowed_users: users })),
+    setDeviceGroupUserGroupAccess: jest.fn().mockImplementation((_guid, groups) => Promise.resolve({ guid: 'group-1', name: 'Group 1', allowed_groups: groups })),
     addDeviceToGroup: jest.fn().mockResolvedValue(undefined),
     removeDeviceFromGroup: jest.fn().mockResolvedValue(undefined),
     getAllFolders: jest.fn().mockResolvedValue([]),
@@ -210,12 +212,18 @@ describe('Devices Routes', () => {
             expect(res.body.data.groups[0].member_count).toBe(1);
         });
 
-        it('should create a dynamic group with allowed users', async () => {
+        it('should create a dynamic group with allowed users and user groups', async () => {
             db.createDeviceGroup.mockResolvedValue({ guid: 'group-1', name: 'Linux', source_type: 'tag', tag_filter: 'Linux' });
 
             const res = await request(app)
                 .post('/api/device-groups')
-                .send({ name: 'Linux', source_type: 'tag', tag_filter: 'Linux', allowed_users: 'operator1, operator2' });
+                .send({
+                    name: 'Linux',
+                    source_type: 'tag',
+                    tag_filter: 'Linux',
+                    allowed_users: 'operator1, operator2',
+                    allowed_groups: ['volunteers']
+                });
 
             expect(res.status).toBe(200);
             expect(db.createDeviceGroup).toHaveBeenCalledWith(expect.objectContaining({
@@ -224,6 +232,32 @@ describe('Devices Routes', () => {
                 tag_filter: 'Linux'
             }));
             expect(db.setDeviceGroupUserAccess).toHaveBeenCalledWith('group-1', ['operator1', 'operator2']);
+            expect(db.setDeviceGroupUserGroupAccess).toHaveBeenCalledWith('group-1', ['volunteers']);
+        });
+
+        it('should scope operator devices through user group ACLs', async () => {
+            const scopedApp = createTestApp();
+            scopedApp.use((req, _res, next) => {
+                req.session.userId = 2;
+                req.session.user = { id: 2, username: 'operator1', role: 'operator' };
+                next();
+            });
+            scopedApp.use('/', devicesRoutes);
+
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'LINUX1', tags: ['Linux'] },
+                { id: 'WIN1', tags: ['Windows'] }
+            ]);
+            db.getUserGroupsForUser.mockResolvedValue([{ guid: 'volunteers', name: 'Volunteers' }]);
+            db.getAllDeviceGroups.mockResolvedValue([
+                { guid: 'linux', name: 'Linux', source_type: 'tag', tag_filter: 'Linux', allowed_groups: ['volunteers'], allowed_users: [] },
+                { guid: 'windows', name: 'Windows', source_type: 'tag', tag_filter: 'Windows', allowed_groups: ['coordinators'], allowed_users: [] }
+            ]);
+
+            const res = await request(scopedApp).get('/api/devices');
+
+            expect(res.status).toBe(200);
+            expect(res.body.data.devices.map(device => device.id)).toEqual(['LINUX1']);
         });
 
         it('should replace manual group memberships without touching dynamic groups', async () => {

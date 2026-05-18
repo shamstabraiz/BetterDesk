@@ -280,7 +280,15 @@
     "groups_saved": "Device groups saved",
     "no_groups": "No groups yet",
     "manual_groups": "Manual groups",
-    "dynamic_memberships": "Dynamic memberships"
+    "dynamic_memberships": "Dynamic memberships",
+    "group_allowed_user_groups": "Allowed user groups",
+    "group_allowed_user_groups_hint": "Users in selected user groups can access this device group.",
+    "no_user_groups": "No user groups",
+    "edit_group": "Edit group",
+    "delete_group": "Delete group",
+    "delete_group_confirm": "Delete device group {name}?",
+    "group_deleted": "Device group deleted",
+    "folder_group_readonly": "Folder-backed groups are managed from folders."
   },
   "keys": {
     "title": "服务器密钥",
@@ -553,7 +561,11 @@
     "no_orgs_short": "—",
     "org_count_one": "{count} organization",
     "org_count_many": "{count} organizations",
-    "all_orgs_assigned": "User is already a member of every organization."
+    "all_orgs_assigned": "User is already a member of every organization.",
+    "user_groups": "User groups",
+    "user_groups_hint": "User groups can be used to grant access to selected device groups.",
+    "loading_user_groups": "Loading user groups...",
+    "no_user_groups": "No user groups available"
   },
   "folders": {
     "title": "文件夹",

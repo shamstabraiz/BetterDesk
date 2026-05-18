@@ -180,6 +180,8 @@ const facade = {
     createUserGroup:    (data) => adapter.createUserGroup(data),
     updateUserGroup:    (guid, data) => adapter.updateUserGroup(guid, data),
     deleteUserGroup:    (guid) => adapter.deleteUserGroup(guid),
+    getUserGroupsForUser: (userId) => adapter.getUserGroupsForUser(userId),
+    setUserGroupMemberships: (userId, groupGuids) => adapter.setUserGroupMemberships(userId, groupGuids),
 
     // ---- Device Groups ----
     getAllDeviceGroups:    () => adapter.getAllDeviceGroups(),
@@ -192,6 +194,7 @@ const facade = {
     getDeviceGroupMembers: (groupGuid) => adapter.getDeviceGroupMembers(groupGuid),
     getDeviceGroupsForPeer: (peerId) => adapter.getDeviceGroupsForPeer(peerId),
     setDeviceGroupUserAccess: (groupGuid, usernames) => adapter.setDeviceGroupUserAccess(groupGuid, usernames),
+    setDeviceGroupUserGroupAccess: (groupGuid, groupGuids) => adapter.setDeviceGroupUserGroupAccess(groupGuid, groupGuids),
     getDeviceGroupAccessForUser: (userId) => adapter.getDeviceGroupAccessForUser(userId),
 
     // ---- Strategies / Policies ----

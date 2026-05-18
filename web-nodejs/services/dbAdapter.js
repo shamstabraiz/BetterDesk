@@ -396,6 +396,14 @@ function createSqliteAdapter(config) {
                 team_id TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS user_group_members (
+                user_group_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (user_group_id, user_id),
+                FOREIGN KEY (user_group_id) REFERENCES user_groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
             CREATE TABLE IF NOT EXISTS device_groups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 guid TEXT UNIQUE NOT NULL,
@@ -420,6 +428,14 @@ function createSqliteAdapter(config) {
                 PRIMARY KEY (device_group_id, user_id),
                 FOREIGN KEY (device_group_id) REFERENCES device_groups(id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS device_group_user_group_access (
+                device_group_id INTEGER NOT NULL,
+                user_group_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (device_group_id, user_group_id),
+                FOREIGN KEY (device_group_id) REFERENCES device_groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_group_id) REFERENCES user_groups(id) ON DELETE CASCADE
             );
             CREATE TABLE IF NOT EXISTS strategies (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1144,7 +1160,10 @@ function createSqliteAdapter(config) {
             openAuth().prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...values);
         },
         async deleteUser(id) {
-            openAuth().prepare('DELETE FROM users WHERE id = ?').run(id);
+            const db = openAuth();
+            db.prepare('DELETE FROM user_group_members WHERE user_id = ?').run(id);
+            db.prepare('DELETE FROM device_group_user_access WHERE user_id = ?').run(id);
+            db.prepare('DELETE FROM users WHERE id = ?').run(id);
         },
         async countAdmins() {
             return openAuth().prepare("SELECT COUNT(*) as c FROM users WHERE role IN ('admin', 'super_admin')").get().c;
@@ -2263,7 +2282,11 @@ function createSqliteAdapter(config) {
         // ---- User Groups ----
 
         async getAllUserGroups() {
-            return openAuth().prepare('SELECT * FROM user_groups ORDER BY name ASC').all();
+            const groups = openAuth().prepare('SELECT * FROM user_groups ORDER BY name ASC').all();
+            for (const group of groups) {
+                group.member_count = openAuth().prepare('SELECT COUNT(*) as c FROM user_group_members WHERE user_group_id = ?').get(group.id).c;
+            }
+            return groups;
         },
 
         async getUserGroupByGuid(guid) {
@@ -2291,7 +2314,39 @@ function createSqliteAdapter(config) {
         },
 
         async deleteUserGroup(guid) {
-            openAuth().prepare('DELETE FROM user_groups WHERE guid = ?').run(guid);
+            const db = openAuth();
+            const group = db.prepare('SELECT id FROM user_groups WHERE guid = ?').get(guid);
+            if (!group) return;
+            db.prepare('DELETE FROM user_group_members WHERE user_group_id = ?').run(group.id);
+            db.prepare('DELETE FROM device_group_user_group_access WHERE user_group_id = ?').run(group.id);
+            db.prepare('DELETE FROM user_groups WHERE guid = ?').run(guid);
+        },
+
+        async getUserGroupsForUser(userId) {
+            return openAuth().prepare(`
+                SELECT ug.* FROM user_groups ug
+                INNER JOIN user_group_members ugm ON ug.id = ugm.user_group_id
+                WHERE ugm.user_id = ?
+                ORDER BY ug.name ASC
+            `).all(userId);
+        },
+
+        async setUserGroupMemberships(userId, groupGuids = []) {
+            const db = openAuth();
+            const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+            if (!user) return [];
+            const uniqueGuids = Array.from(new Set((groupGuids || []).map(v => String(v || '').trim()).filter(Boolean))).slice(0, 100);
+            const tx = db.transaction((guids) => {
+                db.prepare('DELETE FROM user_group_members WHERE user_id = ?').run(user.id);
+                const insert = db.prepare('INSERT OR IGNORE INTO user_group_members (user_group_id, user_id) VALUES (?, ?)');
+                const groupByGuid = db.prepare('SELECT id FROM user_groups WHERE guid = ?');
+                for (const guid of guids) {
+                    const group = groupByGuid.get(guid);
+                    if (group) insert.run(group.id, user.id);
+                }
+            });
+            tx(uniqueGuids);
+            return this.getUserGroupsForUser(user.id);
         },
 
         // ---- Device Groups ----
@@ -2308,6 +2363,14 @@ function createSqliteAdapter(config) {
                     WHERE a.device_group_id = ?
                     ORDER BY u.username ASC
                 `).all(g.id).map(r => r.username);
+                const allowedGroups = openAuth().prepare(`
+                    SELECT ug.guid, ug.name FROM device_group_user_group_access a
+                    INNER JOIN user_groups ug ON ug.id = a.user_group_id
+                    WHERE a.device_group_id = ?
+                    ORDER BY ug.name ASC
+                `).all(g.id);
+                g.allowed_groups = allowedGroups.map(r => r.guid);
+                g.allowed_user_groups = allowedGroups;
             }
             return groups;
         },
@@ -2323,6 +2386,14 @@ function createSqliteAdapter(config) {
                 WHERE a.device_group_id = ?
                 ORDER BY u.username ASC
             `).all(group.id).map(r => r.username);
+            const allowedGroups = openAuth().prepare(`
+                SELECT ug.guid, ug.name FROM device_group_user_group_access a
+                INNER JOIN user_groups ug ON ug.id = a.user_group_id
+                WHERE a.device_group_id = ?
+                ORDER BY ug.name ASC
+            `).all(group.id);
+            group.allowed_groups = allowedGroups.map(r => r.guid);
+            group.allowed_user_groups = allowedGroups;
             return group;
         },
 
@@ -2354,9 +2425,13 @@ function createSqliteAdapter(config) {
         },
 
         async deleteDeviceGroup(guid) {
-            const group = openAuth().prepare('SELECT id FROM device_groups WHERE guid = ?').get(guid);
+            const db = openAuth();
+            const group = db.prepare('SELECT id FROM device_groups WHERE guid = ?').get(guid);
             if (!group) return;
-            openAuth().prepare('DELETE FROM device_groups WHERE guid = ?').run(guid);
+            db.prepare('DELETE FROM device_group_members WHERE device_group_id = ?').run(group.id);
+            db.prepare('DELETE FROM device_group_user_access WHERE device_group_id = ?').run(group.id);
+            db.prepare('DELETE FROM device_group_user_group_access WHERE device_group_id = ?').run(group.id);
+            db.prepare('DELETE FROM device_groups WHERE guid = ?').run(guid);
         },
 
         async addDeviceToGroup(groupGuid, peerId) {
@@ -2404,13 +2479,33 @@ function createSqliteAdapter(config) {
             return this.getDeviceGroupByGuid(groupGuid);
         },
 
+        async setDeviceGroupUserGroupAccess(groupGuid, groupGuids = []) {
+            const db = openAuth();
+            const group = db.prepare('SELECT id FROM device_groups WHERE guid = ?').get(groupGuid);
+            if (!group) return null;
+            const uniqueGuids = Array.from(new Set((groupGuids || []).map(v => String(v || '').trim()).filter(Boolean))).slice(0, 100);
+            const tx = db.transaction((guids) => {
+                db.prepare('DELETE FROM device_group_user_group_access WHERE device_group_id = ?').run(group.id);
+                const insert = db.prepare('INSERT OR IGNORE INTO device_group_user_group_access (device_group_id, user_group_id) VALUES (?, ?)');
+                const userGroupByGuid = db.prepare('SELECT id FROM user_groups WHERE guid = ?');
+                for (const guid of guids) {
+                    const userGroup = userGroupByGuid.get(guid);
+                    if (userGroup) insert.run(group.id, userGroup.id);
+                }
+            });
+            tx(uniqueGuids);
+            return this.getDeviceGroupByGuid(groupGuid);
+        },
+
         async getDeviceGroupAccessForUser(userId) {
             return openAuth().prepare(`
-                SELECT dg.* FROM device_groups dg
-                INNER JOIN device_group_user_access a ON a.device_group_id = dg.id
-                WHERE a.user_id = ?
+                SELECT DISTINCT dg.* FROM device_groups dg
+                LEFT JOIN device_group_user_access a ON a.device_group_id = dg.id
+                LEFT JOIN device_group_user_group_access ga ON ga.device_group_id = dg.id
+                LEFT JOIN user_group_members ugm ON ugm.user_group_id = ga.user_group_id
+                WHERE a.user_id = ? OR ugm.user_id = ?
                 ORDER BY dg.name ASC
-            `).all(userId);
+            `).all(userId, userId);
         },
 
         // ---- Strategies / Policies ----
@@ -3138,6 +3233,15 @@ function createPostgresAdapter() {
         `);
 
         await q(`
+            CREATE TABLE IF NOT EXISTS user_group_members (
+                user_group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (user_group_id, user_id)
+            )
+        `);
+
+        await q(`
             CREATE TABLE IF NOT EXISTS device_groups (
                 id SERIAL PRIMARY KEY,
                 guid TEXT UNIQUE NOT NULL,
@@ -3165,6 +3269,15 @@ function createPostgresAdapter() {
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 PRIMARY KEY (device_group_id, user_id)
+            )
+        `);
+
+        await q(`
+            CREATE TABLE IF NOT EXISTS device_group_user_group_access (
+                device_group_id INTEGER NOT NULL REFERENCES device_groups(id) ON DELETE CASCADE,
+                user_group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (device_group_id, user_group_id)
             )
         `);
 
@@ -3541,7 +3654,11 @@ function createPostgresAdapter() {
             values.push(id);
             await q(`UPDATE users SET ${sets.join(', ')} WHERE id = $${idx}`, values);
         },
-        async deleteUser(id) { await q('DELETE FROM users WHERE id = $1', [id]); },
+        async deleteUser(id) {
+            await q('DELETE FROM user_group_members WHERE user_id = $1', [id]);
+            await q('DELETE FROM device_group_user_access WHERE user_id = $1', [id]);
+            await q('DELETE FROM users WHERE id = $1', [id]);
+        },
         async countAdmins() { return +(await one("SELECT COUNT(*) as c FROM users WHERE role IN ('admin', 'super_admin')")).c; },
 
         // ---- TOTP ----
@@ -4587,7 +4704,11 @@ function createPostgresAdapter() {
         // ---- User Groups ----
 
         async getAllUserGroups() {
-            return all('SELECT * FROM user_groups ORDER BY name ASC');
+            const groups = await all('SELECT * FROM user_groups ORDER BY name ASC');
+            for (const group of groups) {
+                group.member_count = +(await one('SELECT COUNT(*)::INTEGER AS c FROM user_group_members WHERE user_group_id = $1', [group.id])).c;
+            }
+            return groups;
         },
 
         async getUserGroupByGuid(guid) {
@@ -4612,7 +4733,48 @@ function createPostgresAdapter() {
         },
 
         async deleteUserGroup(guid) {
+            const group = await one('SELECT id FROM user_groups WHERE guid = $1', [guid]);
+            if (!group) return;
+            await q('DELETE FROM user_group_members WHERE user_group_id = $1', [group.id]);
+            await q('DELETE FROM device_group_user_group_access WHERE user_group_id = $1', [group.id]);
             await q('DELETE FROM user_groups WHERE guid = $1', [guid]);
+        },
+
+        async getUserGroupsForUser(userId) {
+            return all(`
+                SELECT ug.* FROM user_groups ug
+                INNER JOIN user_group_members ugm ON ug.id = ugm.user_group_id
+                WHERE ugm.user_id = $1
+                ORDER BY ug.name ASC
+            `, [userId]);
+        },
+
+        async setUserGroupMemberships(userId, groupGuids = []) {
+            const user = await one('SELECT id FROM users WHERE id = $1', [userId]);
+            if (!user) return [];
+            const uniqueGuids = Array.from(new Set((groupGuids || []).map(v => String(v || '').trim()).filter(Boolean))).slice(0, 100);
+            const client = await getPool().connect();
+            try {
+                await client.query('BEGIN');
+                await client.query('DELETE FROM user_group_members WHERE user_id = $1', [user.id]);
+                for (const guid of uniqueGuids) {
+                    const result = await client.query('SELECT id FROM user_groups WHERE guid = $1', [guid]);
+                    const group = result.rows[0];
+                    if (group) {
+                        await client.query(
+                            'INSERT INTO user_group_members (user_group_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                            [group.id, user.id]
+                        );
+                    }
+                }
+                await client.query('COMMIT');
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+            return this.getUserGroupsForUser(user.id);
         },
 
         // ---- Device Groups ----
@@ -4629,6 +4791,14 @@ function createPostgresAdapter() {
                     WHERE a.device_group_id = $1
                     ORDER BY u.username ASC
                 `, [g.id])).map(r => r.username);
+                const allowedGroups = await all(`
+                    SELECT ug.guid, ug.name FROM device_group_user_group_access a
+                    INNER JOIN user_groups ug ON ug.id = a.user_group_id
+                    WHERE a.device_group_id = $1
+                    ORDER BY ug.name ASC
+                `, [g.id]);
+                g.allowed_groups = allowedGroups.map(r => r.guid);
+                g.allowed_user_groups = allowedGroups;
             }
             return groups;
         },
@@ -4644,6 +4814,14 @@ function createPostgresAdapter() {
                 WHERE a.device_group_id = $1
                 ORDER BY u.username ASC
             `, [group.id])).map(r => r.username);
+            const allowedGroups = await all(`
+                SELECT ug.guid, ug.name FROM device_group_user_group_access a
+                INNER JOIN user_groups ug ON ug.id = a.user_group_id
+                WHERE a.device_group_id = $1
+                ORDER BY ug.name ASC
+            `, [group.id]);
+            group.allowed_groups = allowedGroups.map(r => r.guid);
+            group.allowed_user_groups = allowedGroups;
             return group;
         },
 
@@ -4676,6 +4854,11 @@ function createPostgresAdapter() {
         },
 
         async deleteDeviceGroup(guid) {
+            const group = await one('SELECT id FROM device_groups WHERE guid = $1', [guid]);
+            if (!group) return;
+            await q('DELETE FROM device_group_members WHERE device_group_id = $1', [group.id]);
+            await q('DELETE FROM device_group_user_access WHERE device_group_id = $1', [group.id]);
+            await q('DELETE FROM device_group_user_group_access WHERE device_group_id = $1', [group.id]);
             await q('DELETE FROM device_groups WHERE guid = $1', [guid]);
         },
 
@@ -4734,11 +4917,41 @@ function createPostgresAdapter() {
             return this.getDeviceGroupByGuid(groupGuid);
         },
 
+        async setDeviceGroupUserGroupAccess(groupGuid, groupGuids = []) {
+            const group = await one('SELECT id FROM device_groups WHERE guid = $1', [groupGuid]);
+            if (!group) return null;
+            const uniqueGuids = Array.from(new Set((groupGuids || []).map(v => String(v || '').trim()).filter(Boolean))).slice(0, 100);
+            const client = await getPool().connect();
+            try {
+                await client.query('BEGIN');
+                await client.query('DELETE FROM device_group_user_group_access WHERE device_group_id = $1', [group.id]);
+                for (const guid of uniqueGuids) {
+                    const result = await client.query('SELECT id FROM user_groups WHERE guid = $1', [guid]);
+                    const userGroup = result.rows[0];
+                    if (userGroup) {
+                        await client.query(
+                            'INSERT INTO device_group_user_group_access (device_group_id, user_group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                            [group.id, userGroup.id]
+                        );
+                    }
+                }
+                await client.query('COMMIT');
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+            return this.getDeviceGroupByGuid(groupGuid);
+        },
+
         async getDeviceGroupAccessForUser(userId) {
             return all(`
-                SELECT dg.* FROM device_groups dg
-                INNER JOIN device_group_user_access a ON a.device_group_id = dg.id
-                WHERE a.user_id = $1
+                SELECT DISTINCT dg.* FROM device_groups dg
+                LEFT JOIN device_group_user_access a ON a.device_group_id = dg.id
+                LEFT JOIN device_group_user_group_access ga ON ga.device_group_id = dg.id
+                LEFT JOIN user_group_members ugm ON ugm.user_group_id = ga.user_group_id
+                WHERE a.user_id = $1 OR ugm.user_id = $1
                 ORDER BY dg.name ASC
             `, [userId]);
         },

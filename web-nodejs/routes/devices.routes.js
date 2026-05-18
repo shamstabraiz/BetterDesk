@@ -75,7 +75,7 @@ router.get('/api/devices', requireAuth, requirePermission('device.view'), async 
  */
 router.get('/api/tags', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
-        const devices = await serverBackend.getAllDevices({});
+        const devices = await getVisibleDevicesForRequest(req);
         res.json({
             success: true,
             data: {
@@ -95,6 +95,10 @@ function isValidGroupGuid(guid) {
     return typeof guid === 'string' && guid.length > 0 && guid.length <= 80 && /^[A-Za-z0-9_.:-]+$/.test(guid);
 }
 
+function areValidGroupGuids(guids) {
+    return Array.isArray(guids) && guids.length <= 100 && guids.every(isValidGroupGuid);
+}
+
 async function getVisibleDevicesForRequest(req) {
     const devices = await serverBackend.getAllDevices({});
     const scope = await deviceGroupService.getDeviceScopeForUser(db, req.session.user, devices);
@@ -104,11 +108,8 @@ async function getVisibleDevicesForRequest(req) {
 async function getVisibleDeviceGroupsForRequest(req) {
     let groups = (await db.getAllDeviceGroups())
         .filter(group => deviceGroupService.folderIdFromGroupGuid(group.guid) === null);
-    const accessGroups = await db.getDeviceGroupAccessForUser(req.session.userId);
-    if (accessGroups && accessGroups.length > 0) {
-        const allowedGroupGuids = new Set(accessGroups.map(group => group.guid));
-        groups = groups.filter(group => allowedGroupGuids.has(group.guid));
-    }
+    const accessUser = await deviceGroupService.getUserAccessContext(db, req.session.user);
+    groups = groups.filter(group => deviceGroupService.groupAllowedForUser(group, accessUser));
     return groups;
 }
 
@@ -148,11 +149,17 @@ router.post('/api/device-groups', requireAuth, requirePermission('device.edit'),
         if (payload.source_type === 'tag' && !payload.tag_filter) {
             return res.status(400).json({ success: false, error: req.t('devices.group_tag_required') });
         }
+        if (!areValidGroupGuids(payload.allowed_groups)) {
+            return res.status(400).json({ success: false, error: req.t('devices.group_invalid') });
+        }
 
         let group;
         if (payload.guid) {
             if (!isValidGroupGuid(payload.guid)) {
                 return res.status(400).json({ success: false, error: req.t('devices.group_invalid') });
+            }
+            if (deviceGroupService.folderIdFromGroupGuid(payload.guid) !== null) {
+                return res.status(400).json({ success: false, error: req.t('devices.folder_group_readonly') });
             }
             group = await db.updateDeviceGroup(payload.guid, payload);
             if (!group) {
@@ -164,6 +171,9 @@ router.post('/api/device-groups', requireAuth, requirePermission('device.edit'),
 
         if (Object.prototype.hasOwnProperty.call(req.body || {}, 'allowed_users')) {
             group = await db.setDeviceGroupUserAccess(group.guid, payload.allowed_users);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'allowed_groups')) {
+            group = await db.setDeviceGroupUserGroupAccess(group.guid, payload.allowed_groups);
         }
 
         await db.logAction(req.session.userId, 'device_group_saved', `Device group ${group.name} saved`, req.ip);
@@ -186,6 +196,9 @@ router.delete('/api/device-groups/:guid', requireAuth, requirePermission('device
         const group = await db.getDeviceGroupByGuid(guid);
         if (!group) {
             return res.status(404).json({ success: false, error: req.t('devices.group_not_found') });
+        }
+        if (deviceGroupService.folderIdFromGroupGuid(guid) !== null) {
+            return res.status(400).json({ success: false, error: req.t('devices.folder_group_readonly') });
         }
         await db.deleteDeviceGroup(guid);
         await db.logAction(req.session.userId, 'device_group_deleted', `Device group ${group.name} deleted`, req.ip);

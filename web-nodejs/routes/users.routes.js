@@ -50,6 +50,47 @@ async function resolveGoUserIdOrRespond(req, res) {
     return goUserId;
 }
 
+function normalizeGroupGuids(value) {
+    const raw = Array.isArray(value) ? value : String(value || '').split(',');
+    return Array.from(new Set(raw.map(v => String(v || '').trim()).filter(Boolean))).slice(0, 100);
+}
+
+function isValidGroupGuid(guid) {
+    return typeof guid === 'string' && guid.length > 0 && guid.length <= 80 && /^[A-Za-z0-9_.:-]+$/.test(guid);
+}
+
+function validateGroupGuidsFromBody(body) {
+    if (!Object.prototype.hasOwnProperty.call(body || {}, 'groupGuids')) return null;
+    const groupGuids = normalizeGroupGuids(body.groupGuids);
+    if (groupGuids.some(guid => !isValidGroupGuid(guid))) {
+        const error = new Error('Invalid user group identifier');
+        error.status = 400;
+        throw error;
+    }
+    return groupGuids;
+}
+
+async function getUserGroupGuids(userId) {
+    if (typeof db.getUserGroupsForUser !== 'function') return [];
+    const groups = await db.getUserGroupsForUser(userId);
+    return (groups || []).map(group => group.guid).filter(Boolean);
+}
+
+async function updateUserGroupMembershipsFromBody(userId, body) {
+    const groupGuids = validateGroupGuidsFromBody(body);
+    if (!groupGuids) return null;
+    await db.setUserGroupMemberships(userId, groupGuids);
+    return groupGuids;
+}
+
+function runBestEffortUserSync(operation) {
+    try {
+        Promise.resolve(operation()).catch(() => {});
+    } catch (_) {
+        // Best-effort sync must never break local user management.
+    }
+}
+
 /**
  * GET /users - Users management page (admin only)
  */
@@ -69,13 +110,14 @@ router.get('/api/users', requireAuth, requirePermission('user.view'), async (req
         const users = await db.getAllUsers();
         
         // Remove sensitive data
-        const safeUsers = users.map(u => ({
+        const safeUsers = await Promise.all(users.map(async u => ({
             id: u.id,
             username: u.username,
             role: u.role,
             created_at: u.created_at,
-            last_login: u.last_login
-        }));
+            last_login: u.last_login,
+            user_groups: await getUserGroupGuids(u.id)
+        })));
         
         res.json({
             success: true,
@@ -90,6 +132,31 @@ router.get('/api/users', requireAuth, requirePermission('user.view'), async (req
             success: false,
             error: req.t('errors.server_error')
         });
+    }
+});
+
+/**
+ * GET /api/panel/user-groups - Get user groups for panel assignment UIs.
+ */
+router.get('/api/panel/user-groups', requireAuth, requirePermission('user.view'), async (req, res) => {
+    try {
+        const groups = await db.getAllUserGroups();
+        res.json({
+            success: true,
+            data: {
+                groups: (groups || []).map(group => ({
+                    guid: group.guid,
+                    name: group.name,
+                    note: group.note || '',
+                    team_id: group.team_id || '',
+                    member_count: group.member_count || 0
+                })),
+                total: groups.length
+            }
+        });
+    } catch (err) {
+        console.error('Get user groups error:', err);
+        res.status(500).json({ success: false, error: req.t('errors.server_error') });
     }
 });
 
@@ -124,6 +191,8 @@ router.post('/api/users', requireAuth, requirePermission('user.create'), passwor
                 error: req.t('users.username_exists')
             });
         }
+
+        const groupGuids = validateGroupGuidsFromBody(req.body) || [];
         
         // Validate password strength
         const passwordCheck = authService.validatePasswordStrength(password);
@@ -144,10 +213,11 @@ router.post('/api/users', requireAuth, requirePermission('user.create'), passwor
         
         // Create user
         const result = await db.createUser(username, passwordHash, userRole);
+        await db.setUserGroupMemberships(result.id, groupGuids);
 
         // Mirror to Go server so the user is linkable to organizations
         // (Issue #125). Best-effort — does not fail panel-side creation.
-        userSync.mirrorCreate(username, password, userRole).catch(() => {});
+        runBestEffortUserSync(() => userSync.mirrorCreate(username, password, userRole));
 
         // Log action
         await db.logAction(req.session.userId, 'user_created', `Created user: ${username} (${userRole})`, req.ip);
@@ -157,14 +227,15 @@ router.post('/api/users', requireAuth, requirePermission('user.create'), passwor
             data: {
                 id: result.id,
                 username,
-                role: userRole
+                role: userRole,
+                user_groups: groupGuids
             }
         });
     } catch (err) {
         console.error('Create user error:', err);
-        res.status(500).json({
+        res.status(err.status || 500).json({
             success: false,
-            error: req.t('errors.server_error')
+            error: err.status === 400 ? err.message : req.t('errors.server_error')
         });
     }
 });
@@ -207,7 +278,7 @@ router.patch('/api/users/:id', requireAuth, requirePermission('user.edit'), asyn
             }
             await db.updateUserRole(userId, role);
             // Mirror role change to Go (Issue #125)
-            userSync.mirrorUpdate(user.username, { role }).catch(() => {});
+            runBestEffortUserSync(() => userSync.mirrorUpdate(user.username, { role }));
         }
         
         // Update password if provided
@@ -224,8 +295,10 @@ router.patch('/api/users/:id', requireAuth, requirePermission('user.edit'), asyn
             const passwordHash = await authService.hashPassword(password);
             await db.updateUserPassword(userId, passwordHash);
             // Mirror password change to Go (Issue #125)
-            userSync.mirrorUpdate(user.username, { password }).catch(() => {});
+            runBestEffortUserSync(() => userSync.mirrorUpdate(user.username, { password }));
         }
+
+        await updateUserGroupMembershipsFromBody(userId, req.body);
         
         // Log action
         await db.logAction(req.session.userId, 'user_updated', `Updated user: ${user.username}`, req.ip);
@@ -233,9 +306,9 @@ router.patch('/api/users/:id', requireAuth, requirePermission('user.edit'), asyn
         res.json({ success: true });
     } catch (err) {
         console.error('Update user error:', err);
-        res.status(500).json({
+        res.status(err.status || 500).json({
             success: false,
-            error: req.t('errors.server_error')
+            error: err.status === 400 ? err.message : req.t('errors.server_error')
         });
     }
 });
@@ -278,7 +351,7 @@ router.delete('/api/users/:id', requireAuth, requirePermission('user.delete'), a
         await db.deleteUser(userId);
 
         // Mirror delete to Go server so org links are cleaned up (Issue #125)
-        userSync.mirrorDelete(user.username).catch(() => {});
+        runBestEffortUserSync(() => userSync.mirrorDelete(user.username));
 
         // Log action
         await db.logAction(req.session.userId, 'user_deleted', `Deleted user: ${user.username}`, req.ip);
@@ -332,7 +405,7 @@ router.post('/api/users/:id/reset-password', requireAuth, requirePermission('use
         await db.updateUserPassword(userId, passwordHash);
 
         // Mirror password reset to Go (Issue #125)
-        userSync.mirrorUpdate(user.username, { password: newPassword }).catch(() => {});
+        runBestEffortUserSync(() => userSync.mirrorUpdate(user.username, { password: newPassword }));
 
         // Log action
         await db.logAction(req.session.userId, 'password_reset', `Reset password for user: ${user.username}`, req.ip);

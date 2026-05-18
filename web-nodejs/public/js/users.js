@@ -10,6 +10,8 @@
     
     // State
     let users = [];
+    let userGroups = [];
+    let userGroupsLoaded = false;
     let editingUserId = null;
     // Cache: userId -> [{ id, org_id, name, org_name, role }]
     const userOrgsCache = new Map();
@@ -21,6 +23,7 @@
         tableBody = document.getElementById('users-tbody');
         emptyState = document.getElementById('users-empty');
         
+        loadUserGroups();
         loadUsers();
         initEventListeners();
         
@@ -50,6 +53,57 @@
                 Notifications.error(_('errors.load_users_failed'));
             }
         }
+    }
+
+    async function loadUserGroups() {
+        try {
+            const response = await Utils.api('/api/panel/user-groups');
+            userGroups = response.groups || [];
+            userGroupsLoaded = true;
+            if (users.length > 0) renderUsers();
+        } catch (error) {
+            userGroups = [];
+            userGroupsLoaded = true;
+            console.error('Failed to load user groups:', error);
+        }
+    }
+
+    async function ensureUserGroupsLoaded() {
+        if (!userGroupsLoaded) await loadUserGroups();
+    }
+
+    function userGroupName(guid) {
+        const group = userGroups.find(item => item.guid === guid);
+        return group ? group.name : guid;
+    }
+
+    function renderUserGroupBadges(groupGuids) {
+        if (!Array.isArray(groupGuids) || groupGuids.length === 0) return '';
+        return `<div class="user-group-badges">${groupGuids.map(guid => `
+            <span class="user-group-badge" title="${Utils.escapeHtml(userGroupName(guid))}">
+                <span class="material-icons">group</span>
+                ${Utils.escapeHtml(userGroupName(guid))}
+            </span>`).join('')}</div>`;
+    }
+
+    function renderUserGroupCheckboxes(selectedGuids) {
+        const selected = new Set(Array.isArray(selectedGuids) ? selectedGuids : []);
+        const container = document.getElementById('user-groups-list');
+        if (!container) return;
+        if (!userGroups.length) {
+            container.innerHTML = `<div class="empty-state-inline">${_('users.no_user_groups') || 'No user groups'}</div>`;
+            return;
+        }
+        container.innerHTML = userGroups.map(group => `
+            <label class="user-group-option">
+                <input type="checkbox" value="${Utils.escapeHtml(group.guid)}" ${selected.has(group.guid) ? 'checked' : ''}>
+                <span class="material-icons">group</span>
+                <span>${Utils.escapeHtml(group.name || group.guid)}</span>
+            </label>`).join('');
+    }
+
+    function selectedUserGroupGuids() {
+        return Array.from(document.querySelectorAll('#user-groups-list input:checked')).map(input => input.value);
     }
 
     /**
@@ -145,7 +199,10 @@
                         <div class="user-avatar">
                             <span class="material-icons">${roleIcon}</span>
                         </div>
-                        <span class="user-username">${Utils.escapeHtml(user.username)}</span>
+                        <div class="user-name-stack">
+                            <span class="user-username">${Utils.escapeHtml(user.username)}</span>
+                            ${renderUserGroupBadges(user.user_groups)}
+                        </div>
                     </div>
                 </td>
                 <td>
@@ -216,7 +273,8 @@
     /**
      * Show add user modal
      */
-    function showAddUserModal() {
+    async function showAddUserModal() {
+        await ensureUserGroupsLoaded();
         editingUserId = null;
         
         const template = document.getElementById('user-form-template');
@@ -233,6 +291,7 @@
             ],
             onOpen: () => {
                 initFormListeners();
+                renderUserGroupCheckboxes([]);
                 document.getElementById('user-username')?.focus();
             }
         });
@@ -241,7 +300,8 @@
     /**
      * Show edit user modal
      */
-    function showEditUserModal(userId) {
+    async function showEditUserModal(userId) {
+        await ensureUserGroupsLoaded();
         const user = users.find(u => Number(u.id) === Number(userId));
         if (!user) return;
         
@@ -274,6 +334,7 @@
                 }
                 if (roleSelect) roleSelect.value = user.role;
                 if (passwordInput) passwordInput.placeholder = _('users.password_leave_empty');
+                renderUserGroupCheckboxes(user.user_groups || []);
             }
         });
     }
@@ -353,6 +414,7 @@
         const username = document.getElementById('user-username')?.value.trim();
         const password = document.getElementById('user-password')?.value;
         const role = document.getElementById('user-role')?.value;
+        const groupGuids = selectedUserGroupGuids();
         
         // Validate
         if (!editingUserId) {
@@ -378,6 +440,7 @@
                 // Update existing user
                 const data = { role };
                 if (password) data.password = password;
+                data.groupGuids = groupGuids;
                 
                 await Utils.api(`/api/users/${editingUserId}`, {
                     method: 'PATCH',
@@ -388,7 +451,7 @@
                 // Create new user
                 await Utils.api('/api/users', {
                     method: 'POST',
-                    body: { username, password, role }
+                    body: { username, password, role, groupGuids }
                 });
                 Notifications.success(_('users.user_created'));
             }
