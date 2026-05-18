@@ -36,6 +36,10 @@ services:
       - betterdesk-data:/opt/rustdesk
     environment:
       - ENCRYPTED_ONLY=1
+      # Set this when clients are outside the Docker network. Use the host's
+      # public IP/DNS, or the host LAN IP for LAN-only deployments.
+      # Example: RELAY_SERVERS=203.0.113.10:21117 docker compose up -d
+      - RELAY_SERVERS=${RELAY_SERVERS:-}
       - SIGNAL_RATE_LIMIT_PER_IP=${SIGNAL_RATE_LIMIT_PER_IP:-20}
     networks:
       - betterdesk-net

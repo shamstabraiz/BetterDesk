@@ -476,3 +476,39 @@ services:
 ### Prevention
 
 As of v2.4.0, the ALL-IN-ONE installation scripts (`betterdesk.sh` / `betterdesk.ps1`) automatically detect IPv6-only addresses and attempt to resolve an IPv4 address instead, preventing this issue from occurring during installation.
+
+---
+
+## Problem 4: Relay Connection Failed with Docker Quick Images
+
+### Symptoms
+
+RustDesk clients register successfully, but connections fail with:
+```
+Failed to connect via relay server: Failed to connect to relay server: Please try later
+```
+
+Server logs show relay advertisements like:
+```
+relay=10.1.0.2:21117
+```
+
+or another Docker/container-network address.
+
+### Root Cause
+
+The quick Docker image runs the BetterDesk server inside a bridge network. If the signal server advertises the container's private bridge IP as the relay server, RustDesk clients outside that Docker network cannot connect to it.
+
+### Solution
+
+Set `RELAY_SERVERS` to an address reachable by your clients. Use the Docker host public IP/DNS for internet deployments, or the Docker host LAN IP for LAN-only deployments.
+
+```bash
+# Public server
+RELAY_SERVERS=203.0.113.10:21117 docker compose up -d
+
+# LAN-only server
+RELAY_SERVERS=192.168.1.10:21117 docker compose up -d
+```
+
+Then verify that TCP port `21117` is reachable from a client network.

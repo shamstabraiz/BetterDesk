@@ -221,7 +221,7 @@ func TestSelectPeerRelayServerKeepsPublicRelayForSharedPublicIP(t *testing.T) {
 func TestSelectPeerRelayServerUsesLANRelayForPrivateSubnet(t *testing.T) {
 	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
 	srv.localIP.Store("198.51.100.20")
-	srv.lanIP.Store("10.0.0.20")
+	srv.lanIP.Store("192.168.1.20")
 
 	relay, sameLAN, samePublic := srv.selectPeerRelayServer(
 		"198.51.100.20:21117",
@@ -229,11 +229,33 @@ func TestSelectPeerRelayServerUsesLANRelayForPrivateSubnet(t *testing.T) {
 		udpAddr("192.168.1.42", 52000),
 	)
 
-	if relay != "10.0.0.20:21117" {
+	if relay != "192.168.1.20:21117" {
 		t.Fatalf("relay = %q, want LAN relay", relay)
 	}
 	if !sameLAN {
 		t.Fatal("private same-subnet peers should use LAN relay")
+	}
+	if samePublic {
+		t.Fatal("private same-subnet peers should not be marked as shared public IP")
+	}
+}
+
+func TestSelectPeerRelayServerKeepsDefaultRelayWhenLANRelayOutsidePeerSubnet(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	srv.localIP.Store("198.51.100.20")
+	srv.lanIP.Store("10.1.0.2")
+
+	relay, sameLAN, samePublic := srv.selectPeerRelayServer(
+		"198.51.100.20:21117",
+		udpAddr("172.29.1.77", 51000),
+		udpAddr("172.29.1.91", 52000),
+	)
+
+	if relay != "198.51.100.20:21117" {
+		t.Fatalf("relay = %q, want configured/default relay", relay)
+	}
+	if !sameLAN {
+		t.Fatal("private same-subnet peers should still be detected as LAN peers")
 	}
 	if samePublic {
 		t.Fatal("private same-subnet peers should not be marked as shared public IP")

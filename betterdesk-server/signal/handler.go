@@ -1386,11 +1386,22 @@ func (s *Server) getRelayServer() string {
 // getLANRelayServer returns the relay server address suitable for LAN peers.
 // Uses the server's detected LAN IP (from OS routing table) rather than public IP.
 // This ensures LAN peers can reach the relay without NAT hairpin support.
-func (s *Server) getLANRelayServer() string {
-	// For LAN peers, ALWAYS prefer the server's LAN IP — even when admin
-	// configured a public relay address.  NAT hairpin (LAN → public IP → LAN)
-	// is unreliable on many routers, causing relay pair timeouts (#102).
+func (s *Server) getLANRelayServer(defaultRelay string, peers ...*net.UDPAddr) string {
+	if defaultRelay == "" {
+		defaultRelay = s.getRelayServer()
+	}
+
+	// For LAN peers, prefer the server's LAN IP only when it is actually in the
+	// peers' private subnet. NAT hairpin (LAN → public IP → LAN) is unreliable
+	// on many routers (#102), but Docker bridge IPs are not reachable from LAN
+	// clients and must not be advertised as relay addresses (#142).
 	if ip, ok := s.lanIP.Load().(string); ok && ip != "" {
+		lanIP := net.ParseIP(ip)
+		if !isLANRelayReachableFromPeers(lanIP, peers...) {
+			log.Printf("[signal] LAN relay %s is outside peer subnet; using configured/default relay=%s", ip, defaultRelay)
+			return defaultRelay
+		}
+
 		// Determine relay port: prefer admin-configured port, fall back to default.
 		relayPort := s.cfg.RelayPort
 		relays := s.cfg.GetRelayServers()
@@ -1403,12 +1414,8 @@ func (s *Server) getLANRelayServer() string {
 		}
 		return fmt.Sprintf("%s:%d", ip, relayPort)
 	}
-	// LAN IP unknown — fall back to configured relay (public)
-	relays := s.cfg.GetRelayServers()
-	if len(relays) > 0 {
-		return relays[0]
-	}
-	return s.getRelayServer()
+	// LAN IP unknown — fall back to configured/default relay.
+	return defaultRelay
 }
 
 func (s *Server) selectPeerRelayServer(defaultRelay string, a, b *net.UDPAddr) (relay string, sameLAN bool, samePublicIP bool) {
@@ -1423,9 +1430,29 @@ func (s *Server) selectPeerRelayServer(defaultRelay string, a, b *net.UDPAddr) (
 		return s.getRelayServer(), false, true
 	}
 	if isSameNetwork(a, b) {
-		return s.getLANRelayServer(), true, false
+		return s.getLANRelayServer(defaultRelay, a, b), true, false
 	}
 	return defaultRelay, false, false
+}
+
+func isLANRelayReachableFromPeers(lanIP net.IP, peers ...*net.UDPAddr) bool {
+	lan4 := lanIP.To4()
+	if lan4 == nil || !isPrivateIP(lan4) {
+		return false
+	}
+	for _, peerAddr := range peers {
+		if peerAddr == nil {
+			continue
+		}
+		peer4 := peerAddr.IP.To4()
+		if peer4 == nil || peer4.IsLoopback() || !isPrivateIP(peer4) {
+			continue
+		}
+		if lan4.Equal(peer4) || (lan4[0] == peer4[0] && lan4[1] == peer4[1] && lan4[2] == peer4[2]) {
+			return true
+		}
+	}
+	return false
 }
 
 // registerPkResponse is a helper to create a RegisterPkResponse message.

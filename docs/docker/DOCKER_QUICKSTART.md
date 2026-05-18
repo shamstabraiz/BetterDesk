@@ -37,6 +37,20 @@ docker compose logs console 2>&1 | grep -i "Admin password"
 
 ## 🔧 Configuration
 
+### Relay Address for Docker Hosts
+
+If clients can register but remote sessions fail with `Failed to connect via relay server`, set the relay address that clients can actually reach. In Docker quick images, the server may see its internal container address, which is not reachable from RustDesk clients.
+
+```bash
+# Public server
+RELAY_SERVERS=203.0.113.10:21117 docker compose up -d
+
+# LAN-only server
+RELAY_SERVERS=192.168.1.10:21117 docker compose up -d
+```
+
+Use the Docker host address, not the container IP. Make sure TCP port `21117` is open and forwarded to the host.
+
 ### Custom Admin Password
 
 ```bash
@@ -146,7 +160,8 @@ docker compose up -d
 
 1. Check firewall allows ports 21116-21117
 2. Verify server is healthy: `curl http://localhost:21114/api/health`
-3. Check relay server: `docker compose logs server | grep relay`
+3. Check the advertised relay address: `docker compose logs server | grep 'relay='`
+4. If logs show a Docker/container IP such as `10.x.x.x` or `172.x.x.x`, restart with `RELAY_SERVERS=YOUR_HOST_IP:21117 docker compose up -d`
 
 ### "Web console shows 0 devices"
 
