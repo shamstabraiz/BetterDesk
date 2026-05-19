@@ -141,6 +141,49 @@ describe('RustDesk Client API routes', () => {
             expect(serverBackend.getAllDevices).toHaveBeenCalledWith(expect.objectContaining({ status: 'online' }));
         });
 
+        it('filters reachable devices by folder name', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'FOLDER1', hostname: 'Folder device', online: true, tags: 'Allowed' },
+                { id: 'OTHER1', hostname: 'Other', online: true, tags: 'Allowed' }
+            ]);
+            db.getAllFolders.mockResolvedValue([{ id: 7, name: 'Servers' }]);
+            db.getAllFolderAssignments.mockResolvedValue({ FOLDER1: 7 });
+
+            const res = await request(app)
+                .get('/api/peers?group_name=Servers')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.data[0]).toMatchObject({
+                id: 'FOLDER1',
+                folder_id: 7,
+                folder_name: 'Servers',
+                device_group_guid: 'folder_7',
+                device_group_name: 'Servers'
+            });
+        });
+
+        it('supports the RustDesk peers/list envelope with body-based folder filters', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'FOLDER1', hostname: 'Folder device', online: true, tags: 'Allowed' },
+                { id: 'OTHER1', hostname: 'Other', online: true, tags: 'Allowed' }
+            ]);
+            db.getAllFolders.mockResolvedValue([{ id: 7, name: 'Servers' }]);
+            db.getAllFolderAssignments.mockResolvedValue({ FOLDER1: 7 });
+
+            const res = await request(app)
+                .post('/api/peers/list')
+                .set('Authorization', 'Bearer operator-token')
+                .send({ device_group: { guid: 'folder_7' } });
+
+            expect(res.status).toBe(200);
+            expect(res.body).toMatchObject({ total: 1, msg: 'success' });
+            expect(res.body.data.map(peer => peer.id)).toEqual(['FOLDER1']);
+        });
+
         it('filters reachable devices by tag query parameters', async () => {
             authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
             serverBackend.getAllDevices.mockResolvedValue([
@@ -233,6 +276,63 @@ describe('RustDesk Client API routes', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.data).toEqual(['Clients', 'Servers']);
+        });
+    });
+
+    describe('GET /api/device-group', () => {
+        it('exposes BetterDesk folders as RustDesk-compatible device groups with stable ids', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'FOLDER1', hostname: 'Folder device', online: true, tags: 'Allowed' }
+            ]);
+            db.getAllFolders.mockResolvedValue([{ id: 7, name: 'Servers' }]);
+            db.getAllFolderAssignments.mockResolvedValue({ FOLDER1: 7 });
+
+            const res = await request(app)
+                .get('/api/device-group')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.msg).toBe('success');
+            expect(res.body.data[0]).toMatchObject({
+                id: 'folder_7',
+                guid: 'folder_7',
+                device_group_guid: 'folder_7',
+                device_group_id: 'folder_7',
+                group_id: 'folder_7',
+                name: 'Servers',
+                group_name: 'Servers',
+                source_type: 'folder',
+                folder_id: 7,
+                member_count: 1,
+                accessed_count: 1
+            });
+        });
+
+        it('serves the legacy RustDesk group aliases with the same payload', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
+            db.getAllDeviceGroups.mockResolvedValue([
+                { guid: 'kuzzel', name: 'KUZZEL', source_type: 'tag', tag_filter: 'KUZZEL' }
+            ]);
+            serverBackend.getAllDevices.mockResolvedValue([
+                { id: 'TAG1', hostname: 'Tagged', online: true, tags: ['KUZZEL'] }
+            ]);
+
+            const res = await request(app)
+                .get('/api/group/get')
+                .set('Authorization', 'Bearer operator-token');
+
+            expect(res.status).toBe(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.data[0]).toMatchObject({
+                id: 'kuzzel',
+                guid: 'kuzzel',
+                device_group_guid: 'kuzzel',
+                name: 'KUZZEL',
+                source_type: 'tag',
+                tag_filter: 'KUZZEL'
+            });
         });
     });
 

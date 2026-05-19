@@ -190,17 +190,53 @@ function folderIdFromGroupGuid(value) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function groupFieldValue(value) {
+    if (Array.isArray(value)) return groupFieldValue(value[0]);
+    if (value && typeof value === 'object') {
+        return groupFieldValue(
+            value.guid ||
+            value.id ||
+            value.device_group_guid ||
+            value.device_group_id ||
+            value.group_guid ||
+            value.group_id ||
+            value.name ||
+            value.group_name ||
+            value.tag ||
+            value.tag_filter ||
+            ''
+        );
+    }
+    return String(value || '').trim();
+}
+
+function requestFilterParams(req) {
+    const params = {};
+    if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+        Object.assign(params, req.body);
+    }
+    Object.assign(params, req.query || {});
+    return params;
+}
+
 function requestedGroupValue(query = {}) {
-    return query.folder_id ||
-        query.device_group_guid ||
-        query.device_group_id ||
-        query.device_group ||
-        query.device_group_name ||
-        query.group_guid ||
-        query.group_id ||
-        query.group_name ||
-        query.group ||
-        '';
+    const keys = [
+        'folder_id', 'folderId', 'folder', 'folder_name', 'folderName',
+        'device_group_guid', 'deviceGroupGuid',
+        'device_group_id', 'deviceGroupId',
+        'device_group', 'deviceGroup',
+        'device_group_name', 'deviceGroupName',
+        'group_guid', 'groupGuid',
+        'group_id', 'groupId',
+        'group_name', 'groupName',
+        'group'
+    ];
+
+    for (const key of keys) {
+        const value = groupFieldValue(query[key]);
+        if (value) return value;
+    }
+    return '';
 }
 
 function queryListValue(value) {
@@ -214,7 +250,7 @@ function queryListValue(value) {
 }
 
 function requestedTagValues(query = {}) {
-    return queryListValue(query.tag || query.tags || query.tag_name || query.tag_filter || '');
+    return queryListValue(query.tag || query.tags || query.tag_name || query.tagName || query.tag_filter || query.tagFilter || '');
 }
 
 function deviceHasAllTags(device, expectedTags) {
@@ -427,6 +463,159 @@ async function getRustDeskDeviceGroups(user) {
     }
 
     return groups;
+}
+
+function rustDeskDeviceGroupPayload(group) {
+    const guid = String(group.guid || group.id || '').trim();
+    const folderId = group.folder_id === undefined || group.folder_id === null || group.folder_id === ''
+        ? null
+        : group.folder_id;
+    const memberCount = group.member_count || group.accessed_count || 0;
+    return {
+        id: guid,
+        guid,
+        device_group_guid: guid,
+        device_group_id: guid,
+        group_id: guid,
+        name: group.name || '',
+        group_name: group.name || '',
+        note: group.note || '',
+        team_id: group.team_id || '',
+        member_count: memberCount,
+        accessed_count: memberCount,
+        source_type: group.source_type || 'manual',
+        tag_filter: group.tag_filter || '',
+        folder_id: folderId,
+        allowed_users: Array.isArray(group.allowed_users) ? group.allowed_users : [],
+        allowed_groups: Array.isArray(group.allowed_groups) ? group.allowed_groups : []
+    };
+}
+
+async function getRustDeskPeerList(user, params = {}) {
+    let folders = [];
+    try {
+        folders = await db.getAllFolders();
+    } catch (_) { /* non-critical */ }
+
+    const requestedFolder = resolveRequestedFolderId(params, folders);
+    const requestedGroup = requestedGroupValue(params);
+    const requestedTags = requestedTagValues(params);
+    let devices = await serverBackend.getAllDevices({
+        search: params.search || '',
+        status: 'online'
+    });
+
+    let assignments = {};
+    try {
+        assignments = await db.getAllFolderAssignments();
+        for (const device of devices) {
+            const assigned = assignments[String(device.id)];
+            if (assigned !== undefined) device.folder_id = assigned;
+        }
+    } catch (_) { /* non-critical */ }
+
+    devices = await filterDevicesForRustDeskUser(user, devices);
+    const accessUser = await deviceGroupService.getUserAccessContext(db, user);
+
+    devices = devices.filter(device => !!device.online);
+
+    if (requestedFolder !== null) {
+        devices = devices.filter(device => getDeviceFolderId(device) === requestedFolder);
+    } else if (requestedGroup) {
+        const normalizedGroup = String(requestedGroup).trim().toLowerCase();
+        let group = null;
+        try {
+            group = await db.getDeviceGroupByGuid(String(requestedGroup).trim());
+            if (!group) {
+                const allGroups = await db.getAllDeviceGroups();
+                group = (allGroups || []).find(item => String(item.name || '').trim().toLowerCase() === normalizedGroup) || null;
+            }
+        } catch (_) { /* non-critical */ }
+        if (group && deviceGroupService.groupAllowedForUser(group, accessUser)) {
+            const groupPeerIds = await deviceGroupService.getGroupPeerIds(db, group, devices);
+            devices = devices.filter(device => groupPeerIds.has(String(device.id)));
+        } else if (!group && normalizedGroup) {
+            devices = devices.filter(device => deviceHasAllTags(device, [normalizedGroup]));
+        } else {
+            devices = [];
+        }
+    }
+
+    if (requestedTags.length > 0) {
+        devices = devices.filter(device => deviceHasAllTags(device, requestedTags));
+    }
+
+    let folderNames = new Map();
+    try {
+        folderNames = new Map(folders.map(folder => [Number.parseInt(folder.id, 10), folder.name]));
+    } catch (_) { /* non-critical */ }
+
+    const allSysinfo = await db.getAllPeerSysinfo();
+    const sysinfoMap = {};
+    for (const sysinfo of allSysinfo) {
+        sysinfoMap[sysinfo.peer_id] = sysinfo;
+    }
+
+    const enrichedPeers = devices.map(device => {
+        const sysinfo = sysinfoMap[device.id] || {};
+        const tags = addressBookSync.normalizeTags(device.tags);
+        const folderId = getDeviceFolderId(device);
+        const deviceGroupGuid = folderId ? folderGroupGuid(folderId) : '';
+        const deviceGroupName = folderId ? (folderNames.get(folderId) || '') : '';
+        return {
+            id: device.id,
+            hostname: sysinfo.hostname || device.hostname || '',
+            username: sysinfo.username || device.username || '',
+            platform: sysinfo.platform || device.platform || '',
+            version: sysinfo.version || '',
+            ip: device.ip || '',
+            online: device.online,
+            last_online: device.last_online || '',
+            created_at: device.created_at || '',
+            note: device.note || '',
+            banned: device.banned,
+            pk: device.pk || '',
+            cpu: sysinfo.cpu_name || '',
+            memory: sysinfo.memory_gb || 0,
+            os: sysinfo.os_full || '',
+            displays: sysinfo.displays || [],
+            tags,
+            folder_id: folderId,
+            folder_name: deviceGroupName,
+            device_group_guid: deviceGroupGuid,
+            device_group_id: deviceGroupGuid,
+            device_group_name: deviceGroupName,
+            group_id: deviceGroupGuid,
+            group_name: deviceGroupName
+        };
+    });
+
+    const page = Math.max(1, parseInt(params.page, 10) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(params.page_size || params.pageSize, 10) || 100));
+    const start = (page - 1) * pageSize;
+    const paged = enrichedPeers.slice(start, start + pageSize);
+
+    return {
+        data: paged,
+        total: enrichedPeers.length
+    };
+}
+
+async function sendRustDeskDeviceGroups(req, res) {
+    try {
+        if (req.authUser && req.authUser.role === 'pro') {
+            return res.json({ data: [], total: 0, msg: 'success' });
+        }
+        const groups = await getRustDeskDeviceGroups(req.authUser);
+        return res.json({
+            data: groups.map(rustDeskDeviceGroupPayload),
+            total: groups.length,
+            msg: 'success'
+        });
+    } catch (err) {
+        console.error('[API:DEVICE-GROUP] Error:', err.message);
+        return res.json({ data: [], total: 0, msg: 'success' });
+    }
 }
 
 // ==================== Phase 0: Core Auth Endpoints ====================
@@ -856,116 +1045,33 @@ router.get('/api/peers', async (req, res, next) => {
     }
 
     try {
-        // Get all devices from peer table
-        let folders = [];
-        try {
-            folders = await db.getAllFolders();
-        } catch (_) { /* non-critical */ }
-        const requestedFolder = resolveRequestedFolderId(req.query, folders);
-        const requestedGroup = requestedGroupValue(req.query);
-        const requestedTags = requestedTagValues(req.query);
-        let devices = await serverBackend.getAllDevices({
-            search: req.query.search || '',
-            status: req.query.status || 'online'
-        });
-
-        let assignments = {};
-        try {
-            assignments = await db.getAllFolderAssignments();
-            for (const device of devices) {
-                const assigned = assignments[String(device.id)];
-                if (assigned !== undefined) device.folder_id = assigned;
-            }
-        } catch (_) { /* non-critical */ }
-
-        devices = await filterDevicesForRustDeskUser(user, devices);
-        const accessUser = await deviceGroupService.getUserAccessContext(db, user);
-
-        devices = devices.filter(device => !!device.online);
-
-        if (requestedFolder !== null) {
-            devices = devices.filter(device => getDeviceFolderId(device) === requestedFolder);
-        } else if (requestedGroup) {
-            const normalizedGroup = String(requestedGroup).trim().toLowerCase();
-            let group = null;
-            try {
-                group = await db.getDeviceGroupByGuid(String(requestedGroup).trim());
-                if (!group) {
-                    const allGroups = await db.getAllDeviceGroups();
-                    group = (allGroups || []).find(item => String(item.name || '').trim().toLowerCase() === normalizedGroup) || null;
-                }
-            } catch (_) { /* non-critical */ }
-            if (group && deviceGroupService.groupAllowedForUser(group, accessUser)) {
-                const groupPeerIds = await deviceGroupService.getGroupPeerIds(db, group, devices);
-                devices = devices.filter(device => groupPeerIds.has(String(device.id)));
-            } else if (!group && normalizedGroup) {
-                devices = devices.filter(device => deviceHasAllTags(device, [normalizedGroup]));
-            } else {
-                devices = [];
-            }
-        }
-
-        if (requestedTags.length > 0) {
-            devices = devices.filter(device => deviceHasAllTags(device, requestedTags));
-        }
-
-        let folderNames = new Map();
-        try {
-            folderNames = new Map(folders.map(folder => [Number.parseInt(folder.id, 10), folder.name]));
-        } catch (_) { /* non-critical */ }
-
-        // Build sysinfo lookup map
-        const allSysinfo = await db.getAllPeerSysinfo();
-        const sysinfoMap = {};
-        for (const si of allSysinfo) {
-            sysinfoMap[si.peer_id] = si;
-        }
-
-        // Merge devices with sysinfo
-        const enrichedPeers = devices.map(device => {
-            const si = sysinfoMap[device.id] || {};
-            const tags = addressBookSync.normalizeTags(device.tags);
-            const folderId = getDeviceFolderId(device);
-            const deviceGroupGuid = folderId ? folderGroupGuid(folderId) : '';
-            return {
-                id: device.id,
-                hostname: si.hostname || device.hostname || '',
-                username: si.username || device.username || '',
-                platform: si.platform || device.platform || '',
-                version: si.version || '',
-                ip: device.ip || '',
-                online: device.online,
-                last_online: device.last_online || '',
-                created_at: device.created_at || '',
-                note: device.note || '',
-                banned: device.banned,
-                pk: device.pk || '',
-                cpu: si.cpu_name || '',
-                memory: si.memory_gb || 0,
-                os: si.os_full || '',
-                displays: si.displays || [],
-                tags,
-                folder_id: folderId,
-                device_group_guid: deviceGroupGuid,
-                device_group_id: deviceGroupGuid,
-                group_id: deviceGroupGuid,
-                group_name: folderId ? (folderNames.get(folderId) || '') : ''
-            };
-        });
-
-        // Pagination
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const pageSize = Math.min(200, Math.max(1, parseInt(req.query.page_size, 10) || 100));
-        const start = (page - 1) * pageSize;
-        const paged = enrichedPeers.slice(start, start + pageSize);
-
-        return res.json({
-            data: paged,
-            total: enrichedPeers.length
-        });
+        const result = await getRustDeskPeerList(user, requestFilterParams(req));
+        return res.json(result);
     } catch (err) {
         console.error('[API:PEERS] Error:', err.message);
         return res.json({ data: [], total: 0 });
+    }
+});
+
+/**
+ * GET/POST /api/peers/list
+ * RustDesk PRO-compatible peer-list envelope used by some desktop builds when
+ * a folder/group is selected in Available Devices.
+ */
+router.all('/api/peers/list', requireAuth, async (req, res) => {
+    if (req.authUser && req.authUser.role === 'pro') {
+        return res.json({ data: [], total: 0, msg: 'success' });
+    }
+    try {
+        const result = await getRustDeskPeerList(req.authUser, requestFilterParams(req));
+        return res.json({
+            data: result.data,
+            total: result.total,
+            msg: 'success'
+        });
+    } catch (err) {
+        console.error('[API:PEERS/LIST] Error:', err.message);
+        return res.json({ data: [], total: 0, msg: 'success' });
     }
 });
 
@@ -974,59 +1080,19 @@ router.get('/api/peers', async (req, res, next) => {
  * Returns accessible device groups for the current user.
  */
 router.get('/api/device-group/accessible', requireAuth, async (req, res) => {
-    try {
-        // Pro users cannot see device groups
-        if (req.authUser && req.authUser.role === 'pro') {
-            return res.json({ data: [], total: 0 });
-        }
-        const groups = await getRustDeskDeviceGroups(req.authUser);
-        return res.json({
-            data: groups.map(g => ({
-                guid: g.guid,
-                name: g.name,
-                note: g.note || '',
-                team_id: g.team_id || '',
-                accessed_count: g.member_count || 0,
-                source_type: g.source_type || 'manual',
-                tag_filter: g.tag_filter || '',
-                folder_id: g.folder_id || null
-            })),
-            total: groups.length
-        });
-    } catch (err) {
-        console.error('[API:DEVICE-GROUP] Error:', err.message);
-        return res.json({ data: [], total: 0 });
-    }
+    return sendRustDeskDeviceGroups(req, res);
 });
+
+router.get('/api/group', requireAuth, sendRustDeskDeviceGroups);
+router.get('/api/group/get', requireAuth, sendRustDeskDeviceGroups);
+router.post('/api/group/get', requireAuth, sendRustDeskDeviceGroups);
 
 /**
  * GET /api/device-group
  * List all device groups.
  */
 router.get('/api/device-group', requireAuth, async (req, res) => {
-    try {
-        // Pro users cannot see device groups
-        if (req.authUser && req.authUser.role === 'pro') {
-            return res.json({ data: [], total: 0 });
-        }
-        const groups = await getRustDeskDeviceGroups(req.authUser);
-        return res.json({
-            data: groups.map(g => ({
-                guid: g.guid,
-                name: g.name,
-                note: g.note || '',
-                team_id: g.team_id || '',
-                member_count: g.member_count || 0,
-                source_type: g.source_type || 'manual',
-                tag_filter: g.tag_filter || '',
-                folder_id: g.folder_id || null
-            })),
-            total: groups.length
-        });
-    } catch (err) {
-        console.error('[API:DEVICE-GROUP] Error:', err.message);
-        return res.json({ data: [], total: 0 });
-    }
+    return sendRustDeskDeviceGroups(req, res);
 });
 
 /**

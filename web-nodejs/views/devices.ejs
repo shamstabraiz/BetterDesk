@@ -20,7 +20,7 @@
                 </div>
             </div>
 
-            <!-- Folder Chips -->
+            <!-- Folder Tiles -->
             <div class="folders-bar" id="folders-bar">
                 <div class="folders-chips" id="folders-chips">
                     <button class="folder-chip active" data-folder="all">
@@ -34,13 +34,13 @@
                         <span class="chip-count" id="folder-count-unassigned">0</span>
                     </button>
                     <span id="custom-folders"></span>
+                    <button class="folder-chip chip-add" id="add-folder-btn" title="${_('folders.create')}">
+                        <span class="material-icons">add</span>
+                    </button>
                 </div>
-                <button class="folder-chip chip-add" id="add-folder-btn" title="${_('folders.create')}">
-                    <span class="material-icons">add</span>
-                </button>
             </div>
 
-            <!-- Device Group Chips -->
+            <!-- Device Group Tiles -->
             <div class="groups-bar" id="groups-bar">
                 <div class="groups-chips" id="groups-chips">
                     <button class="group-chip active" data-group="all">
@@ -49,11 +49,11 @@
                         <span class="chip-count" id="group-count-all">0</span>
                     </button>
                     <span id="custom-device-groups"></span>
+                    <button class="group-chip chip-add" id="add-device-group-btn" title="${_('devices.create_group')}">
+                        <span class="material-icons">add</span>
+                        <span class="chip-label">${_('devices.create_group')}</span>
+                    </button>
                 </div>
-                <button class="group-chip chip-add" id="add-device-group-btn" title="${_('devices.create_group')}">
-                    <span class="material-icons">add</span>
-                    <span class="chip-label">${_('devices.create_group')}</span>
-                </button>
             </div>
 
             <!-- Toolbar -->

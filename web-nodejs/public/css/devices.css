@@ -53,62 +53,57 @@
     font-size: 18px;
 }
 
-/* ==================== Folder Chips ==================== */
+/* ==================== Folder Tiles ==================== */
 
 .folders-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs, 0.25rem);
-    min-height: 34px;
+    display: block;
+    min-height: 112px;
 }
 
 .folders-chips {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs, 0.25rem);
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    flex: 1;
-    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 10px;
+    align-items: stretch;
     padding: 2px 0;
 }
 
-.folders-chips::-webkit-scrollbar {
-    display: none;
-}
-
 .folder-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    align-items: start;
+    gap: 6px 8px;
+    min-height: 112px;
+    padding: 14px;
     border: 1px solid var(--border-primary, #30363d);
-    border-radius: var(--radius-full, 9999px);
+    border-radius: 8px;
     background: var(--bg-secondary, #161b22);
-    color: var(--text-secondary, #8b949e);
-    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--text-primary, #c9d1d9);
+    font-size: var(--font-size-sm, 0.875rem);
     cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-    flex-shrink: 0;
+    white-space: normal;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
     -webkit-appearance: none;
     appearance: none;
     position: relative;
     font-family: inherit;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .folder-chip:hover {
     background: var(--bg-hover);
-    color: var(--text-primary);
     border-color: var(--border-hover, #484f58);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
 
 .folder-chip.active {
-    background: var(--accent-blue-muted, rgba(88, 166, 255, 0.15));
+    background: linear-gradient(135deg, var(--accent-blue-muted, rgba(88, 166, 255, 0.18)), rgba(88, 166, 255, 0.08));
     border-color: var(--accent-blue, #58a6ff);
-    color: var(--accent-blue, #58a6ff);
+    color: var(--text-primary, #c9d1d9);
+    box-shadow: inset 0 0 0 1px rgba(88, 166, 255, 0.18);
 }
 
 .folder-chip.drag-over {
@@ -118,33 +113,55 @@
 }
 
 .chip-icon {
-    font-size: 14px !important;
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 24px !important;
+    line-height: 1;
+}
+
+.chip-label {
+    grid-column: 1 / 4;
+    grid-row: 2;
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    font-weight: var(--font-weight-medium, 500);
+    line-height: 1.25;
 }
 
 .chip-count {
-    font-size: 10px;
-    background: var(--bg-tertiary, #21262d);
-    padding: 0 5px;
-    border-radius: var(--radius-full);
-    line-height: 16px;
-    transition: opacity 0.15s ease;
+    grid-column: 1 / 3;
+    grid-row: 3;
+    align-self: end;
+    justify-self: start;
+    font-size: 28px;
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--text-primary, #c9d1d9);
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    line-height: 1;
 }
 
 .folder-chip.active .chip-count {
-    background: rgba(88, 166, 255, 0.25);
+    color: var(--accent-blue, #58a6ff);
 }
 
-/* Chip actions (edit/delete) — shown on hover for custom folders */
+/* Tile actions (edit/delete) */
 .folder-chip .chip-actions {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    margin-left: 2px;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    position: static;
-    transform: none;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 0;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    position: absolute;
+    top: 10px;
+    right: 10px;
     transition: opacity 0.15s ease, visibility 0.15s ease;
     background: transparent;
     padding: 0;
@@ -168,17 +185,19 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 0;
-    background: transparent;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.04);
     font-size: 14px !important;
     cursor: pointer;
     padding: 0;
     border-radius: var(--radius-sm);
-    transition: color 0.1s;
-    color: var(--text-tertiary);
+    transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+    color: var(--text-secondary);
 }
 
 .chip-action:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover, #484f58);
     color: var(--text-primary);
 }
 
@@ -188,12 +207,15 @@
 
 /* Add folder chip */
 .chip-add {
-    padding: 4px 8px;
+    align-items: center;
+    justify-items: center;
+    text-align: center;
+    color: var(--text-secondary);
     border-style: dashed;
 }
 
 .group-chip.chip-add {
-    gap: 4px;
+    gap: 6px 8px;
 }
 
 .chip-add:hover {
@@ -202,52 +224,58 @@
 }
 
 .chip-add .material-icons {
-    font-size: 16px;
+    grid-column: 1 / 4;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: center;
+    font-size: 26px;
 }
 
-/* ==================== Device Group Chips ==================== */
+.chip-add .chip-label {
+    grid-column: 1 / 4;
+    grid-row: 3;
+    align-self: end;
+    justify-self: center;
+    text-align: center;
+}
+
+/* ==================== Device Group Tiles ==================== */
 
 .groups-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs, 0.25rem);
-    min-height: 34px;
+    display: block;
+    min-height: 112px;
 }
 
 .groups-chips,
 #custom-device-groups {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs, 0.25rem);
+    display: contents;
 }
 
 .groups-chips {
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    flex: 1;
-    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 10px;
+    align-items: stretch;
     padding: 2px 0;
 }
 
-.groups-chips::-webkit-scrollbar {
-    display: none;
-}
-
 .group-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    align-items: start;
+    gap: 6px 8px;
+    min-height: 112px;
+    padding: 14px;
     border: 1px solid var(--border-primary, #30363d);
-    border-radius: var(--radius-full, 9999px);
+    border-radius: 8px;
     background: var(--bg-secondary, #161b22);
-    color: var(--text-secondary, #8b949e);
-    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--text-primary, #c9d1d9);
+    font-size: var(--font-size-sm, 0.875rem);
     cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-    flex-shrink: 0;
+    white-space: normal;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
     -webkit-appearance: none;
     appearance: none;
     position: relative;
@@ -256,14 +284,16 @@
 
 .group-chip:hover {
     background: var(--bg-hover);
-    color: var(--text-primary);
     border-color: var(--border-hover, #484f58);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
 
 .group-chip.active {
-    background: var(--accent-purple-muted, rgba(168, 85, 247, 0.15));
+    background: linear-gradient(135deg, var(--accent-purple-muted, rgba(168, 85, 247, 0.18)), rgba(168, 85, 247, 0.08));
     border-color: var(--accent-purple, #a855f7);
-    color: var(--accent-purple, #a855f7);
+    color: var(--text-primary, #c9d1d9);
+    box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.18);
 }
 
 .group-chip.dynamic {
@@ -273,13 +303,15 @@
 .group-chip .chip-actions {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    margin-left: 2px;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 0;
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    position: static;
-    transform: none;
+    position: absolute;
+    top: 10px;
+    right: 10px;
     background: transparent;
     padding: 0;
     transition: opacity 0.15s ease;
@@ -297,16 +329,17 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 0;
+    border: 1px solid transparent;
     border-radius: var(--radius-sm, 4px);
-    background: transparent;
-    color: inherit;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 0;
 }
 
 .group-chip-action:hover {
     background: var(--bg-hover);
+    border-color: var(--border-hover, #484f58);
     color: var(--text-primary);
 }
 
@@ -319,7 +352,11 @@
 }
 
 .group-chip.active .chip-count {
-    background: rgba(168, 85, 247, 0.22);
+    color: var(--accent-purple, #a855f7);
+}
+
+#custom-folders {
+    display: contents;
 }
 
 /* ==================== Tag Filter Menu ==================== */
@@ -1347,34 +1384,33 @@ td.column-hidden {
         border-left: 3px solid var(--accent-red) !important;
     }
 
-    /* Folder chips scroll hint */
-    .folders-bar {
-        position: relative;
+    .folders-chips,
+    .groups-chips {
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
     }
 
-    .folders-bar::after {
-        content: '';
-        position: absolute;
-        right: 40px;
-        top: 0;
-        bottom: 0;
-        width: 24px;
-        background: linear-gradient(to right, transparent, var(--bg-primary, #0d1117));
-        pointer-events: none;
+    .folder-chip,
+    .group-chip {
+        min-height: 104px;
+        padding: 12px;
     }
 }
 
 /* ==================== RESPONSIVE: Small Phone (<=400px) ==================== */
 
 @media (max-width: 400px) {
-    /* Show only icons for folder chips (except All and Unassigned) */
-    .folder-chip .chip-label {
-        display: none;
+    .folders-chips,
+    .groups-chips {
+        grid-template-columns: 1fr 1fr;
     }
 
-    .folder-chip[data-folder="all"] .chip-label,
-    .folder-chip[data-folder="unassigned"] .chip-label {
-        display: inline;
+    .folder-chip,
+    .group-chip {
+        min-height: 96px;
+    }
+
+    .chip-count {
+        font-size: 24px;
     }
 
     .filter-btn {

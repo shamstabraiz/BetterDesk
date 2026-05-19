@@ -8,7 +8,7 @@ const router = express.Router();
 const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
 const deviceGroupService = require('../services/deviceGroupService');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 function folderGroupGuid(folderId) {
     return `folder_${folderId}`;
@@ -51,7 +51,7 @@ async function setFolderAllowedUsers(folder, allowedUsers) {
 /**
  * GET /api/folders - Get all folders
  */
-router.get('/api/folders', requireAuth, async (req, res) => {
+router.get('/api/folders', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
         const folders = await db.getAllFolders();
 
@@ -89,7 +89,7 @@ router.get('/api/folders', requireAuth, async (req, res) => {
 /**
  * POST /api/folders - Create new folder
  */
-router.post('/api/folders', requireAuth, async (req, res) => {
+router.post('/api/folders', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
         const { name, color, icon, allowed_users } = req.body;
         
@@ -140,7 +140,7 @@ router.post('/api/folders', requireAuth, async (req, res) => {
 /**
  * PATCH /api/folders/:id - Update folder
  */
-router.patch('/api/folders/:id', requireAuth, async (req, res) => {
+router.patch('/api/folders/:id', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
         const folderId = parseInt(req.params.id, 10);
         const { name, color, icon, allowed_users } = req.body;
@@ -202,7 +202,7 @@ router.patch('/api/folders/:id', requireAuth, async (req, res) => {
 /**
  * DELETE /api/folders/:id - Delete folder
  */
-router.delete('/api/folders/:id', requireAuth, async (req, res) => {
+router.delete('/api/folders/:id', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
         const folderId = parseInt(req.params.id, 10);
         
@@ -239,7 +239,7 @@ router.delete('/api/folders/:id', requireAuth, async (req, res) => {
 /**
  * POST /api/folders/:id/devices - Assign devices to folder
  */
-router.post('/api/folders/:id/devices', requireAuth, async (req, res) => {
+router.post('/api/folders/:id/devices', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
         const folderId = parseInt(req.params.id, 10);
         const { deviceIds } = req.body;
@@ -286,7 +286,7 @@ router.post('/api/folders/:id/devices', requireAuth, async (req, res) => {
 /**
  * PATCH /api/devices/:id/folder - Assign single device to folder
  */
-router.patch('/api/devices/:id/folder', requireAuth, async (req, res) => {
+router.patch('/api/devices/:id/folder', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
         const deviceId = req.params.id;
         const { folderId } = req.body;
