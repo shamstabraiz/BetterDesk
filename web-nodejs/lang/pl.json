@@ -2895,7 +2895,7 @@
     "install_failed": "Instalacja aktualizacji nie powiodła się",
     "restarting": "Oczekiwanie na restart konsoli…",
     "restart_complete": "Konsola zrestartowana pomyślnie",
-    "restart_timeout": "Konsola nie zrestartowała się w czasie. Sprawdź ręcznie.",
+    "restart_timeout": "Aktualizacja została zastosowana, ale przeglądarka nie potwierdziła restartu automatycznie. Odśwież konsolę, aby sprawdzić nową wersję.",
     "no_version": "Nie wybrano wersji aktualizacji. Najpierw sprawdź dostępne aktualizacje.",
     "backups_title": "Kopie zapasowe aktualizacji",
     "backups_desc": "Kopie zapasowe tworzone automatycznie przed każdą aktualizacją",

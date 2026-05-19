@@ -1550,6 +1550,9 @@
 .update-phase-state[data-state="done"] .material-icons {
     color: var(--success, #22c55e);
 }
+.update-phase-state[data-state="warning"] .material-icons {
+    color: var(--warning, #f59e0b);
+}
 .update-phase-state[data-state="error"] .material-icons {
     color: var(--danger, #ef4444);
 }

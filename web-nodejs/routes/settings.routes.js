@@ -30,6 +30,25 @@ router.get('/settings', requireAuth, (req, res) => {
 });
 
 /**
+ * GET /api/settings/restart-status - Lightweight liveness probe used by the
+ * browser updater after the console process exits and starts again. This stays
+ * intentionally public and minimal: it only confirms that the Node.js console
+ * is serving requests from the current boot, without touching DB/Go backend
+ * dependencies that may still be warming up.
+ */
+router.get('/api/settings/restart-status', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({
+        success: true,
+        data: {
+            status: 'ok',
+            cacheVersion: req.app?.locals?.cacheVersion || '',
+            uptime: Math.floor(process.uptime())
+        }
+    });
+});
+
+/**
  * GET /api/settings/info - Get server configuration info
  */
 router.get('/api/settings/info', requireAuth, async (req, res) => {

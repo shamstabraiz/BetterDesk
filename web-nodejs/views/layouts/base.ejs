@@ -36,6 +36,7 @@
         window.BetterDesk = {
             lang: '<%= lang || "en" %>',
             translations: <%- JSON.stringify(translations || {}) %>,
+            cacheVersion: '<%= cacheVersion %>',
             csrfToken: '<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>',
             branding: <%- JSON.stringify(branding || {}) %>
         };

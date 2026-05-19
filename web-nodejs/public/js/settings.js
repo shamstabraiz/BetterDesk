@@ -1542,13 +1542,14 @@
     }
 
     function setUpdatePhase(phaseId, state, detail) {
-        // state: 'pending' | 'active' | 'done' | 'error' | 'skipped'
+        // state: 'pending' | 'active' | 'done' | 'warning' | 'error' | 'skipped'
         const stateEl = document.querySelector(`[data-phase-state="${phaseId}"]`);
         if (stateEl) {
             const icons = {
                 pending: 'radio_button_unchecked',
                 active:  'sync',
                 done:    'check_circle',
+                warning: 'warning',
                 error:   'error',
                 skipped: 'remove_circle_outline'
             };
@@ -1556,6 +1557,7 @@
                 pending: '',
                 active:  'spinning',
                 done:    '',
+                warning: '',
                 error:   '',
                 skipped: ''
             };
@@ -1583,6 +1585,12 @@
         const ts = new Date().toLocaleTimeString();
         log.textContent += `[${ts}] ${line}\n`;
         log.scrollTop = log.scrollHeight;
+    }
+
+    function reloadConsole() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('_bd_reload', Date.now().toString());
+        window.location.replace(url.toString());
     }
 
     async function installUpdate() {
@@ -1787,7 +1795,7 @@
             content: lines.join(''),
             buttons: [
                 { label: _('updates.modal_close'),     class: 'btn-secondary', onClick: () => { window.Modal.close(); } },
-                { label: _('updates.modal_reload_now'), class: 'btn-primary', icon: 'refresh', onClick: () => { window.location.reload(); } }
+                { label: _('updates.modal_reload_now'), class: 'btn-primary', icon: 'refresh', onClick: reloadConsole }
             ],
             closable: true
         });
@@ -1795,13 +1803,24 @@
 
     function pollConsoleRestart() {
         let attempts = 0;
-        const maxAttempts = 30;
+        const maxAttempts = 90;
+        const previousCacheVersion = window.BetterDesk?.cacheVersion || '';
         const interval = setInterval(async () => {
             attempts++;
             setUpdatePhase('restart', 'active', `${_('updates.restarting')} (${attempts}/${maxAttempts})`);
             try {
-                const resp = await fetch('/api/settings/info?_=' + Date.now(), { credentials: 'same-origin' });
+                const resp = await fetch('/api/settings/restart-status?_=' + Date.now(), {
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
                 if (resp.ok) {
+                    const body = await resp.json().catch(() => null);
+                    const status = body?.data || body || {};
+                    if (previousCacheVersion && status.cacheVersion && status.cacheVersion === previousCacheVersion) {
+                        return;
+                    }
+
                     clearInterval(interval);
                     setUpdatePhase('restart', 'done', _('updates.restart_complete'));
                     setUpdatePhase('done', 'done', _('updates.complete'));
@@ -1814,14 +1833,14 @@
                         content: `<p>${Utils.escapeHtml(_('updates.restart_complete_msg'))}</p>`,
                         buttons: [
                             { label: _('updates.modal_close'),     class: 'btn-secondary', onClick: () => { window.Modal.close(); } },
-                            { label: _('updates.modal_reload_now'), class: 'btn-primary', icon: 'refresh', onClick: () => { window.location.reload(); } }
+                            { label: _('updates.modal_reload_now'), class: 'btn-primary', icon: 'refresh', onClick: reloadConsole }
                         ],
                         closable: true
                     });
 
                     // Auto-reload after a short grace period so operators do
                     // not have to click — gives them time to read the modal.
-                    setTimeout(() => { window.location.reload(); }, 8000);
+                    setTimeout(reloadConsole, 8000);
                     return;
                 }
             } catch (_e) {
@@ -1829,8 +1848,23 @@
             }
             if (attempts >= maxAttempts) {
                 clearInterval(interval);
-                setUpdatePhase('restart', 'error', _('updates.restart_timeout'));
+                setUpdatePhase('restart', 'warning', _('updates.restart_timeout'));
+                setUpdatePhase('done', 'done', _('updates.complete'));
                 logUpdate(_('updates.restart_timeout'));
+
+                const installBtn = document.getElementById('update-install-btn');
+                if (installBtn) installBtn.disabled = false;
+
+                window.Modal.close();
+                window.Modal.show({
+                    title: _('updates.modal_done_title'),
+                    content: `<p>${Utils.escapeHtml(_('updates.restart_timeout'))}</p><p>${Utils.escapeHtml(_('updates.refresh_recommended'))}</p>`,
+                    buttons: [
+                        { label: _('updates.modal_close'),     class: 'btn-secondary', onClick: () => { window.Modal.close(); } },
+                        { label: _('updates.modal_reload_now'), class: 'btn-primary', icon: 'refresh', onClick: reloadConsole }
+                    ],
+                    closable: true
+                });
             }
         }, 2000);
     }
