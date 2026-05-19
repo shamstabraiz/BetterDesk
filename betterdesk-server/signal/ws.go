@@ -299,7 +299,7 @@ func (s *Server) handleRegisterPeerWS(msg *pb.RegisterPeer, remoteAddr string) *
 	}
 
 	softDeleted, _ := s.db.IsPeerSoftDeleted(id)
-	if !softDeleted && !s.checkEnrollmentPermission(id, clientHost) {
+	if !softDeleted && !s.checkEnrollmentPermission(id, clientHost, nil) {
 		log.Printf("[signal] Rejected new WS peer %s from %s (enrollment policy)", id, clientHost)
 		return nil
 	}
