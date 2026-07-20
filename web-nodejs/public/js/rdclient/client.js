@@ -13,7 +13,7 @@
  *   client.disconnect();
  */
 
-/* global RDConnection, RDProtocol, RDCrypto, RDVideo, RDAudio, RDRenderer, RDInput */
+/* global RDConnection, RDProtocol, RDCrypto, RDVideo, RDAudio, RDRenderer, RDInput, RDFileTransfer, RDFileSession */
 
 // eslint-disable-next-line no-unused-vars
 class RDClient {
@@ -42,9 +42,25 @@ class RDClient {
         this.input = new RDInput(canvas, this.renderer, (msg) => this._sendPeerMessage(msg));
         this.fileTransfer = new RDFileTransfer({
             proto: this.proto,
-            sendMessage: (msg) => this._sendPeerMessage(msg),
-            emit: (event, ...args) => this._emit(event, ...args)
+            sendMessage: (msg) => this._sendFileMessage(msg),
+            emit: (event, ...args) => this._emit(event, ...args),
+            diag: (event, extra) => this._reportFileDiag(event, extra)
         });
+
+        // Track peer file permission (PermissionInfo.File = 4)
+        this._peerFilePermission = null;
+        /** @type {string|null} Plaintext password for opening a FILE_TRANSFER side session */
+        this._sessionPassword = null;
+        /** @type {string|null} Last desktop 2FA code (reuse on FT side session) */
+        this._last2faCode = null;
+        /** @type {string} Stable peer-facing id (shared with FILE_TRANSFER session) */
+        this._myId = 'yomie-web-' + Date.now().toString(36);
+        /** @type {number} Stable session_id (shared with FILE_TRANSFER for recent-session auth) */
+        this._sessionId = Date.now();
+        /** @type {RDFileSession|null} */
+        this._fileSession = null;
+        /** @type {Function|null} Resolver for pending FT 2FA prompt */
+        this._fileSession2faResolve = null;
 
         // State
         this._state = 'idle'; // idle | connecting | waiting_password | waiting_2fa | authenticating | streaming | disconnected | error
@@ -235,6 +251,7 @@ class RDClient {
         try {
             this._setState('authenticating');
             this._emit('log', 'Authenticating...');
+            this._sessionPassword = password;
 
             // Hash the password
             const challenge = this._loginChallenge || '';
@@ -248,10 +265,12 @@ class RDClient {
 
             // Build and send LoginRequest
             // username must be set to target device ID (RustDesk validates: is_ip || is_domain_port || == Config::get_id())
+            // Keep myId/sessionId stable so FILE_TRANSFER side-session can reuse recent auth.
             const loginReq = this.proto.buildLoginRequest(hash, {
                 username: this.deviceId,
-                myId: 'yomie-web-' + Date.now().toString(36),
-                myName: this.opts.myName || this.opts.myName || 'Yomie Web',
+                myId: this._myId,
+                myName: this.opts.myName || 'Yomie Web',
+                sessionId: this._sessionId,
                 disableAudio: this.opts.disableAudio || false,
                 fps: this.opts.fps || 60,
                 imageQuality: this.opts.imageQuality || 'Best'
@@ -277,6 +296,18 @@ class RDClient {
         try {
             this._setState('authenticating');
             this._emit('log', 'Verifying 2FA code...');
+            this._last2faCode = String(code || '').trim() || null;
+
+            // If FILE_TRANSFER session is waiting for 2FA, prefer that path.
+            if (this._fileSession && this._fileSession.state === 'waiting_2fa') {
+                this._fileSession.submit2FA(code);
+                if (this._fileSession2faResolve) {
+                    const r = this._fileSession2faResolve;
+                    this._fileSession2faResolve = null;
+                    r(this._last2faCode);
+                }
+                return;
+            }
 
             const auth2fa = {
                 auth2Fa: {
@@ -731,6 +762,12 @@ class RDClient {
             return;
         }
 
+        // File action from peer (send_confirm after upload digest, etc.)
+        if (msg.fileAction) {
+            this.fileTransfer.handleFileAction(msg.fileAction);
+            return;
+        }
+
         // Signed ID from peer
         if (msg.signedId) {
             this._handleSignedId(msg.signedId);
@@ -976,6 +1013,7 @@ class RDClient {
             return;
         }
         if (misc.permissionInfo) {
+            this._handlePermissionInfo(misc.permissionInfo);
             this._emit('permission', misc.permissionInfo);
             return;
         }
@@ -996,6 +1034,13 @@ class RDClient {
 
         // Enable file transfer
         this.fileTransfer.enable();
+        this._reportFileDiag('session_streaming', {
+            detail: 'peerFilePermission=' +
+                (this._peerFilePermission == null ? 'unknown' : String(this._peerFilePermission))
+        });
+        this._emit('log',
+            '[FileTransfer] session streaming; peer File permission=' +
+            (this._peerFilePermission == null ? 'unknown (not sent yet)' : String(this._peerFilePermission)));
 
         // Initialize video decoder callbacks
         this.video.onFrame = (frame) => this.renderer.pushFrame(frame);
@@ -1171,7 +1216,176 @@ class RDClient {
         this.conn.sendRelay(framed);
     }
 
+    /**
+     * Prefer the dedicated FILE_TRANSFER session for FileAction / FileResponse traffic.
+     * Falls back to the desktop session (works on agents patched for in-session FT).
+     */
+    _sendFileMessage(msgObj) {
+        if (this._fileSession && this._fileSession.ready) {
+            this._fileSession.send(msgObj);
+            return;
+        }
+        this._sendPeerMessage(msgObj);
+    }
+
+    /**
+     * Open a dedicated FILE_TRANSFER connection (native RustDesk behavior).
+     * Required for agents that ignore FileAction on DEFAULT_CONN desktop sessions.
+     * @param {Object} [opts]
+     * @param {string} [opts.password] - Override cached desktop password
+     * @returns {Promise<{ok:boolean, initialDirReceived?:boolean, reason?:string, message?:string}>}
+     */
+    async ensureFileSession(opts = {}) {
+        if (this._fileSession && this._fileSession.ready) {
+            return {
+                ok: true,
+                initialDirReceived: !!this._fileSession.initialDirReceived
+            };
+        }
+
+        const password = (opts.password != null && opts.password !== '')
+            ? opts.password
+            : this._sessionPassword;
+
+        if (!password) {
+            this._emit('log', '[FileTransfer] cannot open FILE_TRANSFER session — password required');
+            this._reportFileDiag('ft_session_skip', { detail: 'no_cached_password' });
+            this._emit('file_session_password_required');
+            return { ok: false, reason: 'password_required', message: 'Password required for file transfer' };
+        }
+
+        // Cache override so later reconnects work
+        if (opts.password) this._sessionPassword = opts.password;
+
+        if (typeof RDFileSession === 'undefined') {
+            console.warn('[RDClient] RDFileSession not loaded');
+            return { ok: false, reason: 'not_loaded', message: 'RDFileSession script not loaded' };
+        }
+
+        if (this._fileSession) {
+            try { this._fileSession.close(); } catch (_) { /* ignore */ }
+            this._fileSession = null;
+        }
+
+        const self = this;
+        this._fileSession = new RDFileSession({
+            deviceId: this.deviceId,
+            proto: this.proto,
+            serverPubKey: this.opts.serverPubKey || '',
+            myName: this.opts.myName || 'Yomie Web',
+            myId: this._myId,
+            sessionId: this._sessionId,
+            cached2faCode: this._last2faCode,
+            emit: (event, ...args) => this._emit(event, ...args),
+            diag: (event, extra) => this._reportFileDiag(event, extra),
+            onFileResponse: (resp) => this.fileTransfer.handleFileResponse(resp),
+            onFileAction: (action) => this.fileTransfer.handleFileAction(action),
+            on2faRequired: () => new Promise((resolve, reject) => {
+                self._fileSession2faResolve = resolve;
+                self._emit('file_session_2fa_required');
+                // Safety timeout — UI should call submit2FA
+                setTimeout(() => {
+                    if (self._fileSession2faResolve === resolve) {
+                        self._fileSession2faResolve = null;
+                        reject(new Error('file_session_2fa_timeout'));
+                    }
+                }, 120000);
+            })
+        });
+
+        try {
+            await this._fileSession.ensure(password);
+
+            // Peer often auto-sends FileResponse.dir right after FT login.
+            // Give it a short window before the UI issues its own browse.
+            if (!this._fileSession.initialDirReceived) {
+                await new Promise((r) => setTimeout(r, 400));
+            }
+
+            this.fileTransfer.enable();
+            const initialDirReceived = !!this._fileSession.initialDirReceived;
+            this._reportFileDiag('ft_session_ready', {
+                detail: 'initialDir=' + initialDirReceived
+            });
+            return { ok: true, initialDirReceived: initialDirReceived };
+        } catch (err) {
+            const msg = err && err.message ? err.message : String(err);
+            console.warn('[RDClient] FILE_TRANSFER session failed:', msg);
+            this._emit('log', '[FileTransfer] FILE_TRANSFER session failed: ' + msg);
+            this._reportFileDiag('ft_session_failed', { detail: msg });
+            try { this._fileSession.close(); } catch (_) { /* ignore */ }
+            this._fileSession = null;
+
+            let reason = 'failed';
+            if (msg === 'file_session_2fa_required' || msg === 'file_session_2fa_timeout') {
+                reason = '2fa_required';
+            } else if (msg === 'file_session_permission_denied') {
+                reason = 'permission_denied';
+            } else if (msg === 'file_session_password_required') {
+                reason = 'password_required';
+            } else if (/timeout/i.test(msg)) {
+                reason = 'timeout';
+            }
+            return { ok: false, reason: reason, message: msg };
+        }
+    }
+
     // ---- State & Cleanup ----
+
+    /**
+     * Track PermissionInfo from peer (File = 4).
+     * When enabled=false, remote has disabled file transfer.
+     */
+    _handlePermissionInfo(info) {
+        const perm = info.permission != null ? info.permission : info.Permission;
+        const enabled = !!(info.enabled != null ? info.enabled : info.Enabled);
+        const names = {
+            0: 'Keyboard', 2: 'Clipboard', 3: 'Audio', 4: 'File',
+            5: 'Restart', 6: 'Recording', 7: 'BlockInput'
+        };
+        const name = names[perm] || ('perm#' + perm);
+        console.log('[RDClient] PermissionInfo:', name, 'enabled=', enabled);
+        this._emit('log', '[Permission] ' + name + '=' + enabled);
+        if (perm === 4) {
+            this._peerFilePermission = enabled;
+            this._reportFileDiag('peer_file_permission', {
+                detail: 'enabled=' + enabled
+            });
+            if (!enabled) {
+                this._emit('log',
+                    '[FileTransfer] peer disabled File permission — browse will be ignored');
+            }
+        }
+    }
+
+    /**
+     * Post file-transfer diagnostics to the console server so Docker logs show them.
+     * Fire-and-forget; never blocks the session.
+     */
+    _reportFileDiag(event, extra) {
+        const payload = {
+            event: event,
+            deviceId: this.deviceId,
+            path: extra && extra.path != null ? extra.path : undefined,
+            detail: extra && extra.detail != null ? extra.detail : undefined,
+            peerFilePermission: this._peerFilePermission,
+            ts: Date.now()
+        };
+        console.log('[RDClient:diag]', payload.event, payload.detail || '',
+            payload.path != null ? 'path=' + JSON.stringify(payload.path) : '');
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (window.Yomie && window.Yomie.csrfToken) {
+                headers['X-CSRF-Token'] = window.Yomie.csrfToken;
+            }
+            fetch('/api/diag/remote-file', {
+                method: 'POST',
+                headers: headers,
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            }).catch(() => { /* ignore */ });
+        } catch (_) { /* ignore */ }
+    }
 
     _setState(state) {
         if (this._state !== state) {
@@ -1226,6 +1440,16 @@ class RDClient {
         this.video.close();
         this.audio.close();
         this.fileTransfer.disable();
+        if (this._fileSession) {
+            try { this._fileSession.close(); } catch (_) { /* ignore */ }
+            this._fileSession = null;
+        }
+        if (this._fileSession2faResolve) {
+            try { this._fileSession2faResolve(null); } catch (_) { /* ignore */ }
+            this._fileSession2faResolve = null;
+        }
+        this._sessionPassword = null;
+        this._last2faCode = null;
         this.conn.close();
     }
 

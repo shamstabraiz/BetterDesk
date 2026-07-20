@@ -164,4 +164,24 @@ router.get('/api/remote/session/:deviceId', requireAuth, (req, res) => {
     res.json(state);
 });
 
+/**
+ * POST /api/diag/remote-file — browser reports in-session file-transfer diagnostics.
+ * FileAction traffic is peer-to-peer (relay), so the console only sees these
+ * events if the web client posts them. Used to confirm browse timeout vs reply.
+ */
+router.post('/api/diag/remote-file', requireAuth, (req, res) => {
+    const body = req.body || {};
+    const event = String(body.event || 'unknown').slice(0, 64);
+    const deviceId = String(body.deviceId || '-').slice(0, 64);
+    const path = body.path != null ? String(body.path).slice(0, 512) : '';
+    const detail = body.detail != null ? String(body.detail).slice(0, 500) : '';
+    const user = (req.session && (req.session.username || req.session.userId)) || '-';
+    console.log(
+        `[DIAG:remote-file] event=${event} device=${deviceId} user=${user}` +
+        (path !== '' ? ` path=${JSON.stringify(path)}` : '') +
+        (detail ? ` detail=${JSON.stringify(detail)}` : '')
+    );
+    res.json({ ok: true });
+});
+
 module.exports = router;

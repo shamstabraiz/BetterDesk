@@ -385,6 +385,12 @@
             if (isActive(session) && (session.state === 'connecting' || session.state === 'authenticating')) {
                 session.statusText.textContent = msg;
             }
+            // Always mirror file-transfer / permission diag into the browser console
+            // (status overlay is hidden once streaming).
+            if (typeof msg === 'string' &&
+                (msg.indexOf('[FileTransfer]') === 0 || msg.indexOf('[Permission]') === 0)) {
+                console.log('[Remote]', msg);
+            }
         });
 
         c.on('error', (msg, meta) => {
@@ -433,6 +439,30 @@
             session.tfaError.style.display = 'none';
             session.tfaInput.value = '';
             if (isActive(session)) session.tfaInput.focus();
+        });
+
+        // FILE_TRANSFER side-session may need 2FA even after desktop is streaming
+        c.on('file_session_2fa_required', () => {
+            session.tfaOverlay.style.display = 'flex';
+            session.tfaError.style.display = 'none';
+            session.tfaError.textContent = '';
+            session.tfaInput.value = '';
+            if (session.fileList) {
+                session.fileList.innerHTML =
+                    '<div class="file-empty">' +
+                    '<span class="material-icons">pin</span> ' +
+                    (_('remote.file_2fa_required') ||
+                        'Enter the 2FA code to open file transfer (same as remote login).') +
+                    '</div>';
+            }
+            if (isActive(session)) session.tfaInput.focus();
+        });
+
+        c.on('file_session_password_required', () => {
+            showFilePanelError(session,
+                _('remote.file_password_required') ||
+                'Enter the remote password to open file transfer.',
+                { askPassword: true });
         });
 
         c.on('login_success', () => {
@@ -638,20 +668,20 @@
         });
 
         client.on('file_browse_timeout', (data) => {
-            // Peer didn't respond — show timeout message with retry button
-            if (session.fileList) {
-                session.fileList.innerHTML =
-                    '<div class="file-empty">' +
-                        '<span class="material-icons" style="color:var(--warning)">warning</span> ' +
-                        (_('remote.file_timeout') || 'Remote device did not respond. File transfer may not be supported or is disabled on the remote machine.') +
-                        '<br><button class="btn btn-sm btn-primary file-retry-btn" style="margin-top:8px">' +
-                        '<span class="material-icons" style="font-size:16px;vertical-align:middle">refresh</span> ' +
-                        (_('actions.retry') || 'Retry') + '</button>' +
-                    '</div>';
-                session.fileList.querySelector('.file-retry-btn')?.addEventListener('click', () => {
-                    client.fileTransfer.browseDir(data.path);
-                });
-            }
+            const waited = data.waitedMs != null ? data.waitedMs : 5000;
+            console.warn('[Remote] file_browse_timeout after', waited, 'ms path=', data.path);
+            const ftReady = !!(client._fileSession && client._fileSession.ready);
+            showFilePanelError(session,
+                (_('remote.file_timeout') ||
+                    'Remote device did not respond. File transfer may not be supported or is disabled on the remote machine.') +
+                '<div style="margin-top:8px;font-size:12px;opacity:.85;max-width:420px;line-height:1.4">' +
+                (ftReady
+                    ? ('FILE_TRANSFER session is up, but no FileResponse.dir in ' + waited +
+                        'ms. Check that file transfer is enabled on the remote.')
+                    : ('No dedicated FILE_TRANSFER session. Open the panel again or retry — ' +
+                        'web needs ConnType.FILE_TRANSFER like the official RustDesk client.')) +
+                '</div>',
+                { retryPath: data.path });
         });
 
         client.on('file_transfer_start', (data) => {
@@ -672,6 +702,136 @@
 
         client.on('file_transfer_cancelled', (data) => {
             removeTransferEntry(session, data.id);
+        });
+    }
+
+    /**
+     * Open / refresh remote file panel using a dedicated FILE_TRANSFER session
+     * (same model as official RustDesk).
+     */
+    async function openFilePanelBrowse(session) {
+        if (!session || !session.client) return;
+
+        if (session.fileList) {
+            session.fileList.innerHTML =
+                '<div class="file-empty">' +
+                '<span class="material-icons spinning">autorenew</span> ' +
+                (_('remote.file_opening_session') || 'Opening file transfer connection...') +
+                '</div>';
+        }
+
+        let result;
+        try {
+            result = await session.client.ensureFileSession();
+        } catch (err) {
+            console.warn('[Remote] ensureFileSession:', err && err.message);
+            result = { ok: false, reason: 'failed', message: err && err.message };
+        }
+
+        console.log('[Remote] FILE_TRANSFER ensure result=', result);
+
+        if (!result || !result.ok) {
+            const reason = result && result.reason;
+            if (reason === 'password_required') {
+                showFilePanelError(session,
+                    _('remote.file_password_required') ||
+                    'Enter the remote password to open file transfer.',
+                    { askPassword: true });
+                return;
+            }
+            if (reason === '2fa_required') {
+                // Overlay already shown via event; keep waiting message
+                if (session.fileList) {
+                    session.fileList.innerHTML =
+                        '<div class="file-empty">' +
+                        '<span class="material-icons">pin</span> ' +
+                        (_('remote.file_2fa_required') ||
+                            'Enter the 2FA code to open file transfer.') +
+                        '</div>';
+                }
+                return;
+            }
+            if (reason === 'permission_denied') {
+                showFilePanelError(session,
+                    _('remote.file_permission_denied') ||
+                    'File transfer is disabled on the remote machine.');
+                return;
+            }
+            // Generic failure: show error, then still try desktop-session browse
+            // (works on agents patched for in-session FileAction).
+            showFilePanelError(session,
+                (_('remote.file_session_failed') || 'Could not open file transfer connection.') +
+                (result && result.message ? ' (' + escapeHtml(result.message) + ')' : '') +
+                '<div style="margin-top:8px;font-size:12px;opacity:.85">Trying in-session fallback…</div>');
+            session.client.fileTransfer.browseDir('');
+            return;
+        }
+
+        // Peer often auto-lists after FT login — skip duplicate browse if we already have it
+        if (result.initialDirReceived) {
+            console.log('[Remote] using auto FileResponse.dir from FILE_TRANSFER login');
+            return;
+        }
+
+        session.client.fileTransfer.browseDir('');
+    }
+
+    /**
+     * Show an error / prompt state in the file panel list area.
+     */
+    function showFilePanelError(session, htmlMessage, opts) {
+        opts = opts || {};
+        if (!session.fileList) return;
+        let actions = '';
+        if (opts.askPassword) {
+            actions =
+                '<div style="margin-top:10px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap">' +
+                '<input type="password" class="form-input file-ft-password" placeholder="' +
+                (_('remote.password') || 'Password') +
+                '" style="max-width:200px">' +
+                '<button class="btn btn-sm btn-primary file-ft-password-btn">' +
+                (_('actions.connect') || 'Connect') + '</button></div>';
+        } else if (opts.retryPath != null) {
+            actions =
+                '<br><button class="btn btn-sm btn-primary file-retry-btn" style="margin-top:8px">' +
+                '<span class="material-icons" style="font-size:16px;vertical-align:middle">refresh</span> ' +
+                (_('actions.retry') || 'Retry') + '</button>';
+        }
+
+        session.fileList.innerHTML =
+            '<div class="file-empty">' +
+            '<span class="material-icons" style="color:var(--warning)">warning</span> ' +
+            htmlMessage + actions + '</div>';
+
+        session.fileList.querySelector('.file-retry-btn')?.addEventListener('click', () => {
+            openFilePanelBrowse(session);
+        });
+
+        const pwBtn = session.fileList.querySelector('.file-ft-password-btn');
+        const pwInput = session.fileList.querySelector('.file-ft-password');
+        const submitPw = async () => {
+            const pw = pwInput && pwInput.value;
+            if (!pw) { pwInput?.focus(); return; }
+            if (session.fileList) {
+                session.fileList.innerHTML =
+                    '<div class="file-empty"><span class="material-icons spinning">autorenew</span> ' +
+                    (_('common.loading') || 'Loading...') + '</div>';
+            }
+            const result = await session.client.ensureFileSession({ password: pw });
+            if (result && result.ok) {
+                if (!result.initialDirReceived) {
+                    session.client.fileTransfer.browseDir('');
+                }
+            } else {
+                showFilePanelError(session,
+                    (_('remote.file_session_failed') || 'Could not open file transfer connection.') +
+                    (result && result.message ? ' (' + escapeHtml(result.message) + ')' : ''),
+                    { askPassword: true });
+            }
+        };
+        pwBtn?.addEventListener('click', submitPw);
+        pwInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submitPw();
         });
     }
 
@@ -1156,14 +1316,15 @@
     });
 
     // File transfer toggle
-    document.getElementById('btn-file-transfer')?.addEventListener('click', function () {
+    document.getElementById('btn-file-transfer')?.addEventListener('click', async function () {
         const session = getActiveSession();
         if (!session) return;
         const isOpen = session.filePanel.style.display !== 'none';
         session.filePanel.style.display = isOpen ? 'none' : 'flex';
         this.classList.toggle('active', !isOpen);
         if (!isOpen && session.client) {
-            session.client.fileTransfer.browseDir('');
+            console.log('[Remote] opening file panel → ensure FILE_TRANSFER session');
+            await openFilePanelBrowse(session);
         }
     });
 

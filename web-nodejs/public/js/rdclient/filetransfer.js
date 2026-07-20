@@ -2,14 +2,14 @@
  * Yomie Web Remote Client - File Transfer Module
  * Handles RustDesk file transfer protocol: browse, download, upload, manage
  *
- * Protocol flow:
+ * Protocol (names are from the remote agent's perspective — same as native RustDesk):
  *   Browse:   FileAction.read_dir → FileResponse.dir
- *   Download: FileAction.receive → FileResponse.digest → FileAction.send_confirm → FileResponse.block* → FileResponse.done
- *   Upload:   FileAction.send → FileResponse.digest → FileResponse.block* → FileResponse.done
+ *   Download: FileAction.send → [digest → send_confirm] → FileResponse.block* → done
+ *   Upload:   FileAction.receive → digest(is_upload) → send_confirm → FileResponse.block* → done
  *   Cancel:   FileAction.cancel
  */
 
-/* global RDProtocol */
+/* global RDProtocol, fzstd */
 
 // eslint-disable-next-line no-unused-vars
 class RDFileTransfer {
@@ -18,11 +18,13 @@ class RDFileTransfer {
      * @param {RDProtocol} opts.proto - Protocol handler
      * @param {Function} opts.sendMessage - Function to send peer message: (msgObj) => void
      * @param {Function} opts.emit - Event emitter: (event, ...args) => void
+     * @param {Function} [opts.diag] - Optional diagnostic reporter: (event, detail) => void
      */
     constructor(opts) {
         this._proto = opts.proto;
         this._sendMessage = opts.sendMessage;
         this._emit = opts.emit;
+        this._diag = typeof opts.diag === 'function' ? opts.diag : null;
 
         /** @type {string} Current remote directory path */
         this._currentPath = '';
@@ -42,6 +44,9 @@ class RDFileTransfer {
         /** @type {boolean} Show hidden files */
         this._showHidden = false;
 
+        /** @type {number|null} Timestamp when last browseDir was sent */
+        this._browseSentAt = null;
+
         // File type constants from proto
         this.FILE_TYPE = {
             DIR: 0,
@@ -56,10 +61,27 @@ class RDFileTransfer {
     }
 
     /**
+     * Join directory + name using remote path separator.
+     * @param {string} dir
+     * @param {string} name
+     * @returns {string}
+     */
+    static joinPath(dir, name) {
+        const n = name || '';
+        if (!dir) return n;
+        const sep = dir.includes('\\') ? '\\' : '/';
+        if (dir.endsWith(sep)) return dir + n;
+        return dir + sep + n;
+    }
+
+    /**
      * Enable file transfer (called after successful login)
      */
     enable() {
         this._enabled = true;
+        console.log('[FileTransfer] enabled (client-side; waiting for peer FileResponse on browse)');
+        this._emit('log', '[FileTransfer] client ready — open file panel to browse remote');
+        this._reportDiag('ft_enabled', { detail: 'client_side_enabled' });
     }
 
     /**
@@ -68,6 +90,15 @@ class RDFileTransfer {
     disable() {
         this._enabled = false;
         this.cancelAll();
+    }
+
+    _reportDiag(event, extra) {
+        if (!this._diag) return;
+        try {
+            this._diag(event, extra || {});
+        } catch (err) {
+            console.warn('[FileTransfer] diag report failed:', err.message);
+        }
     }
 
     get enabled() { return this._enabled; }
@@ -81,10 +112,16 @@ class RDFileTransfer {
     browseDir(path) {
         if (!this._enabled) {
             console.warn('[FileTransfer] browseDir called but file transfer not enabled');
+            this._emit('log', '[FileTransfer] browse skipped — not enabled yet');
+            this._reportDiag('browse_skipped_not_enabled', { path: path || '' });
             return;
         }
         const dir = path != null ? path : '';
-        console.log('[FileTransfer] browseDir:', JSON.stringify(dir));
+        this._browseSentAt = Date.now();
+        console.log('[FileTransfer] SEND FileAction.read_dir path=', JSON.stringify(dir),
+            'hidden=', this._showHidden, 'at=', new Date(this._browseSentAt).toISOString());
+        this._emit('log', '[FileTransfer] sent read_dir → waiting for FileResponse.dir (5s)');
+        this._reportDiag('browse_sent', { path: dir, detail: 'FileAction.read_dir' });
         this._sendMessage(this._proto.buildReadDir(dir, this._showHidden));
         this._emit('file_browsing', { path: dir });
 
@@ -94,8 +131,16 @@ class RDFileTransfer {
         this._browseTimeout = setTimeout(() => {
             if (!this._browseTimedOut) {
                 this._browseTimedOut = true;
-                console.warn('[FileTransfer] browseDir timeout — no response from peer after 5s');
-                this._emit('file_browse_timeout', { path: dir });
+                const waited = this._browseSentAt ? (Date.now() - this._browseSentAt) : 5000;
+                console.warn('[FileTransfer] TIMEOUT — no FileResponse.dir after', waited,
+                    'ms. Likely peer ignored FileAction (old agent without in-session FT, or file permission off).');
+                this._emit('log',
+                    '[FileTransfer] TIMEOUT: peer did not answer read_dir — agent likely ignoring FileAction on desktop session');
+                this._reportDiag('browse_timeout', {
+                    path: dir,
+                    detail: 'no_FileResponse_dir_after_' + waited + 'ms'
+                });
+                this._emit('file_browse_timeout', { path: dir, waitedMs: waited });
             }
         }, 5000);
     }
@@ -132,7 +177,7 @@ class RDFileTransfer {
     }
 
     /**
-     * Download a file from remote
+     * Download a file from remote (FileAction.send — ask peer to send the file).
      * @param {string} remotePath - Remote directory path
      * @param {Object} fileEntry - FileEntry { name, size, modified_time, entry_type }
      * @returns {number} Transfer ID
@@ -141,29 +186,29 @@ class RDFileTransfer {
         if (!this._enabled) return -1;
 
         const id = this._nextId++;
+        const fullPath = RDFileTransfer.joinPath(remotePath || '', fileEntry.name);
         const transfer = {
             id: id,
             type: 'download',
             remotePath: remotePath,
+            fullPath: fullPath,
             fileName: fileEntry.name,
             fileSize: Number(fileEntry.size || 0),
             receivedBytes: 0,
             blocks: [],
             startTime: Date.now(),
             status: 'pending', // pending → transferring → complete → error
-            fileNum: 0
+            fileNum: 0,
+            blockCount: 0
         };
         this._transfers.set(id, transfer);
 
-        // Send receive request
-        const files = [{
-            entryType: fileEntry.entryType || fileEntry.entry_type || this.FILE_TYPE.FILE,
-            name: fileEntry.name,
-            size: fileEntry.size || 0,
-            modifiedTime: fileEntry.modifiedTime || fileEntry.modified_time || 0
-        }];
-        this._sendMessage(this._proto.buildFileReceiveRequest(
-            id, remotePath, files, 0, Number(fileEntry.size || 0)
+        // Native: new_send — peer reads and streams to us
+        console.log('[FileTransfer] SEND FileAction.send (download) id=', id,
+            'path=', JSON.stringify(fullPath));
+        this._reportDiag('download_send', { path: fullPath, detail: 'id=' + id });
+        this._sendMessage(this._proto.buildFileSendRequest(
+            id, fullPath, this._showHidden, 0
         ));
 
         this._emit('file_transfer_start', {
@@ -177,7 +222,7 @@ class RDFileTransfer {
     }
 
     /**
-     * Upload a file to remote
+     * Upload a file to remote (FileAction.receive — ask peer to receive/write the file).
      * @param {File} file - Browser File object
      * @param {string} remotePath - Remote destination directory
      * @returns {number} Transfer ID
@@ -186,10 +231,13 @@ class RDFileTransfer {
         if (!this._enabled) return -1;
 
         const id = this._nextId++;
+        const destPath = RDFileTransfer.joinPath(remotePath || '', file.name);
+        const modifiedTime = Math.floor((file.lastModified || Date.now()) / 1000);
         const transfer = {
             id: id,
             type: 'upload',
             remotePath: remotePath,
+            fullPath: destPath,
             fileName: file.name,
             fileSize: file.size,
             sentBytes: 0,
@@ -201,10 +249,38 @@ class RDFileTransfer {
         };
         this._transfers.set(id, transfer);
 
-        // Request to send file to remote
-        this._sendMessage(this._proto.buildFileSendRequest(
-            id, remotePath, this._showHidden, 0
+        // Native single-file upload: path = full remote file path, files[0].name = ""
+        // (agent does join(path, name); a non-empty name would create path/as/dir/name)
+        const files = [{
+            entryType: this.FILE_TYPE.FILE,
+            name: '',
+            size: file.size,
+            modifiedTime: modifiedTime,
+            isHidden: false
+        }];
+        console.log('[FileTransfer] SEND FileAction.receive (upload) id=', id,
+            'path=', JSON.stringify(destPath), 'size=', file.size);
+        this._reportDiag('upload_receive', {
+            path: destPath,
+            detail: 'id=' + id + ' size=' + file.size
+        });
+        this._sendMessage(this._proto.buildFileReceiveRequest(
+            id, destPath, files, 0, file.size
         ));
+
+        // Native read-job with overwrite detection: send digest, wait for send_confirm, then blocks.
+        // Also start a short fallback so OD-off peers still receive data.
+        this._sendMessage(this._proto.buildFileDigest(
+            id, 0, modifiedTime, file.size, false
+        ));
+        console.log('[FileTransfer] SEND FileResponse.digest (upload meta) id=', id);
+        if (transfer._uploadStartTimer) clearTimeout(transfer._uploadStartTimer);
+        transfer._uploadStartTimer = setTimeout(() => {
+            if (transfer.status === 'pending' && this._transfers.has(id)) {
+                console.log('[FileTransfer] upload start fallback (no confirm yet) id=', id);
+                this._sendUploadBlocks(transfer);
+            }
+        }, 800);
 
         this._emit('file_transfer_start', {
             id: id,
@@ -293,7 +369,9 @@ class RDFileTransfer {
      * @param {Object} resp - Decoded FileResponse protobuf
      */
     handleFileResponse(resp) {
-        console.log('[FileTransfer] handleFileResponse:', Object.keys(resp).filter(k => resp[k] != null).join(', '));
+        const kinds = Object.keys(resp).filter(k => resp[k] != null);
+        console.log('[FileTransfer] RECV FileResponse:', kinds.join(', '));
+        this._reportDiag('file_response', { detail: kinds.join(',') || 'empty' });
         if (resp.dir) {
             this._handleDir(resp.dir);
         } else if (resp.block) {
@@ -304,6 +382,44 @@ class RDFileTransfer {
             this._handleDone(resp.done);
         } else if (resp.error) {
             this._handleError(resp.error);
+        }
+    }
+
+    /**
+     * Handle FileAction from peer (e.g. send_confirm after upload digest).
+     * @param {Object} action
+     */
+    handleFileAction(action) {
+        if (!action) return;
+        if (action.sendConfirm || action.send_confirm) {
+            this._handleSendConfirm(action.sendConfirm || action.send_confirm);
+        }
+    }
+
+    /**
+     * Peer confirmed our upload digest — start streaming blocks.
+     * @param {Object} confirm
+     */
+    _handleSendConfirm(confirm) {
+        const id = confirm.id;
+        const transfer = this._transfers.get(id);
+        console.log('[FileTransfer] RECV send_confirm id=', id,
+            'skip=', !!(confirm.skip), 'offsetBlk=', confirm.offsetBlk != null ? confirm.offsetBlk : confirm.offset_blk);
+        if (!transfer) return;
+        if (confirm.skip) {
+            transfer.status = 'complete';
+            this._transfers.delete(id);
+            this._emit('file_transfer_complete', {
+                id: id,
+                fileName: transfer.fileName,
+                fileSize: transfer.fileSize,
+                type: transfer.type,
+                elapsed: (Date.now() - transfer.startTime) / 1000
+            });
+            return;
+        }
+        if (transfer.type === 'upload' && transfer.status === 'pending') {
+            this._sendUploadBlocks(transfer);
         }
     }
 
@@ -319,7 +435,16 @@ class RDFileTransfer {
         }
         this._browseTimedOut = false;
 
-        console.log('[FileTransfer] _handleDir: path=%s entries=%d', dir.path || '(root)', (dir.entries || []).length);
+        const elapsed = this._browseSentAt ? (Date.now() - this._browseSentAt) : null;
+        console.log('[FileTransfer] RECV dir path=%s entries=%d elapsedMs=%s',
+            dir.path || '(root)', (dir.entries || []).length, elapsed != null ? elapsed : '?');
+        this._emit('log',
+            '[FileTransfer] peer answered read_dir (' + (dir.entries || []).length + ' entries' +
+            (elapsed != null ? ', ' + elapsed + 'ms' : '') + ')');
+        this._reportDiag('browse_ok', {
+            path: dir.path || '',
+            detail: 'entries=' + (dir.entries || []).length + (elapsed != null ? ' elapsedMs=' + elapsed : '')
+        });
         this._currentPath = dir.path || '';
         this._entries = (dir.entries || []).map(e => ({
             name: e.name,
@@ -349,29 +474,65 @@ class RDFileTransfer {
      */
     _handleDigest(digest) {
         const transfer = this._transfers.get(digest.id);
-        if (!transfer) return;
+        const isUpload = !!(digest.isUpload != null ? digest.isUpload : digest.is_upload);
+        const fileSize = Number(digest.fileSize != null ? digest.fileSize : (digest.file_size || 0));
+        const fileNum = digest.fileNum != null ? digest.fileNum : (digest.file_num || 0);
 
-        transfer.fileSize = Number(digest.fileSize || 0);
+        console.log('[FileTransfer] RECV digest id=', digest.id,
+            'fileNum=', fileNum, 'fileSize=', fileSize, 'isUpload=', isUpload);
+
+        if (!transfer) {
+            console.warn('[FileTransfer] digest for unknown transfer id=', digest.id);
+            this._reportDiag('digest_unknown', { detail: 'id=' + digest.id });
+            return;
+        }
+
+        if (fileSize > 0) transfer.fileSize = fileSize;
+        if (fileNum != null) transfer.fileNum = fileNum;
         transfer.status = 'transferring';
 
-        if (transfer.type === 'download') {
-            // Confirm download — accept from block 0
-            this._sendMessage(this._proto.buildFileSendConfirm(
-                digest.id, digest.fileNum, false, 0
-            ));
-        } else if (transfer.type === 'upload') {
-            // Start sending data blocks
-            this._sendUploadBlocks(transfer);
+        // Always confirm (native OffsetBlk) — required for is_upload and overwrite detection
+        this._sendMessage(this._proto.buildFileSendConfirm(
+            digest.id, fileNum, false, 0
+        ));
+        this._reportDiag('digest_confirm', {
+            path: transfer.fullPath || transfer.fileName,
+            detail: 'id=' + digest.id + ' isUpload=' + isUpload + ' size=' + transfer.fileSize
+        });
+
+        if (transfer.type === 'upload' || isUpload) {
+            if (transfer._uploadStartTimer) {
+                clearTimeout(transfer._uploadStartTimer);
+                transfer._uploadStartTimer = null;
+            }
+            // Peer asked for confirm on conflict, or echoed digest — confirm then stream
+            if (transfer.status === 'transferring' || transfer.status === 'pending') {
+                this._sendUploadBlocks(transfer);
+            }
         }
 
         this._emit('file_transfer_progress', {
             id: digest.id,
             fileName: transfer.fileName,
             fileSize: transfer.fileSize,
-            transferred: 0,
+            transferred: transfer.type === 'upload' ? (transfer.sentBytes || 0) : (transfer.receivedBytes || 0),
             percent: 0,
             type: transfer.type
         });
+    }
+
+    /**
+     * Decompress a zstd FileTransferBlock payload (native RustDesk compress()).
+     * @param {Uint8Array} data
+     * @returns {Uint8Array}
+     */
+    _decompressBlock(data) {
+        const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+        if (typeof fzstd === 'undefined' || typeof fzstd.decompress !== 'function') {
+            throw new Error('zstd decompressor (fzstd) not loaded');
+        }
+        const out = fzstd.decompress(bytes);
+        return out instanceof Uint8Array ? out : new Uint8Array(out);
     }
 
     /**
@@ -382,10 +543,40 @@ class RDFileTransfer {
         const transfer = this._transfers.get(block.id);
         if (!transfer || transfer.type !== 'download') return;
 
-        // Accumulate blocks
-        if (block.data && block.data.length > 0) {
-            transfer.blocks.push(block.data);
-            transfer.receivedBytes += block.data.length;
+        transfer.status = 'transferring';
+        let payload = block.data;
+        if (!payload || !payload.length) return;
+
+        const compressed = !!(block.compressed != null ? block.compressed : block.Compressed);
+        try {
+            if (compressed) {
+                payload = this._decompressBlock(payload);
+            } else if (!(payload instanceof Uint8Array)) {
+                payload = new Uint8Array(payload);
+            }
+        } catch (err) {
+            console.warn('[FileTransfer] block decompress failed:', err.message);
+            transfer.status = 'error';
+            this._transfers.delete(block.id);
+            this._emit('file_transfer_error', {
+                id: block.id,
+                fileName: transfer.fileName,
+                error: 'Decompress failed: ' + (err.message || 'unknown')
+            });
+            return;
+        }
+
+        transfer.blocks.push(payload);
+        transfer.receivedBytes += payload.length;
+        transfer.blockCount = (transfer.blockCount || 0) + 1;
+
+        if (transfer.blockCount === 1) {
+            console.log('[FileTransfer] first download block id=', block.id,
+                'compressed=', compressed, 'raw=', block.data.length,
+                'out=', payload.length);
+            this._reportDiag('download_first_block', {
+                detail: 'compressed=' + compressed + ' out=' + payload.length
+            });
         }
 
         const percent = transfer.fileSize > 0
@@ -463,8 +654,15 @@ class RDFileTransfer {
     async _sendUploadBlocks(transfer) {
         const file = transfer.file;
         if (!file) return;
+        if (transfer._uploading) return;
+        transfer._uploading = true;
+        if (transfer._uploadStartTimer) {
+            clearTimeout(transfer._uploadStartTimer);
+            transfer._uploadStartTimer = null;
+        }
 
         try {
+            transfer.status = 'transferring';
             let offset = 0;
             let blkId = 0;
 
@@ -480,6 +678,14 @@ class RDFileTransfer {
                 transfer.sentBytes = end;
                 blkId++;
                 offset = end;
+
+                if (blkId === 1) {
+                    console.log('[FileTransfer] first upload block id=', transfer.id,
+                        'bytes=', data.length, 'fileSize=', file.size);
+                    this._reportDiag('upload_first_block', {
+                        detail: 'id=' + transfer.id + ' bytes=' + data.length
+                    });
+                }
 
                 const percent = Math.min(100, Math.round((end / file.size) * 100));
                 this._emit('file_transfer_progress', {
@@ -499,6 +705,12 @@ class RDFileTransfer {
 
             // Send done
             if (transfer.status === 'transferring') {
+                console.log('[FileTransfer] upload done id=', transfer.id,
+                    'bytes=', transfer.sentBytes, 'blocks=', blkId);
+                this._reportDiag('upload_done', {
+                    path: transfer.fullPath || transfer.fileName,
+                    detail: 'bytes=' + transfer.sentBytes
+                });
                 this._sendMessage(this._proto.buildFileDone(transfer.id, transfer.fileNum));
             }
         } catch (err) {
@@ -509,6 +721,8 @@ class RDFileTransfer {
                 error: err.message || 'Upload failed'
             });
             this._transfers.delete(transfer.id);
+        } finally {
+            transfer._uploading = false;
         }
     }
 

@@ -151,16 +151,18 @@ class RDProtocol {
      * Build PunchHoleRequest for connecting to a device
      * @param {string} deviceId
      * @param {string} [serverKey] - Server public key (base64) for licence_key validation
+     * @param {number} [connType] - hbb.ConnType (DEFAULT_CONN / FILE_TRANSFER / …)
      */
-    buildPunchHoleRequest(deviceId, serverKey) {
+    buildPunchHoleRequest(deviceId, serverKey, connType) {
+        const ct = connType != null ? connType : this.enums.ConnType.values.DEFAULT_CONN;
         return {
             punchHoleRequest: {
                 id: deviceId,
                 natType: this.enums.NatType.values.SYMMETRIC, // Browser always NAT
                 licenceKey: serverKey || '',
-                connType: this.enums.ConnType.values.DEFAULT_CONN,
+                connType: ct,
                 token: '',
-                version: 'Yomie-Web/1.0',
+                version: '1.2.4',
                 forceRelay: true // Browser must use relay
             }
         };
@@ -172,8 +174,10 @@ class RDProtocol {
      * @param {string} uuid - Relay session UUID (from RelayResponse)
      * @param {string} relayServer - Relay server address
      * @param {string} [serverKey] - Server public key for licence_key validation (hbbr checks this)
+     * @param {number} [connType] - hbb.ConnType
      */
-    buildRequestRelay(deviceId, uuid, relayServer, serverKey) {
+    buildRequestRelay(deviceId, uuid, relayServer, serverKey, connType) {
+        const ct = connType != null ? connType : this.enums.ConnType.values.DEFAULT_CONN;
         return {
             requestRelay: {
                 id: deviceId,
@@ -181,8 +185,34 @@ class RDProtocol {
                 relayServer: relayServer || '',
                 licenceKey: serverKey || '',
                 secure: false,
-                connType: this.enums.ConnType.values.DEFAULT_CONN,
+                connType: ct,
                 token: ''
+            }
+        };
+    }
+
+    /**
+     * Build LoginRequest for a dedicated FILE_TRANSFER connection.
+     * Peer sets file_transfer session mode and answers FileAction on this conn.
+     * @param {Uint8Array} passwordHash
+     * @param {Object} opts
+     */
+    buildFileTransferLoginRequest(passwordHash, opts = {}) {
+        return {
+            loginRequest: {
+                username: opts.username || '',
+                password: passwordHash,
+                myId: opts.myId || 'web-client-ft',
+                myName: opts.myName || 'Yomie Web',
+                myPlatform: 'Web',
+                version: '1.2.4',
+                // Must match desktop session (peer_id + name + session_id) so the
+                // agent can treat this as a recent side-session (skips re-2FA).
+                sessionId: opts.sessionId != null ? opts.sessionId : Date.now(),
+                fileTransfer: {
+                    dir: opts.dir != null ? opts.dir : '',
+                    showHidden: !!opts.showHidden
+                }
             }
         };
     }
@@ -219,8 +249,8 @@ class RDProtocol {
                 myId: opts.myId || 'web-client',
                 myName: opts.myName || 'Yomie Web',
                 myPlatform: 'Web',
-                version: 'Yomie-Web/1.0',
-                sessionId: Date.now(),
+                version: '1.2.4',
+                sessionId: opts.sessionId != null ? opts.sessionId : Date.now(),
                 option: {
                     imageQuality: this.enums.ImageQuality.values[quality] || this.enums.ImageQuality.values.Best,
                     supportedDecoding: {
@@ -234,7 +264,9 @@ class RDProtocol {
                     showRemoteCursor: 2, // Yes
                     disableAudio: opts.disableAudio ? 2 : 1,
                     disableClipboard: 1, // No
-                    enableFileTransfer: 2, // Yes — required for file transfer on DEFAULT_CONN
+                    // Yes — clipboard file copy-paste on DEFAULT_CONN; in-panel
+                    // browse uses a dedicated FILE_TRANSFER side session.
+                    enableFileTransfer: 2,
                     lockAfterSessionEnd: 1 // No
                 }
             }
@@ -399,10 +431,32 @@ class RDProtocol {
     }
 
     /**
-     * Build FileAction.receive (request download from remote)
+     * Build FileAction.send (ask remote to send/read a file — used for DOWNLOAD)
      * @param {number} id - Transfer ID
-     * @param {string} path - Remote directory path
-     * @param {Array<Object>} files - Array of { name, size, modified_time, entry_type }
+     * @param {string} path - Full remote file path to read
+     * @param {boolean} [includeHidden]
+     * @param {number} [fileNum]
+     * @returns {Object}
+     */
+    buildFileSendRequest(id, path, includeHidden, fileNum) {
+        return {
+            fileAction: {
+                send: {
+                    id: id,
+                    path: path,
+                    includeHidden: !!includeHidden,
+                    fileNum: fileNum || 0
+                }
+            }
+        };
+    }
+
+    /**
+     * Build FileAction.receive (ask remote to receive/write — used for UPLOAD)
+     * @param {number} id - Transfer ID
+     * @param {string} path - Dest dir (multi-file) or full file path (single file with empty name)
+     * @param {Array<Object>} files - { name, size, modifiedTime, entryType };
+     *   single-file: name must be "" so peer writes to `path` directly
      * @param {number} fileNum - File sequence number in transfer
      * @param {number} totalSize - Total bytes
      * @returns {Object}
@@ -422,28 +476,7 @@ class RDProtocol {
     }
 
     /**
-     * Build FileAction.send (request upload to remote)
-     * @param {number} id - Transfer ID
-     * @param {string} path - Remote destination path
-     * @param {boolean} [includeHidden]
-     * @param {number} [fileNum]
-     * @returns {Object}
-     */
-    buildFileSendRequest(id, path, includeHidden, fileNum) {
-        return {
-            fileAction: {
-                send: {
-                    id: id,
-                    path: path,
-                    includeHidden: !!includeHidden,
-                    fileNum: fileNum || 0
-                }
-            }
-        };
-    }
-
-    /**
-     * Build FileAction.send_confirm (confirm/skip download after digest)
+     * Build FileAction.send_confirm (confirm/skip after digest)
      * @param {number} id - Transfer ID
      * @param {number} fileNum - File number
      * @param {boolean} skip - Whether to skip this file
@@ -530,6 +563,25 @@ class RDProtocol {
         return {
             fileAction: {
                 rename: { id: id, path: path, newName: newName }
+            }
+        };
+    }
+
+    /**
+     * Build FileResponse.digest (upload metadata before blocks; peer may reply send_confirm)
+     */
+    buildFileDigest(id, fileNum, lastModified, fileSize, isUpload) {
+        return {
+            fileResponse: {
+                digest: {
+                    id: id,
+                    fileNum: fileNum || 0,
+                    lastModified: lastModified || 0,
+                    fileSize: fileSize || 0,
+                    isUpload: !!isUpload,
+                    isIdentical: false,
+                    isResume: false
+                }
             }
         };
     }
