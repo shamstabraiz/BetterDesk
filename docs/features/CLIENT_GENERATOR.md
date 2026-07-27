@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Client Generator is an integrated feature of the Yomie Console that allows you to create custom RustDesk clients with pre-configured settings. This eliminates the need for users to manually configure their clients and ensures consistent deployment across your organization.
+The Client Generator is an integrated feature of the codenextremote Console that allows you to create custom RustDesk clients with pre-configured settings. This eliminates the need for users to manually configure their clients and ensures consistent deployment across your organization.
 
 ## Features
 
@@ -72,7 +72,7 @@ The Client Generator is an integrated feature of the Yomie Console that allows y
 ## How to Use
 
 ### 1. Access the Generator
-Navigate to "Client Generator" in the sidebar menu of the Yomie Console.
+Navigate to "Client Generator" in the sidebar menu of the codenextremote Console.
 
 ### 2. Select Platform
 Click on the desired platform icon (Windows, Linux, Android, or macOS).
@@ -219,7 +219,7 @@ Planned improvements:
 ## Support
 
 For issues or questions about the Client Generator:
-1. Check the main Yomie Console documentation
+1. Check the main codenextremote Console documentation
 2. Review RustDesk official documentation
 3. Submit issues on the project repository
 

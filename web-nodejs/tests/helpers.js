@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Test Helper
+ * codenextremote Console - Test Helper
  * Creates a minimal Express app with mocked services for unit testing.
  */
 

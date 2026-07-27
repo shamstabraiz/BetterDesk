@@ -1,4 +1,4 @@
-# 🔒 Secure Port Configuration - Yomie Console
+# 🔒 Secure Port Configuration - codenextremote Console
 
 ## 📊 Analiza Portów RustDesk (Oficjalna Dokumentacja)
 

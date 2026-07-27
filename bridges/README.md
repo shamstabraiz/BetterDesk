@@ -1,9 +1,9 @@
-# Yomie CDAP — Reference Bridges
+# codenextremote CDAP — Reference Bridges
 
 This directory contains ready-to-use bridge implementations that connect
-external systems to Yomie via the CDAP protocol. Each bridge uses
+external systems to codenextremote via the CDAP protocol. Each bridge uses
 the **Python SDK** (`sdks/python/`) and can be deployed as a standalone
-service alongside Yomie server.
+service alongside codenextremote server.
 
 ## Available Bridges
 
@@ -27,7 +27,7 @@ External Device/API
        │ WebSocket (CDAP)
        ▼
 ┌──────────────┐
-│ Yomie   │
+│ codenextremote   │
 │ CDAP Gateway │
 │ (:21122)     │
 └──────────────┘
@@ -57,7 +57,7 @@ python bridge_modbus.py --config config.json
 Use the Python SDK directly:
 
 ```python
-from yomie_cdap import CDAPBridge, gauge, toggle
+from codenextremote_cdap import CDAPBridge, gauge, toggle
 
 bridge = CDAPBridge(
     server="ws://your-server:21122/cdap",

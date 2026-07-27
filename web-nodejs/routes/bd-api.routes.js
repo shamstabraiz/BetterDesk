@@ -1,7 +1,7 @@
 /**
- * Yomie Console — Desktop Client API Routes
+ * codenextremote Console — Desktop Client API Routes
  *
- * REST endpoints consumed by the Yomie desktop client (Tauri).
+ * REST endpoints consumed by the codenextremote desktop client (Tauri).
  * These run on the main console server (port 5000) under /api/bd/*.
  *
  * Endpoints:
@@ -330,8 +330,8 @@ router.put('/peers/:deviceId/remote-password', async (req, res) => {
 //  POST /api/bd/signage/control-links — Mint short-lived direct-control URL
 // ---------------------------------------------------------------------------
 
-function requireYomieApiKey(req, res, next) {
-    const expected = String(config.yomieApiKey || '').trim();
+function requirecodenextremoteApiKey(req, res, next) {
+    const expected = String(config.codenextremoteApiKey || '').trim();
     if (!expected) {
         return res.status(503).json({ error: 'API key not configured' });
     }
@@ -347,7 +347,7 @@ function requireYomieApiKey(req, res, next) {
     return next();
 }
 
-router.post('/signage/control-links', requireYomieApiKey, async (req, res) => {
+router.post('/signage/control-links', requirecodenextremoteApiKey, async (req, res) => {
     try {
         const body = req.body || {};
         const signageDeviceId = body.signageDeviceId != null
@@ -556,7 +556,7 @@ router.get('/branding', (req, res) => {
     try {
         const branding = brandingService.getBranding();
         res.json({
-            company_name: branding.appName || 'Yomie',
+            company_name: branding.appName || 'codenextremote',
             accent_color: branding.colors?.accentBlue || '#3b82f6',
             support_contact: branding.supportContact || '',
         });
@@ -564,7 +564,7 @@ router.get('/branding', (req, res) => {
         console.error('[BD-API] Branding error:', err.message);
         // Return defaults on error — never block the client
         res.json({
-            company_name: 'Yomie',
+            company_name: 'codenextremote',
             accent_color: '#3b82f6',
             support_contact: '',
         });

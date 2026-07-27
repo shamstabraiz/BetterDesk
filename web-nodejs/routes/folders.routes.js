@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Folders Routes
+ * codenextremote Console - Folders Routes
  * Device folder organization
  */
 

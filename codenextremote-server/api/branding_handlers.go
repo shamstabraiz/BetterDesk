@@ -1,0 +1,698 @@
+package api
+
+import (
+	"encoding/base64"
+	"encoding/json"
+	"log"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/unitronix/betterdesk-server/db"
+	"github.com/unitronix/betterdesk-server/events"
+)
+
+// ---------------------------------------------------------------------------
+//  Branding configuration — served to desktop clients (public, no auth)
+// ---------------------------------------------------------------------------
+
+// BrandingConfig is the payload returned by GET /api/branding.
+// Desktop clients fetch this to apply company theming.
+type BrandingConfig struct {
+	CompanyName    string            `json:"company_name"`
+	AccentColor    string            `json:"accent_color"`
+	SupportContact string            `json:"support_contact"`
+	Colors         map[string]string `json:"colors,omitempty"`
+	SyncModes      []SyncModeOption  `json:"sync_modes"`
+}
+
+// SyncModeOption describes a sync speed tier for enrollment approval UI.
+type SyncModeOption struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+}
+
+var defaultSyncModes = []SyncModeOption{
+	{ID: "silent", Label: "Silent", Description: "Minimal telemetry — CPU/RAM every 60s, no software scan"},
+	{ID: "standard", Label: "Standard", Description: "Balanced — 30s telemetry, 5min disk, 6h software"},
+	{ID: "turbo", Label: "Turbo", Description: "Aggressive — 10s telemetry, 1min disk, 30min software"},
+}
+
+// handleGetBranding returns the branding configuration.
+// Public endpoint — no authentication required.
+// GET /api/branding
+func (s *Server) handleGetBranding(w http.ResponseWriter, r *http.Request) {
+	cfg := BrandingConfig{
+		CompanyName:    "codenextremote",
+		AccentColor:    "#4f6ef7",
+		SupportContact: "",
+		SyncModes:      defaultSyncModes,
+	}
+
+	// Load overrides from server_config
+	if v, err := s.db.GetConfig("branding_company_name"); err == nil && v != "" {
+		cfg.CompanyName = v
+	}
+	if v, err := s.db.GetConfig("branding_accent_color"); err == nil && v != "" {
+		cfg.AccentColor = v
+	}
+	if v, err := s.db.GetConfig("branding_support_contact"); err == nil && v != "" {
+		cfg.SupportContact = v
+	}
+	if v, err := s.db.GetConfig("branding_colors"); err == nil && v != "" {
+		var colors map[string]string
+		if json.Unmarshal([]byte(v), &colors) == nil {
+			cfg.Colors = colors
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cfg)
+}
+
+// handleSaveBranding saves branding configuration. Admin only.
+// POST /api/branding
+func (s *Server) handleSaveBranding(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CompanyName    *string           `json:"company_name"`
+		AccentColor    *string           `json:"accent_color"`
+		SupportContact *string           `json:"support_contact"`
+		Colors         map[string]string `json:"colors"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.CompanyName != nil {
+		s.db.SetConfig("branding_company_name", *req.CompanyName)
+	}
+	if req.AccentColor != nil {
+		s.db.SetConfig("branding_accent_color", *req.AccentColor)
+	}
+	if req.SupportContact != nil {
+		s.db.SetConfig("branding_support_contact", *req.SupportContact)
+	}
+	if req.Colors != nil {
+		if data, err := json.Marshal(req.Colors); err == nil {
+			s.db.SetConfig("branding_colors", string(data))
+		}
+	}
+
+	if s.auditLog != nil {
+		s.auditLog.Log("branding_updated", s.remoteIP(r), getUsernameFromCtx(r), nil)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+// ---------------------------------------------------------------------------
+//  Device enrollment — desktop client self-registration
+// ---------------------------------------------------------------------------
+
+// EnrollmentRequest is sent by the codenextremote desktop client on first connect.
+type EnrollmentRequest struct {
+	DeviceID   string `json:"device_id"`
+	UUID       string `json:"uuid"`
+	Hostname   string `json:"hostname"`
+	Platform   string `json:"platform"`
+	Version    string `json:"version"`
+	DeviceType string `json:"device_type,omitempty"` // "codenextremote", "rustdesk", "os_agent", etc.
+	PublicKey  string `json:"public_key,omitempty"`
+	Token      string `json:"token,omitempty"` // Optional enrollment token
+}
+
+// EnrollmentResponse is returned to the desktop client.
+type EnrollmentResponse struct {
+	Status       string          `json:"status"` // approved, pending, rejected
+	DeviceID     string          `json:"device_id"`
+	DeviceToken  string          `json:"device_token,omitempty"`
+	ServerTime   int64           `json:"server_time"`
+	SyncMode     string          `json:"sync_mode,omitempty"`    // silent, standard, turbo
+	DisplayName  string          `json:"display_name,omitempty"` // Operator-assigned name
+	Branding     *BrandingConfig `json:"branding,omitempty"`     // Inline branding
+	ServerKey    string          `json:"server_key,omitempty"`   // Ed25519 public key (base64)
+	HeartbeatSec int             `json:"heartbeat_interval"`     // Heartbeat interval
+	Message      string          `json:"message,omitempty"`      // Human-readable message
+}
+
+// handleDeviceRegister handles desktop client self-registration.
+// POST /api/devices/register
+//
+// In "open" mode: device is immediately approved.
+// In "managed" mode: device is placed in pending state until operator approves.
+// In "locked" mode: device needs a valid enrollment token.
+func (s *Server) handleDeviceRegister(w http.ResponseWriter, r *http.Request) {
+	var req EnrollmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.DeviceID == "" {
+		http.Error(w, "device_id is required", http.StatusBadRequest)
+		return
+	}
+	if req.PublicKey != "" {
+		if _, err := canonicalizeDevicePublicKey(req.PublicKey); err != nil {
+			http.Error(w, "invalid public_key", http.StatusBadRequest)
+			return
+		}
+	}
+
+	clientIP := s.remoteIP(r)
+	mode := s.cfg.EnrollmentMode
+	if mode == "" {
+		mode = "open"
+	}
+
+	// Check if device already exists (re-registration = always approve)
+	existing, _ := s.db.GetPeer(req.DeviceID)
+	if existing != nil {
+		if req.PublicKey != "" {
+			incomingCanonical, _ := canonicalizeDevicePublicKey(req.PublicKey)
+			if bound, err := s.loadBdMgmtPublicKey(req.DeviceID); err == nil && len(bound) == 32 {
+				boundCanonical := base64.StdEncoding.EncodeToString(bound)
+				if incomingCanonical != boundCanonical {
+					http.Error(w, "public_key does not match enrolled device identity", http.StatusForbidden)
+					return
+				}
+			} else if err := s.storeBdMgmtPublicKey(req.DeviceID, incomingCanonical); err != nil {
+				log.Printf("[API] Failed to bind public key for %s: %v", req.DeviceID, err)
+			}
+		}
+
+		// Device already known — return approved with current config
+		syncMode, _ := s.db.GetConfig("device_sync_mode_" + req.DeviceID)
+		if syncMode == "" {
+			syncMode = "standard"
+		}
+		displayName, _ := s.db.GetConfig("device_display_name_" + req.DeviceID)
+
+		resp := s.buildEnrollmentResponse("approved", req.DeviceID, syncMode, displayName)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Check if banned or soft-deleted
+	if banned, _ := s.db.IsPeerBanned(req.DeviceID); banned {
+		resp := EnrollmentResponse{
+			Status:   "rejected",
+			DeviceID: req.DeviceID,
+			Message:  "Device is banned",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	switch mode {
+	case "open":
+		// Auto-approve: create peer immediately
+		s.createPeerFromEnrollment(&req, clientIP)
+		resp := s.buildEnrollmentResponse("approved", req.DeviceID, "standard", "")
+		if token, err := s.issueEnrollmentDeviceToken(req.DeviceID); err == nil {
+			resp.DeviceToken = token
+		} else {
+			log.Printf("[API] Failed to auto-issue enrollment device token for %s: %v", req.DeviceID, err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+
+		if s.auditLog != nil {
+			s.auditLog.Log("device_enrolled", clientIP, req.DeviceID, map[string]string{
+				"mode": "open", "hostname": req.Hostname,
+			})
+		}
+
+	case "managed":
+		// Check for valid token first — validate by token hash, not peer binding
+		if req.Token != "" {
+			if tok, err := s.db.GetDeviceTokenByHash(hashToken(req.Token)); err == nil && tok != nil {
+				// Valid token — activate and bind to this device, then auto-approve
+				if tok.Status == "pending" {
+					_ = s.db.BindTokenToPeer(tok.TokenHash, req.DeviceID)
+				}
+				_ = s.db.IncrementTokenUse(tok.TokenHash)
+				s.createPeerFromEnrollment(&req, clientIP)
+				resp := s.buildEnrollmentResponse("approved", req.DeviceID, "standard", "")
+				resp.DeviceToken = req.Token
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+
+				if s.auditLog != nil {
+					s.auditLog.Log("device_enrolled", clientIP, req.DeviceID, map[string]string{
+						"mode": "managed", "method": "token", "hostname": req.Hostname,
+					})
+				}
+				return
+			}
+		}
+
+		// Store as pending
+		s.storePendingDevice(&req, clientIP)
+		resp := EnrollmentResponse{
+			Status:       "pending",
+			DeviceID:     req.DeviceID,
+			ServerTime:   timeNowUnixMilli(),
+			HeartbeatSec: 5, // Poll faster while pending
+			Message:      "Waiting for operator approval",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(resp)
+
+		if s.auditLog != nil {
+			s.auditLog.Log("device_pending", clientIP, req.DeviceID, map[string]string{
+				"hostname": req.Hostname, "platform": req.Platform,
+			})
+		}
+
+		// Emit event for web panel real-time update
+		if s.eventBus != nil {
+			s.eventBus.Publish(events.Event{
+				Type: "device_pending",
+				Data: map[string]string{
+					"device_id": req.DeviceID,
+					"hostname":  req.Hostname,
+					"platform":  req.Platform,
+					"ip":        clientIP,
+				},
+			})
+		}
+
+	case "locked":
+		// Only allow enrollment with a valid token
+		if req.Token != "" {
+			if tok, err := s.db.GetDeviceTokenByHash(hashToken(req.Token)); err == nil && tok != nil {
+				// Valid token — activate and bind to this device, then approve
+				if tok.Status == "pending" {
+					_ = s.db.BindTokenToPeer(tok.TokenHash, req.DeviceID)
+				}
+				_ = s.db.IncrementTokenUse(tok.TokenHash)
+				s.createPeerFromEnrollment(&req, clientIP)
+				resp := s.buildEnrollmentResponse("approved", req.DeviceID, "standard", "")
+				resp.DeviceToken = req.Token
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+
+				if s.auditLog != nil {
+					s.auditLog.Log("device_enrolled", clientIP, req.DeviceID, map[string]string{
+						"mode": "locked", "method": "token", "hostname": req.Hostname,
+					})
+				}
+				return
+			}
+		}
+
+		resp := EnrollmentResponse{
+			Status:   "rejected",
+			DeviceID: req.DeviceID,
+			Message:  "Enrollment is locked — a valid token is required",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+// handleDeviceRegisterStatus lets the client poll its enrollment status.
+// GET /api/devices/register/status?device_id=X
+func (s *Server) handleDeviceRegisterStatus(w http.ResponseWriter, r *http.Request) {
+	deviceID := r.URL.Query().Get("device_id")
+	if deviceID == "" {
+		http.Error(w, "device_id query param required", http.StatusBadRequest)
+		return
+	}
+
+	// Check if approved (exists in peers table)
+	if peer, _ := s.db.GetPeer(deviceID); peer != nil {
+		syncMode, _ := s.db.GetConfig("device_sync_mode_" + deviceID)
+		if syncMode == "" {
+			syncMode = "standard"
+		}
+		displayName, _ := s.db.GetConfig("device_display_name_" + deviceID)
+		resp := s.buildEnrollmentResponse("approved", deviceID, syncMode, displayName)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Check if pending
+	pending, _ := s.db.GetConfig("pending_device_" + deviceID)
+	if pending != "" {
+		resp := EnrollmentResponse{
+			Status:       "pending",
+			DeviceID:     deviceID,
+			ServerTime:   timeNowUnixMilli(),
+			HeartbeatSec: 5,
+			Message:      "Waiting for operator approval",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Check if explicitly rejected
+	rejected, _ := s.db.GetConfig("rejected_device_" + deviceID)
+	if rejected != "" {
+		resp := EnrollmentResponse{
+			Status:   "rejected",
+			DeviceID: deviceID,
+			Message:  "Device enrollment was rejected",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Unknown — not registered
+	resp := EnrollmentResponse{
+		Status:   "unknown",
+		DeviceID: deviceID,
+		Message:  "Device not found — register first",
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// ---------------------------------------------------------------------------
+//  Enrollment management — operator approval (admin/operator only)
+// ---------------------------------------------------------------------------
+
+// handleListPendingDevices returns all pending enrollment requests.
+// GET /api/enrollment/pending
+func (s *Server) handleListPendingDevices(w http.ResponseWriter, r *http.Request) {
+	// Pending devices are stored as server_config entries: pending_device_<id> = JSON
+	// We scan all config keys with this prefix.
+	// Note: For production scale, a dedicated table would be better.
+	// Using server_config for now since it's available and simple.
+
+	type PendingDevice struct {
+		DeviceID  string `json:"device_id"`
+		Hostname  string `json:"hostname"`
+		Platform  string `json:"platform"`
+		Version   string `json:"version"`
+		IP        string `json:"ip"`
+		CreatedAt string `json:"created_at"`
+	}
+
+	// List all pending_ entries
+	pending := s.listPendingDevices()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"devices": pending,
+		"count":   len(pending),
+	})
+}
+
+// handleApproveDevice approves a pending enrollment request.
+// POST /api/enrollment/approve/{id}
+func (s *Server) handleApproveDevice(w http.ResponseWriter, r *http.Request) {
+	deviceID := r.PathValue("id")
+	if deviceID == "" {
+		http.Error(w, "Device ID required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		DisplayName string `json:"display_name"`
+		SyncMode    string `json:"sync_mode"` // silent, standard, turbo
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Validate sync mode
+	syncMode := strings.ToLower(req.SyncMode)
+	if syncMode == "" {
+		syncMode = "standard"
+	}
+	if syncMode != "silent" && syncMode != "standard" && syncMode != "turbo" {
+		http.Error(w, "Invalid sync_mode (silent, standard, turbo)", http.StatusBadRequest)
+		return
+	}
+
+	// Load pending device data
+	pendingJSON, _ := s.db.GetConfig("pending_device_" + deviceID)
+	if pendingJSON == "" {
+		http.Error(w, "Device not found in pending list", http.StatusNotFound)
+		return
+	}
+
+	var pending struct {
+		DeviceID  string `json:"device_id"`
+		UUID      string `json:"uuid"`
+		Hostname  string `json:"hostname"`
+		Platform  string `json:"platform"`
+		Version   string `json:"version"`
+		PublicKey string `json:"public_key"`
+		IP        string `json:"ip"`
+		CreatedAt string `json:"created_at"`
+	}
+	json.Unmarshal([]byte(pendingJSON), &pending)
+
+	// Create the peer
+	enrollment := &EnrollmentRequest{
+		DeviceID:  pending.DeviceID,
+		UUID:      pending.UUID,
+		Hostname:  pending.Hostname,
+		Platform:  pending.Platform,
+		Version:   pending.Version,
+		PublicKey: pending.PublicKey,
+	}
+	s.createPeerFromEnrollment(enrollment, pending.IP)
+
+	// Store sync mode and display name
+	s.db.SetConfig("device_sync_mode_"+deviceID, syncMode)
+	if req.DisplayName != "" {
+		s.db.SetConfig("device_display_name_"+deviceID, req.DisplayName)
+		// Also update the peer's note field for display
+		s.db.UpdatePeerFields(deviceID, map[string]string{"note": req.DisplayName})
+	}
+
+	// Remove from pending
+	s.db.DeleteConfig("pending_device_" + deviceID)
+
+	if s.auditLog != nil {
+		s.auditLog.Log("device_approved", s.remoteIP(r), getUsernameFromCtx(r), map[string]string{
+			"device_id": deviceID, "sync_mode": syncMode, "display_name": req.DisplayName,
+		})
+	}
+
+	// Emit event for real-time push
+	if s.eventBus != nil {
+		s.eventBus.Publish(events.Event{
+			Type: "device_approved",
+			Data: map[string]string{
+				"device_id":    deviceID,
+				"sync_mode":    syncMode,
+				"display_name": req.DisplayName,
+			},
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":   true,
+		"device_id": deviceID,
+		"sync_mode": syncMode,
+	})
+}
+
+// handleRejectDevice rejects a pending enrollment request.
+// POST /api/enrollment/reject/{id}
+func (s *Server) handleRejectDevice(w http.ResponseWriter, r *http.Request) {
+	deviceID := r.PathValue("id")
+	if deviceID == "" {
+		http.Error(w, "Device ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Remove from pending
+	s.db.DeleteConfig("pending_device_" + deviceID)
+	// Store rejection marker (so status poll returns "rejected")
+	s.db.SetConfig("rejected_device_"+deviceID, `{"rejected":true}`)
+
+	if s.auditLog != nil {
+		s.auditLog.Log("device_rejected", s.remoteIP(r), getUsernameFromCtx(r), map[string]string{
+			"device_id": deviceID,
+		})
+	}
+
+	if s.eventBus != nil {
+		s.eventBus.Publish(events.Event{
+			Type: "device_rejected",
+			Data: map[string]string{
+				"device_id": deviceID,
+			},
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+// ---------------------------------------------------------------------------
+//  Internal helpers
+// ---------------------------------------------------------------------------
+
+func (s *Server) buildEnrollmentResponse(status, deviceID, syncMode, displayName string) EnrollmentResponse {
+	resp := EnrollmentResponse{
+		Status:       status,
+		DeviceID:     deviceID,
+		ServerTime:   timeNowUnixMilli(),
+		SyncMode:     syncMode,
+		DisplayName:  displayName,
+		HeartbeatSec: 15,
+	}
+
+	// Inline branding
+	branding := &BrandingConfig{
+		CompanyName:    "codenextremote",
+		AccentColor:    "#4f6ef7",
+		SupportContact: "",
+		SyncModes:      defaultSyncModes,
+	}
+	if v, _ := s.db.GetConfig("branding_company_name"); v != "" {
+		branding.CompanyName = v
+	}
+	if v, _ := s.db.GetConfig("branding_accent_color"); v != "" {
+		branding.AccentColor = v
+	}
+	if v, _ := s.db.GetConfig("branding_support_contact"); v != "" {
+		branding.SupportContact = v
+	}
+	if v, _ := s.db.GetConfig("branding_colors"); v != "" {
+		var colors map[string]string
+		if json.Unmarshal([]byte(v), &colors) == nil {
+			branding.Colors = colors
+		}
+	}
+	resp.Branding = branding
+
+	// Server public key
+	if s.keyPair != nil {
+		resp.ServerKey = s.keyPair.PublicKeyBase64()
+	}
+
+	return resp
+}
+
+func (s *Server) issueEnrollmentDeviceToken(deviceID string) (string, error) {
+	plainToken, err := generateSecureToken(32)
+	if err != nil {
+		return "", err
+	}
+
+	token := &db.DeviceToken{
+		Token:     plainToken,
+		TokenHash: hashToken(plainToken),
+		Name:      "Auto-" + deviceID,
+		PeerID:    deviceID,
+		Status:    db.TokenStatusActive,
+		MaxUses:   0,
+		UseCount:  0,
+		CreatedBy: "system",
+		Note:      "Auto-issued during device enrollment",
+	}
+
+	if err := s.db.CreateDeviceToken(token); err != nil {
+		return "", err
+	}
+
+	return plainToken, nil
+}
+
+func (s *Server) createPeerFromEnrollment(req *EnrollmentRequest, clientIP string) {
+	devType := req.DeviceType
+	if devType == "" {
+		devType = "codenextremote"
+	}
+
+	s.db.UpsertPeer(&db.Peer{
+		ID:         req.DeviceID,
+		UUID:       req.UUID,
+		IP:         clientIP,
+		Hostname:   req.Hostname,
+		OS:         req.Platform,
+		Version:    req.Version,
+		DeviceType: devType,
+		Status:     "ONLINE",
+	})
+
+	// Update sysinfo fields separately (handles non-empty check)
+	if req.Hostname != "" || req.Platform != "" || req.Version != "" {
+		s.db.UpdatePeerSysinfo(req.DeviceID, req.Hostname, req.Platform, req.Version)
+	}
+
+	// Persist device_type via UpdatePeerFields
+	s.db.UpdatePeerFields(req.DeviceID, map[string]string{"device_type": devType})
+
+	if req.PublicKey != "" {
+		if err := s.storeBdMgmtPublicKey(req.DeviceID, req.PublicKey); err != nil {
+			log.Printf("[API] Failed to persist enrollment public key for %s: %v", req.DeviceID, err)
+		}
+	}
+}
+
+type pendingDeviceInfo struct {
+	DeviceID  string `json:"device_id"`
+	Hostname  string `json:"hostname"`
+	Platform  string `json:"platform"`
+	Version   string `json:"version"`
+	IP        string `json:"ip"`
+	CreatedAt string `json:"created_at"`
+}
+
+func (s *Server) storePendingDevice(req *EnrollmentRequest, clientIP string) {
+	info := pendingDeviceInfo{
+		DeviceID:  req.DeviceID,
+		Hostname:  req.Hostname,
+		Platform:  req.Platform,
+		Version:   req.Version,
+		IP:        clientIP,
+		CreatedAt: timeNowISO(),
+	}
+	data, _ := json.Marshal(info)
+	s.db.SetConfig("pending_device_"+req.DeviceID, string(data))
+}
+
+func (s *Server) listPendingDevices() []pendingDeviceInfo {
+	// This is a pragmatic approach using server_config.
+	// For a production system with thousands of pending devices,
+	// a dedicated table would be more efficient.
+	var result []pendingDeviceInfo
+
+	// We need to query all server_config keys starting with "pending_device_"
+	// Since the DB interface doesn't have a ListConfigByPrefix, we'll add a helper.
+	configs, err := s.db.ListConfigByPrefix("pending_device_")
+	if err != nil {
+		log.Printf("[API] listPendingDevices: %v", err)
+		return result
+	}
+
+	for _, cfg := range configs {
+		var info pendingDeviceInfo
+		if json.Unmarshal([]byte(cfg.Value), &info) == nil {
+			result = append(result, info)
+		}
+	}
+	return result
+}
+
+func timeNowUnixMilli() int64 {
+	return time.Now().UnixMilli()
+}
+
+func timeNowISO() string {
+	return time.Now().UTC().Format(time.RFC3339)
+}

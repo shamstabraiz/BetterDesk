@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Branding Service
+ * codenextremote Console - Branding Service
  * Manages white-label branding configuration (name, logo, colors, favicon)
  * Stored in auth.db branding_config table
  */
@@ -39,17 +39,17 @@ function sanitizeSvg(svg) {
     return sanitized;
 }
 
-// Default branding (Yomie original theme)
+// Default branding (codenextremote original theme)
 const DEFAULT_BRANDING = {
     // Brand identity
-    appName: 'Yomie',
+    appName: 'codenextremote',
     appDescription: 'RustDesk Server Management',
     
     // Logo configuration
     logoType: 'image', // 'icon' | 'svg' | 'image' | 'text'
     logoIcon: 'dns',   // Material Icons name (when logoType === 'icon')
     logoSvg: '',       // Raw SVG markup or SVG path data (when logoType === 'svg')
-    logoUrl: '/img/yomie_icon.png', // URL to image file (when logoType === 'image')
+    logoUrl: '/img/codenextremote_icon.png', // URL to image file (when logoType === 'image')
     logoText: '',      // Text to display as logo (when logoType === 'text')
     logoTextAccent: '', // Accent text (different color, e.g. product name after brand)
     
@@ -277,7 +277,7 @@ function exportPreset() {
     const branding = getBranding();
     return {
         version: '1.0',
-        type: 'yomie-theme',
+        type: 'codenextremote-theme',
         branding
     };
 }
@@ -288,7 +288,7 @@ function exportPreset() {
  * @returns {boolean} Success
  */
 async function importPreset(preset) {
-    if (!preset || preset.type !== 'yomie-theme' || !preset.branding) {
+    if (!preset || preset.type !== 'codenextremote-theme' || !preset.branding) {
         return false;
     }
     

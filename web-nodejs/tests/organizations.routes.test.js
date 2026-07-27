@@ -1,10 +1,10 @@
 const request = require('supertest');
 
-jest.mock('../services/yomieApi', () => ({
+jest.mock('../services/codenextremoteApi', () => ({
     apiClient: jest.fn(),
 }));
 
-const { apiClient } = require('../services/yomieApi');
+const { apiClient } = require('../services/codenextremoteApi');
 const { createTestApp, withAuth } = require('./helpers');
 const organizationsRoutes = require('../routes/organizations.routes');
 

@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Auth Middleware Tests
+ * codenextremote Console - Auth Middleware Tests
  */
 
 const request = require('supertest');

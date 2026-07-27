@@ -1,21 +1,21 @@
 /**
- * Yomie Console - Tickets Page Script
+ * codenextremote Console - Tickets Page Script
  */
 
 (function () {
     'use strict';
 
-    const _ = window.Yomie?.translations
+    const _ = window.codenextremote?.translations
         ? (key) => {
             const keys = key.split('.');
-            let val = window.Yomie.translations;
+            let val = window.codenextremote.translations;
             for (const k of keys) { val = val?.[k]; }
             return val || key;
         }
         : (key) => key;
 
-    const csrfToken = window.Yomie?.csrfToken || '';
-    const user = window.Yomie?.user || {};
+    const csrfToken = window.codenextremote?.csrfToken || '';
+    const user = window.codenextremote?.user || {};
 
     // State
     let currentStatus = '';
@@ -358,7 +358,7 @@
     }
 
     function showToast(message, type) {
-        if (window.Yomie?.notify) { window.Yomie.notify(message, type); return; }
+        if (window.codenextremote?.notify) { window.codenextremote.notify(message, type); return; }
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');

@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Organization Policy Management Routes (v3.0.0)
+ * codenextremote Console — Organization Policy Management Routes (v3.0.0)
  *
  * Provides policy CRUD for organizations + device-facing policy fetch
  * + device attestation management.
@@ -32,7 +32,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { apiClient } = require('../services/yomieApi');
+const { apiClient } = require('../services/codenextremoteApi');
 
 // ---------------------------------------------------------------------------
 //  Auth middleware

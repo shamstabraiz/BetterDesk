@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Font Service
+ * codenextremote Console - Font Service
  * Manages Google Fonts search, preview, and local caching
  * Fonts are downloaded to public/fonts/ for self-hosting (no external CDN dependency)
  */

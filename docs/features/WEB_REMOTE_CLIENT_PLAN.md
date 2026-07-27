@@ -1,13 +1,13 @@
-# Yomie Web Remote Client - Phased Implementation Plan
+# codenextremote Web Remote Client - Phased Implementation Plan
 
-> Browser-based remote desktop client integrated into the Yomie web panel.  
+> Browser-based remote desktop client integrated into the codenextremote web panel.  
 > Users click a device in the device list → connect and control it via the browser.
 
 ---
 
 ## Vision
 
-A user logs into the Yomie web console, sees the device list, clicks **"Connect"** on any online device, and a full remote desktop session opens in the browser — with video, keyboard, mouse, clipboard, and audio — without installing any client software on the controller machine.
+A user logs into the codenextremote web console, sees the device list, clicks **"Connect"** on any online device, and a full remote desktop session opens in the browser — with video, keyboard, mouse, clipboard, and audio — without installing any client software on the controller machine.
 
 ---
 
@@ -15,7 +15,7 @@ A user logs into the Yomie web console, sees the device list, clicks **"Connect"
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│              Yomie Web Console (Node.js)               │
+│              codenextremote Web Console (Node.js)               │
 │                                                            │
 │  ┌──────────────────────┐   ┌───────────────────────────┐  │
 │  │   Admin Panel (EJS)  │   │   Remote Viewer (Canvas)  │  │
@@ -73,7 +73,7 @@ A user logs into the Yomie web console, sees the device list, clicks **"Connect"
 | Rendering | `<canvas>` + `OffscreenCanvas` | Low-latency video display + cursor overlay |
 | Input | DOM `KeyboardEvent` + `PointerEvent` | Keyboard/mouse capture with Pointer Lock |
 | Build | `esbuild` or `vite` | Fast bundling of client-side JS modules |
-| Integration | Express.js routes + EJS templates | Embed viewer into Yomie panel |
+| Integration | Express.js routes + EJS templates | Embed viewer into codenextremote panel |
 
 ---
 
@@ -173,11 +173,11 @@ Decode and render the remote desktop video stream in a `<canvas>` element.
 
 #### 2.4 Password Prompt
 - [ ] Modal dialog for device password entry
-- [ ] Support saving passwords in Yomie admin session (optional)
+- [ ] Support saving passwords in codenextremote admin session (optional)
 - [ ] Handle authentication errors gracefully
 
 ### Deliverable
-A view-only remote desktop viewer embedded in the Yomie panel. User clicks "Connect" on a device, enters password, sees live remote screen.
+A view-only remote desktop viewer embedded in the codenextremote panel. User clicks "Connect" on a device, enters password, sees live remote screen.
 
 ### Files (additions)
 ```
@@ -301,7 +301,7 @@ Polish the experience and add power-user features.
 - [ ] Drag-and-drop upload onto remote viewer
 
 #### 5.2 Session Management
-- [ ] Connection history log (saved to Yomie DB)
+- [ ] Connection history log (saved to codenextremote DB)
 - [ ] Recent connections list on dashboard
 - [ ] Multiple simultaneous sessions (tabbed viewer)
 - [ ] Session recording (optional, save VP9 stream to WebM)
@@ -330,7 +330,7 @@ Polish the experience and add power-user features.
 ## Phase 0 (Prerequisite): hbbr WebSocket Support
 
 ### Problem
-The current Yomie hbbr relay server uses **plain TCP** on port 21117. Browsers can only communicate via **WebSocket**. A WebSocket layer is needed on port 21119 for the relay.
+The current codenextremote hbbr relay server uses **plain TCP** on port 21117. Browsers can only communicate via **WebSocket**. A WebSocket layer is needed on port 21119 for the relay.
 
 ### Options
 
@@ -477,4 +477,4 @@ web-nodejs/
 ---
 
 *Document version: 1.0 | Created: 2026-02-17*  
-*Project: Yomie Console — github.com/shamstabraiz/Rustdesk-FreeConsole*
+*Project: codenextremote Console — github.com/shamstabraiz/Rustdesk-FreeConsole*

@@ -1,8 +1,8 @@
 {
   "version": "1.0",
-  "type": "yomie-theme",
+  "type": "Nini Enterprise-theme",
   "branding": {
-    "appName": "Yomie",
+    "appName": "Nini Enterprise",
     "appDescription": "RustDesk Server Management",
     "logoType": "icon",
     "logoIcon": "dns",

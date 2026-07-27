@@ -1,6 +1,6 @@
-# 🚀 Yomie Docker Quick Start
+# 🚀 codenextremote Docker Quick Start
 
-Get Yomie running in **30 seconds** with pre-built images from GitHub Container Registry.
+Get codenextremote running in **30 seconds** with pre-built images from GitHub Container Registry.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ Get Yomie running in **30 seconds** with pre-built images from GitHub Container 
 # 1. Download docker-compose file
 curl -fsSL https://raw.githubusercontent.com/shamstabraiz/Rustdesk-FreeConsole/main/docker-compose.quick.yml -o docker-compose.yml
 
-# 2. Start Yomie
+# 2. Start codenextremote
 docker compose up -d
 
 # 3. Get admin password
@@ -52,15 +52,15 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: yomie
-      POSTGRES_USER: yomie
+      POSTGRES_DB: codenextremote
+      POSTGRES_USER: codenextremote
       POSTGRES_PASSWORD: secretpassword
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
   server:
     environment:
-      - DB_URL=postgres://yomie:secretpassword@postgres:5432/yomie
+      - DB_URL=postgres://codenextremote:secretpassword@postgres:5432/codenextremote
     depends_on:
       - postgres
 
@@ -77,7 +77,7 @@ Quick self-signed cert:
 mkdir -p certs
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout certs/key.pem -out certs/cert.pem \
-  -subj "/CN=yomie.local"
+  -subj "/CN=codenextremote.local"
 ```
 
 ---

@@ -1,5 +1,5 @@
 /**
- * Yomie Console — CDAP Media WebSocket Proxy
+ * codenextremote Console — CDAP Media WebSocket Proxy
  * Proxies desktop/video/file-browser WebSocket connections from the
  * browser to the Go server's CDAP endpoints.
  *
@@ -106,7 +106,7 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
         const role = req._cdapUserRole || req.session?.user?.role || req.session?.role || 'admin';
         console.log(`[CDAP ${label}] Proxy started for device ${deviceId} by ${username} (role=${role})`);
 
-        const goApiBase = config.yomieApiUrl || 'http://localhost:21114/api';
+        const goApiBase = config.codenextremoteApiUrl || 'http://localhost:21114/api';
         const goWsUrl = goApiBase
             .replace(/^http/, 'ws')
             .replace(/\/api\/?$/, '') +
@@ -114,7 +114,7 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
 
         const goWs = new WebSocket(goWsUrl, [subprotocol], {
             headers: {
-                'X-API-Key': config.yomieApiKey || '',
+                'X-API-Key': config.codenextremoteApiKey || '',
                 'X-Username': username,
                 'X-Role': role
             },

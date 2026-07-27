@@ -1,5 +1,5 @@
 /**
- * Yomie Console - WebSocket Relay Proxy
+ * codenextremote Console - WebSocket Relay Proxy
  * Bridges browser WebSocket connections to TCP connections for hbbs/hbbr
  * 
  * Provides two WebSocket endpoints:

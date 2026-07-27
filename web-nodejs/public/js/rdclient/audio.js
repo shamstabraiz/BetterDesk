@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client - Audio Decoder
+ * codenextremote Web Remote Client - Audio Decoder
  * Uses AudioDecoder (WebCodecs) for Opus decoding when available.
  * Falls back to raw PCM playback when AudioDecoder is not supported.
  * RustDesk sends Opus-encoded audio frames at 48kHz stereo by default.

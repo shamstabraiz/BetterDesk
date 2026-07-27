@@ -1,20 +1,20 @@
 /**
- * Yomie Console - Registrations Page Script
+ * codenextremote Console - Registrations Page Script
  */
 
 (function () {
     'use strict';
 
-    const _ = window.Yomie?.translations
+    const _ = window.codenextremote?.translations
         ? (key) => {
             const keys = key.split('.');
-            let val = window.Yomie.translations;
+            let val = window.codenextremote.translations;
             for (const k of keys) { val = val?.[k]; }
             return val || key;
         }
         : (key) => key;
 
-    const csrfToken = window.Yomie?.csrfToken || '';
+    const csrfToken = window.codenextremote?.csrfToken || '';
 
     // State
     let currentStatus = '';
@@ -237,9 +237,9 @@
     }
 
     function showToast(message, type) {
-        // Use Yomie notification system if available
-        if (window.Yomie?.notify) {
-            window.Yomie.notify(message, type);
+        // Use codenextremote notification system if available
+        if (window.codenextremote?.notify) {
+            window.codenextremote.notify(message, type);
             return;
         }
         // Fallback: use toast container

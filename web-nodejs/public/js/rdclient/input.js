@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client - Input Manager
+ * codenextremote Web Remote Client - Input Manager
  * Captures keyboard and mouse events and converts them to RustDesk protocol messages
  */
 

@@ -1,9 +1,9 @@
 {
   "version": "1.0",
-  "type": "yomie-theme",
+  "type": "Nini Enterprise-theme",
   "branding": {
-    "appName": "Yomie",
-    "appDescription": "Yomie Server Management",
+    "appName": "Nini Enterprise",
+    "appDescription": "Nini Enterprise Server Management",
     "logoType": "icon",
     "logoIcon": "dns",
     "logoSvg": "",

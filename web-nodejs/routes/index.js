@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Routes Index
+ * codenextremote Console - Routes Index
  * Mounts all route modules
  */
 

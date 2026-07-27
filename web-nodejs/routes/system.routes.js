@@ -1,5 +1,5 @@
 /**
- * Yomie Console - System Routes
+ * codenextremote Console - System Routes
  * Provides API endpoints for dashboard widgets:
  *   GET  /api/system/info          — process list + disk usage
  *   GET  /api/logs/recent          — recent log lines
@@ -118,12 +118,12 @@ router.get('/api/logs/recent', requireAuth, (req, res) => {
         if (source === 'go') {
             // Try to read Go server journal logs
             if (process.platform === 'linux') {
-                const raw = safeExec(`journalctl -u yomie-server --no-pager -n ${limit} --output=short-iso 2>/dev/null || journalctl -u yomie-go --no-pager -n ${limit} --output=short-iso 2>/dev/null`);
+                const raw = safeExec(`journalctl -u codenextremote-server --no-pager -n ${limit} --output=short-iso 2>/dev/null || journalctl -u codenextremote-go --no-pager -n ${limit} --output=short-iso 2>/dev/null`);
                 if (raw) lines = raw.split('\n');
             }
             if (!lines.length) {
                 // Fallback: try log file
-                const logPaths = ['/opt/rustdesk/yomie-server.log', '/opt/yomie/server.log', '/var/log/yomie-server.log'];
+                const logPaths = ['/opt/rustdesk/codenextremote-server.log', '/opt/codenextremote/server.log', '/var/log/codenextremote-server.log'];
                 for (const lp of logPaths) {
                     if (fs.existsSync(lp)) {
                         const content = fs.readFileSync(lp, 'utf8');
@@ -135,12 +135,12 @@ router.get('/api/logs/recent', requireAuth, (req, res) => {
         } else {
             // Console logs from journal
             if (process.platform === 'linux') {
-                const raw = safeExec(`journalctl -u yomie-console --no-pager -n ${limit} --output=short-iso 2>/dev/null`);
+                const raw = safeExec(`journalctl -u codenextremote-console --no-pager -n ${limit} --output=short-iso 2>/dev/null`);
                 if (raw) lines = raw.split('\n');
             }
             if (!lines.length) {
                 // Fallback: try PM2-style log file or stdout capture
-                const logPaths = ['/opt/rustdesk/console.log', '/var/log/yomie-console.log'];
+                const logPaths = ['/opt/rustdesk/console.log', '/var/log/codenextremote-console.log'];
                 for (const lp of logPaths) {
                     if (fs.existsSync(lp)) {
                         const content = fs.readFileSync(lp, 'utf8');
@@ -250,8 +250,8 @@ router.get('/api/docker/containers', requireAuth, (req, res) => {
 // Admin-only command execution with strict whitelist
 const ALLOWED_COMMANDS = new Set([
     'uptime', 'date', 'hostname', 'whoami', 'df -h', 'free -m',
-    'uname -a', 'cat /etc/os-release', 'systemctl status yomie-server',
-    'systemctl status yomie-console', 'docker ps', 'docker stats --no-stream',
+    'uname -a', 'cat /etc/os-release', 'systemctl status codenextremote-server',
+    'systemctl status codenextremote-console', 'docker ps', 'docker stats --no-stream',
     'ip addr', 'ss -tlnp', 'netstat -tlnp', 'top -bn1 | head -20'
 ]);
 

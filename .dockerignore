@@ -20,14 +20,14 @@ web-nodejs/package-lock.json
 .github/
 
 # Go build artifacts (binary is built inside Docker)
-yomie-server/yomie-server
-yomie-server/yomie-server-*
-yomie-server/*.exe
-yomie-server/db_v2.sqlite3
-yomie-server/id_ed25519
-yomie-server/id_ed25519.pub
-yomie-server/test_*.go
-yomie-server/_test_*
+codenextremote-server/codenextremote-server
+codenextremote-server/codenextremote-server-*
+codenextremote-server/*.exe
+codenextremote-server/db_v2.sqlite3
+codenextremote-server/id_ed25519
+codenextremote-server/id_ed25519.pub
+codenextremote-server/test_*.go
+codenextremote-server/_test_*
 
 # Archive (old/deprecated files)
 archive/
@@ -44,7 +44,7 @@ screenshots/
 # Development & testing
 dev_modules/
 TESTING.local.md
-yomie-client/
+codenextremote-client/
 
 # Sensitive files
 *.key

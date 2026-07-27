@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Yomie CDAP — Modbus TCP/RTU Bridge.
+"""codenextremote CDAP — Modbus TCP/RTU Bridge.
 
 Polls Modbus registers/coils at a configurable interval and pushes values
-to Yomie via CDAP.  Incoming commands (toggle, slider set) are written
+to codenextremote via CDAP.  Incoming commands (toggle, slider set) are written
 back to the Modbus target.
 
 Usage:
-    pip install yomie-cdap pymodbus
+    pip install codenextremote-cdap pymodbus
     python bridge_modbus.py --config config.json
 """
 
@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from yomie_cdap import CDAPBridge, gauge, toggle, slider, textWidget
+from codenextremote_cdap import CDAPBridge, gauge, toggle, slider, textWidget
 
 logger = logging.getLogger("bridge_modbus")
 
@@ -236,7 +236,7 @@ class ModbusBridge:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Yomie CDAP Modbus Bridge")
+    parser = argparse.ArgumentParser(description="codenextremote CDAP Modbus Bridge")
     parser.add_argument("--config", "-c", default="config.json", help="Path to config file")
     parser.add_argument("--log-level", "-l", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()

@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Chat Routes
+ * codenextremote Console — Chat Routes
  * Dedicated chat page + API endpoints for Chat 2.0
  */
 
@@ -83,7 +83,7 @@ router.get('/api/chat/files/:fileId', requireAuth, (req, res) => {
 // Search messages via Go server proxy
 router.get('/api/chat/search', requireAuth, async (req, res) => {
     try {
-        const { apiClient } = require('../services/yomieApi');
+        const { apiClient } = require('../services/codenextremoteApi');
         const query = String(req.query.q || '').slice(0, 200);
         const conversationId = req.query.conversation_id || '';
         if (!query) return res.json({ success: true, messages: [] });

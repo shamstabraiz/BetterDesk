@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Configuration
+ * codenextremote Console - Configuration
  * Loads settings from environment variables with sensible defaults
  */
 
@@ -54,16 +54,16 @@ function resolveKeysPath() {
     if (fromEnv) return fromEnv;
     if (isDocker) return '/opt/rustdesk';
     if (isWindows) {
-        // Prefer C:\Yomie, fall back to C:\RustDesk for legacy installs
-        if (fs.existsSync('C:\\Yomie\\id_ed25519')) return 'C:\\Yomie';
+        // Prefer C:\codenextremote, fall back to C:\RustDesk for legacy installs
+        if (fs.existsSync('C:\\codenextremote\\id_ed25519')) return 'C:\\codenextremote';
         if (fs.existsSync('C:\\RustDesk\\id_ed25519')) return 'C:\\RustDesk';
-        return 'C:\\Yomie';
+        return 'C:\\codenextremote';
     }
-    // Linux: check both paths, prefer /opt/yomie (new), fall back to /opt/rustdesk (legacy)
-    if (fs.existsSync('/opt/yomie/id_ed25519')) return '/opt/yomie';
+    // Linux: check both paths, prefer /opt/codenextremote (new), fall back to /opt/rustdesk (legacy)
+    if (fs.existsSync('/opt/codenextremote/id_ed25519')) return '/opt/codenextremote';
     if (fs.existsSync('/opt/rustdesk/id_ed25519')) return '/opt/rustdesk';
     // Neither exists yet — use new default
-    return '/opt/yomie';
+    return '/opt/codenextremote';
 }
 const KEYS_PATH = resolveKeysPath();
 const RUSTDESK_DIR = KEYS_PATH;
@@ -158,18 +158,18 @@ module.exports = {
     pubKeyPath: PUB_KEY_PATH,
     apiKeyPath: API_KEY_PATH,
 
-    // Server backend (Yomie Go server)
-    serverBackend: 'yomie',
+    // Server backend (codenextremote Go server)
+    serverBackend: 'codenextremote',
 
-    // Yomie Go Server API
+    // codenextremote Go Server API
     hbbsApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
     hbbsApiKey: apiKey,
     hbbsApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT || process.env.HBBS_API_TIMEOUT, 10) || 3000,
 
-    // Yomie Go Server API (preferred names)
-    yomieApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
-    yomieApiKey: process.env.BETTERDESK_API_KEY || apiKey,
-    yomieApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT, 10) || 5000,
+    // codenextremote Go Server API (preferred names)
+    codenextremoteApiUrl: process.env.BETTERDESK_API_URL || process.env.HBBS_API_URL || 'http://localhost:21114/api',
+    codenextremoteApiKey: process.env.BETTERDESK_API_KEY || apiKey,
+    codenextremoteApiTimeout: parseInt(process.env.BETTERDESK_API_TIMEOUT, 10) || 5000,
 
     // TLS certificate verification (BD-2026-002)
     // Default is false (reject self-signed certs) for production safety.
@@ -212,6 +212,6 @@ module.exports = {
     databaseUrl: process.env.DATABASE_URL || '',
 
     // App info
-    appName: 'Yomie Console',
+    appName: 'codencodenextremoteextremote Console',
     appVersion: pkgVersion
 };

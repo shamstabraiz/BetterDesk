@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Key Service
+ * codenextremote Console - Key Service
  * Reads public key and API key from filesystem
  */
 

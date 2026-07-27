@@ -1,9 +1,9 @@
-# Python SDK Reference — `yomie-cdap`
+# Python SDK Reference — `codenextremote-cdap`
 
 ## Installation
 
 ```bash
-pip install yomie-cdap
+pip install codenextremote-cdap
 # or from source:
 pip install -e sdks/python/
 ```
@@ -15,7 +15,7 @@ pip install -e sdks/python/
 The main class for building CDAP agents and bridges.
 
 ```python
-from yomie_cdap import CDAPBridge, Widget
+from codenextremote_cdap import CDAPBridge, Widget
 ```
 
 ### Constructor
@@ -111,7 +111,7 @@ widgets = [
 Internal message class. Normally not used directly.
 
 ```python
-from yomie_cdap import Message
+from codenextremote_cdap import Message
 
 msg = Message(type="custom", payload={"key": "value"})
 ```
@@ -121,7 +121,7 @@ msg = Message(type="custom", payload={"key": "value"})
 ```python
 import asyncio
 import os
-from yomie_cdap import CDAPBridge, Widget
+from codenextremote_cdap import CDAPBridge, Widget
 
 class ServerMonitor(CDAPBridge):
     def __init__(self):

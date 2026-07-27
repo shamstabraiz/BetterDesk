@@ -131,17 +131,17 @@
 
         <!-- Session expired indicator (shown when redirected from session timeout) -->
         <script nonce="<%= cspNonce %>">
-            window.Yomie = window.Yomie || {};
-            window.Yomie.users = <%- JSON.stringify(loginUsers || []) %>;
-            window.Yomie.csrfToken = '<%= csrfToken %>';
+            window.codenextremote = window.codenextremote || {};
+            window.codenextremote.users = <%- JSON.stringify(loginUsers || []) %>;
+            window.codenextremote.csrfToken = '<%= csrfToken %>';
             // Detect session expiry: if we arrived from a non-login page, session expired
             if (document.referrer && !document.referrer.includes('/login')) {
-                window.Yomie.sessionExpired = true;
+                window.codenextremote.sessionExpired = true;
             }
         </script>
 
     <script nonce="<%= cspNonce %>">
-        window.Yomie = {
+        window.codenextremote = {
             csrfToken: '<%= csrfToken || "" %>',
             lang: '<%= lang || "en" %>',
             translations: <%- JSON.stringify(translations || {}) %>,

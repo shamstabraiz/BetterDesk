@@ -26,14 +26,14 @@
 
     function _(key) {
         try {
-            return (window.Yomie && window._) ? window._(key) : key;
+            return (window.codenextremote && window._) ? window._(key) : key;
         } catch {
             return key;
         }
     }
 
     function csrf() {
-        return (window.Yomie && window.Yomie.csrfToken) || '';
+        return (window.codenextremote && window.codenextremote.csrfToken) || '';
     }
 
     function formatTime(iso) {

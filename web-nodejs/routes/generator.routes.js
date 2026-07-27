@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Client Generator Routes
+ * codenextremote Console - Client Generator Routes
  */
 
 const express = require('express');

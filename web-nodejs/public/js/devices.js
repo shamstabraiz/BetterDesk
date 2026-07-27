@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Devices Page
+ * codenextremote Console - Devices Page
  */
 
 (function() {
@@ -15,7 +15,7 @@
     // Map device_type to Material Icons
     function getDeviceTypeIcon(type) {
         switch ((type || '').toLowerCase()) {
-            case 'yomie': return 'desktop_windows';
+            case 'codenextremote': return 'desktop_windows';
             case 'desktop':  return 'desktop_windows';
             case 'scada':    return 'precision_manufacturing';
             case 'iot':      return 'sensors';
@@ -504,7 +504,7 @@
             return;
         }
 
-        const bc = new BroadcastChannel('yomie-remote');
+        const bc = new BroadcastChannel('codenextremote-remote');
         let handled = false;
 
         // Listen for acknowledgment from remote page
@@ -1060,8 +1060,8 @@
         });
     }
 
-    window.YomieDevices = window.YomieDevices || {};
-    window.YomieDevices.showEditModal = showEditModal;
+    window.codenextremoteDevices = window.codenextremoteDevices || {};
+    window.codenextremoteDevices.showEditModal = showEditModal;
     
     /**
      * Render pagination
@@ -1275,7 +1275,7 @@
             const response = await Utils.api('/api/folders');
             folders = response.folders || [];
             // Expose folders globally for DeviceDetail panel
-            window._yomie_folders = folders;
+            window._codenextremote_folders = folders;
             renderFolders();
             updateBulkMoveSelect();
         } catch (error) {

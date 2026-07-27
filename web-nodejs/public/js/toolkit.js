@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Toolkit
+ * codenextremote Console — Toolkit
  *
  * Client-side logic for all toolkit tools.
  * Network tools call /api/network/* (existing endpoints).
@@ -8,14 +8,14 @@
  * @module toolkit
  */
 
-/* global Yomie, _ */
+/* global codenextremote, _ */
 'use strict';
 
 (function () {
     // ── Helpers ─────────────────────────────────────────────────────────
 
     function getCsrfToken() {
-        return window.Yomie?.csrfToken || '';
+        return window.codenextremote?.csrfToken || '';
     }
 
     function t(key, fallback) {

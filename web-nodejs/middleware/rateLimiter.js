@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Rate Limiter Middleware
+ * codenextremote Console - Rate Limiter Middleware
  */
 
 const rateLimit = require('express-rate-limit');

@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Instant Chat WebSocket Relay (v2)
+ * codenextremote Console — Instant Chat WebSocket Relay (v2)
  *
  * Bridges agent WebSocket connections with server-side persistent storage.
  * Messages are persisted via the Go server REST API so they survive restarts.
@@ -45,7 +45,7 @@ const HISTORY_LIMIT = 500; // in-memory fallback
 // device_id → { agentWs, operatorWss, messages (fallback ring buffer) }
 const rooms = new Map();
 
-// Reference to yomieApi for Go server calls
+// Reference to codenextremoteApi for Go server calls
 let goApi = null;
 
 function getRoom(deviceId) {
@@ -487,10 +487,10 @@ function handleOperatorConnection(ws, deviceId, operatorName) {
 
 // --- Init ---
 
-function initChatRelay(server, sessionMiddleware, yomieApi) {
+function initChatRelay(server, sessionMiddleware, codenextremoteApi) {
     // Store API reference for persistence
-    if (yomieApi) {
-        goApi = yomieApi;
+    if (codenextremoteApi) {
+        goApi = codenextremoteApi;
         log.info('Chat persistence enabled via Go server API');
     }
 

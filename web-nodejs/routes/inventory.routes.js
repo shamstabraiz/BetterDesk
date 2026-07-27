@@ -1,8 +1,8 @@
 /**
- * Yomie Console — Inventory & Telemetry API Routes
+ * codenextremote Console — Inventory & Telemetry API Routes
  *
  * Receives hardware/software inventory and lightweight telemetry
- * data from Yomie desktop agents.  Data is persisted to the
+ * data from codenextremote desktop agents.  Data is persisted to the
  * database via dbAdapter (SQLite or PostgreSQL).
  *
  * Endpoints:
@@ -22,7 +22,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const { getAdapter } = require('../services/dbAdapter');
-const yomieApi = require('../services/yomieApi');
+const codenextremoteApi = require('../services/codenextremoteApi');
 
 // ---------------------------------------------------------------------------
 //  Helpers (shared with bd-api.routes.js)
@@ -225,7 +225,7 @@ router.get('/', requireAdmin, async (req, res) => {
         } else {
             // Fallback: populate from Go server peer list when no agent inventory exists
             try {
-                const peers = await yomieApi.getAllPeers();
+                const peers = await codenextremoteApi.getAllPeers();
                 const peerList = Array.isArray(peers) ? peers : (peers?.data || []);
                 for (const p of peerList) {
                     devices.push({

@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Security Middleware
+ * codenextremote Console - Security Middleware
  * Configures Helmet and custom security headers
  */
 

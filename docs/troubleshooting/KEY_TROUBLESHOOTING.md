@@ -22,10 +22,10 @@ If you experience any of these issues, you likely have a key mismatch problem:
 ### "Remote desktop is offline"
 - Intermittent connectivity issues
 - Some devices work, others don't
-- Connection was working before Yomie installation
+- Connection was working before codenextremote installation
 
 ### Public Key Mismatch in WebConsole
-- Key displayed in Yomie console doesn't match your records
+- Key displayed in codenextremote console doesn't match your records
 - Multiple `.pub` files exist in RustDesk directory
 - Key file has unexpected name
 
@@ -87,7 +87,7 @@ cat /opt/rustdesk/id_ed25519.pub
 ```
 
 **Compare this with:**
-- What's shown in Yomie WebConsole
+- What's shown in codenextremote WebConsole
 - What's configured in your RustDesk clients
 
 ### Step 3: Check for Backups
@@ -117,7 +117,7 @@ journalctl -u rustdesksignal -n 50 --no-pager | grep -i "key\|error"
 
 ### Solution 1: Keys Were Accidentally Changed
 
-**Scenario**: Yomie installation regenerated your keys
+**Scenario**: codenextremote installation regenerated your keys
 
 **Fix**: Restore from backup
 
@@ -158,7 +158,7 @@ sudo chmod 644 /opt/rustdesk/id_ed25519.pub
 sudo chown root:root /opt/rustdesk/id_ed25519*
 
 # Restart services
-sudo systemctl restart rustdesksignal rustdeskrelay yomie
+sudo systemctl restart rustdesksignal rustdeskrelay codenextremote
 ```
 
 **Verify it works:**
@@ -235,7 +235,7 @@ cat /opt/rustdesk/id_ed25519.pub
 
 ### Best Practices
 
-1. **Always Backup Before Installing Yomie**
+1. **Always Backup Before Installing codenextremote**
    ```bash
    sudo cp -r /opt/rustdesk /opt/rustdesk-backup-$(date +%Y%m%d)
    ```
@@ -253,19 +253,19 @@ cat /opt/rustdesk/id_ed25519.pub
 
 4. **Verify After Installation**
    ```bash
-   # After Yomie installation
+   # After codenextremote installation
    cat /opt/rustdesk/id_ed25519.pub
    # Compare with your saved copy
    ```
 
-5. **Use Yomie v9+ Installation Script**
+5. **Use codenextremote v9+ Installation Script**
    - Newer versions include key protection
    - Automatically detects and preserves existing keys
    - Warns before any key changes
 
-### During Yomie Installation
+### During codenextremote Installation
 
-When installing Yomie, **always**:
+When installing codenextremote, **always**:
 
 ✅ Choose **Option 1**: "Create automatic backup"  
 ✅ Select **Option 1**: "Keep existing keys" (when prompted)  
@@ -297,13 +297,13 @@ When installing Yomie, **always**:
    - Click **OK**
    - Test connection
 
-### Scenario: Yomie Shows Wrong Key
+### Scenario: codenextremote Shows Wrong Key
 
 **If WebConsole displays different key than expected:**
 
 ```bash
 # Check what web console is reading
-sudo grep "PUB_KEY_PATH" /opt/YomieConsole/app.py
+sudo grep "PUB_KEY_PATH" /opt/codenextremoteConsole/app.py
 
 # Check if file exists
 ls -lah /opt/rustdesk/id_ed25519.pub
@@ -315,7 +315,7 @@ echo "=== WebConsole shows ==="
 # (copy from web interface)
 ```
 
-**Fix**: Yomie v9+ automatically scans for any `.pub` file. Update to latest version:
+**Fix**: codenextremote v9+ automatically scans for any `.pub` file. Update to latest version:
 ```bash
 cd /path/to/Rustdesk-FreeConsole
 git pull
@@ -351,8 +351,8 @@ $(journalctl -u rustdesksignal -n 30 --no-pager 2>&1)
 --- Backups Available ---
 $(ls -d /opt/rustdesk-backup-* 2>&1)
 
---- Yomie Version ---
-$(grep "VERSION=" /opt/YomieConsole/app.py 2>&1)
+--- codenextremote Version ---
+$(grep "VERSION=" /opt/codenextremoteConsole/app.py 2>&1)
 
 EOF'
 
@@ -371,7 +371,7 @@ cat ~/rustdesk_diagnostics.txt
 
 - [RustDesk Official Docs](https://rustdesk.com/docs/)
 - [SSH Key Generation Guide](https://www.ssh.com/academy/ssh/keygen)
-- [Yomie Installation Guide](INSTALLATION_V8.md)
+- [codenextremote Installation Guide](INSTALLATION_V8.md)
 - [Project Documentation](PROJECT_STRUCTURE.md)
 
 ---

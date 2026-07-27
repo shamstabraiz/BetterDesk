@@ -1,4 +1,4 @@
-# Yomie Go Server — Clean-Room Implementation Context
+# codenextremote Go Server — Clean-Room Implementation Context
 
 > This file is automatically included in every Copilot conversation context.
 > It contains the complete specification for building a clean-room RustDesk-compatible server in Go.
@@ -9,7 +9,7 @@
 
 Build a **clean-room** signal + relay server in **Go** that is 100% compatible with existing
 RustDesk clients (desktop, mobile, web) but completely independent of the AGPL-3.0 RustDesk
-server codebase. The result is a single binary called **`yomie-server`** that replaces
+server codebase. The result is a single binary called **`codenextremote-server`** that replaces
 both `hbbs` (signal) and `hbbr` (relay).
 
 ### Legal Basis
@@ -26,7 +26,7 @@ both `hbbs` (signal) and `hbbr` (relay).
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| 0.1 | Create Go project skeleton (`yomie-server/`) | ✅ done | `go mod init`, folder structure |
+| 0.1 | Create Go project skeleton (`codenextremote-server/`) | ✅ done | `go mod init`, folder structure |
 | 0.2 | Compile protobuf → Go structs | ✅ done | `rendezvous.pb.go` + `message.pb.go` (12K LOC) |
 | 0.3 | Implement AddrMangle (encode/decode) | ✅ done | `crypto/addr_mangle.go` + tests |
 | 0.4 | Implement framing codec (TCP) | ✅ done | `codec/` — 2-byte BE length prefix + protobuf |
@@ -88,18 +88,18 @@ both `hbbs` (signal) and `hbbr` (relay).
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | 4.1 | `tools/migrate/main.go` | ⬜ todo | CLI migration binary |
-| 4.2 | Original RustDesk → Yomie | ⬜ todo | `peer` → `peers` schema mapping |
-| 4.3 | Yomie SQLite → PostgreSQL | ⬜ todo | Full schema migration |
+| 4.2 | Original RustDesk → codenextremote | ⬜ todo | `peer` → `peers` schema mapping |
+| 4.3 | codenextremote SQLite → PostgreSQL | ⬜ todo | Full schema migration |
 | 4.4 | Node.js tables migration | ⬜ todo | address_books, groups, sysinfo |
 | 4.5 | Reverse: PG → SQLite | ⬜ todo | Downgrade/testing |
-| 4.6 | ALL-IN-ONE script integration | ⬜ todo | yomie.sh / .ps1 |
+| 4.6 | ALL-IN-ONE script integration | ⬜ todo | codenextremote.sh / .ps1 |
 
 ---
 
 ## 🏗️ Architecture — Single Binary
 
 ```
-yomie-server [--port 21116] [--relay-port 21117] [--api-port 21114] [--key <base64>]
+codenextremote-server [--port 21116] [--relay-port 21117] [--api-port 21114] [--key <base64>]
 
 Modes (all run by default in a single process):
   --mode=all       ← default, runs signal + relay + api in one process
@@ -123,7 +123,7 @@ Modes (all run by default in a single process):
 ### Folder Structure
 
 ```
-yomie-server/
+codenextremote-server/
 ├── main.go                    # Entry point, flag parsing, mode selection
 ├── go.mod
 ├── go.sum
@@ -592,7 +592,7 @@ api/             → TestHealthEndpoint, TestPeersEndpoint, TestAPIKeyAuth
 
 ### Integration Tests
 ```
-1. Start yomie-server in test mode
+1. Start codenextremote-server in test mode
 2. Use Go test client that speaks the protobuf protocol
 3. Test full flows: register → punch hole → relay → disconnect
 4. Test with real RustDesk client binary (manual/CI)
@@ -606,29 +606,29 @@ api/             → TestHealthEndpoint, TestPeersEndpoint, TestAPIKeyAuth
 
 ```bash
 # Linux amd64
-GOOS=linux GOARCH=amd64 go build -o yomie-server-linux-amd64 .
+GOOS=linux GOARCH=amd64 go build -o codenextremote-server-linux-amd64 .
 
 # Linux arm64
-GOOS=linux GOARCH=arm64 go build -o yomie-server-linux-arm64 .
+GOOS=linux GOARCH=arm64 go build -o codenextremote-server-linux-arm64 .
 
 # Windows amd64
-GOOS=windows GOARCH=amd64 go build -o yomie-server-windows-amd64.exe .
+GOOS=windows GOARCH=amd64 go build -o codenextremote-server-windows-amd64.exe .
 
 # With version info
-go build -ldflags "-X main.Version=1.0.0 -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o yomie-server .
+go build -ldflags "-X main.Version=1.0.0 -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o codenextremote-server .
 ```
 
 ### Systemd Service (replaces both hbbs + hbbr services)
 
 ```ini
 [Unit]
-Description=Yomie Server (Signal + Relay + API)
+Description=codenextremote Server (Signal + Relay + API)
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/yomie/yomie-server --port 21116 --relay-port 21117 --api-port 21114
-WorkingDirectory=/opt/yomie
+ExecStart=/opt/codenextremote/codenextremote-server --port 21116 --relay-port 21117 --api-port 21114
+WorkingDirectory=/opt/codenextremote
 Restart=always
 RestartSec=5
 LimitNOFILE=65536
@@ -663,7 +663,7 @@ WantedBy=multi-user.target
 15. **Blacklist/blocklist** — IP-based, file-loaded
 
 ### Phase 4: API & Features (Tasks 0.12–0.18)
-16. **HTTP API** — all existing endpoints from Yomie
+16. **HTTP API** — all existing endpoints from codenextremote
 17. **Ban system** — integrated with signal + relay
 18. **ID change** — with rate limiting and history
 19. **Integration with web-nodejs** — replace Rust hbbs, keep Node.js console
@@ -671,7 +671,7 @@ WantedBy=multi-user.target
 ### Phase 5: Production (Tasks 0.19–0.20)
 20. **Full integration testing** with real RustDesk clients
 21. **Cross-compilation** and release pipeline
-22. **Update ALL-IN-ONE scripts** (`yomie.sh`, `yomie.ps1`) for Go binary
+22. **Update ALL-IN-ONE scripts** (`codenextremote.sh`, `codenextremote.ps1`) for Go binary
 
 ---
 
@@ -708,16 +708,16 @@ Node.js web console (`web-nodejs/`) works without changes.
 
 ---
 
-## 🔗 Integration with Existing Yomie Components
+## 🔗 Integration with Existing codenextremote Components
 
 The Go server replaces ONLY the Rust binaries (`hbbs` + `hbbr`). Everything else stays:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | `web-nodejs/` | ✅ Unchanged | Reads `db_v2.sqlite3` + calls HTTP API on 21114 |
-| `yomie.sh` | 🔧 Update needed | Download/install Go binary instead of Rust binaries |
-| `yomie.ps1` | 🔧 Update needed | Same |
-| `yomie-docker.sh` | 🔧 Update needed | Update Dockerfile for single binary |
+| `codenextremote.sh` | 🔧 Update needed | Download/install Go binary instead of Rust binaries |
+| `codenextremote.ps1` | 🔧 Update needed | Same |
+| `codenextremote-docker.sh` | 🔧 Update needed | Update Dockerfile for single binary |
 | `Dockerfile.hbbs` | 🔄 Replace | Single `Dockerfile.server` for Go binary |
 | `Dockerfile.hbbr` | 🔄 Remove | Not needed — single binary |
 | `docker-compose.yml` | 🔧 Update needed | Single `server` service instead of `hbbs` + `hbbr` |

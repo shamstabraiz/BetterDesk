@@ -1,5 +1,5 @@
 /**
- * Yomie Console - i18n Routes Tests
+ * codenextremote Console - i18n Routes Tests
  */
 
 const request = require('supertest');

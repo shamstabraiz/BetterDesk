@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Desktop Mode (BETA)
+ * codenextremote Console - Desktop Mode (BETA)
  * Windows-like desktop environment with floating windows, taskbar, and app icons.
  * Available on viewports >= 1200px.
  * 
@@ -16,10 +16,10 @@
     const MIN_HEIGHT = 300;
     const TASKBAR_HEIGHT = 10;  // slim taskbar height in px
     const BREAKPOINT = 1200;
-    const STORAGE_KEY = 'yomie_desktop_mode';
-    const STORAGE_WINS_KEY = 'yomie_desktop_wins';
+    const STORAGE_KEY = 'codenextremote_desktop_mode';
+    const STORAGE_WINS_KEY = 'codenextremote_desktop_wins';
     const CASCADE_OFFSET = 32;
-    const STORAGE_FOLDABLE_AUTO = 'yomie_foldable_auto'; // Auto-switch on unfold
+    const STORAGE_FOLDABLE_AUTO = 'codenextremote_foldable_auto'; // Auto-switch on unfold
 
 
     // ============ State ============
@@ -65,7 +65,7 @@
 
     // Widget mode: 'windows' or 'widgets'
     let currentMode = 'widgets'; // Default to widgets mode
-    const STORAGE_MODE = 'yomie_desktop_view_mode';
+    const STORAGE_MODE = 'codenextremote_desktop_view_mode';
 
     // Foldable phone detection
     let isFoldableDevice = false;
@@ -96,8 +96,8 @@
 
     function getApps() {
         var t = typeof _ === 'function' ? _ : function(k) { return k; };
-        var isAdmin = window.Yomie && window.Yomie.user &&
-                      window.Yomie.user.role === 'admin';
+        var isAdmin = window.codenextremote && window.codenextremote.user &&
+                      window.codenextremote.user.role === 'admin';
         var apps = [
             // Main
             { id: 'dashboard',     icon: 'dashboard',        route: '/',              color: '#58a6ff',  name: t('nav.dashboard'),      category: 'main' },
@@ -138,7 +138,7 @@
     // ============ Initialization ============
 
     function init() {
-        if (window.Yomie && window.Yomie.embed) return;
+        if (window.codenextremote && window.codenextremote.embed) return;
         
         // Initialize foldable device detection
         initFoldableDetection();
@@ -202,7 +202,7 @@
         
         // Log foldable detection status
         if (isFoldableDevice) {
-            console.log('Yomie: Foldable device detected, posture:', devicePosture);
+            console.log('codenextremote: Foldable device detected, posture:', devicePosture);
         }
     }
     
@@ -328,7 +328,7 @@
         active = true;
         localStorage.setItem(STORAGE_KEY, 'true');
         // Set HTTP cookie so server can detect desktop mode for login page
-        document.cookie = 'yomie_desktop_mode=true;path=/;max-age=31536000;SameSite=Lax';
+        document.cookie = 'codenextremote_desktop_mode=true;path=/;max-age=31536000;SameSite=Lax';
 
         document.body.classList.add('desktop-active');
         if (!skipAnimation) {
@@ -356,7 +356,7 @@
         active = false;
         localStorage.setItem(STORAGE_KEY, 'false');
         // Clear HTTP cookie
-        document.cookie = 'yomie_desktop_mode=;path=/;max-age=0;SameSite=Lax';
+        document.cookie = 'codenextremote_desktop_mode=;path=/;max-age=0;SameSite=Lax';
 
         // Destroy widget mode
         if (window.DesktopWidgets) {
@@ -1886,7 +1886,7 @@
 
     var _topbarClockInterval = null;
     var _topbarEditMode = false;
-    var STORAGE_SHORTCUTS = 'yomie_topbar_shortcuts';
+    var STORAGE_SHORTCUTS = 'codenextremote_topbar_shortcuts';
 
     function getTopbarShortcuts() {
         try { return JSON.parse(localStorage.getItem(STORAGE_SHORTCUTS) || '[]'); }
@@ -1977,8 +1977,8 @@
 
         var helpBtn = document.getElementById('topbar-help-btn');
         if (helpBtn) helpBtn.addEventListener('click', function() {
-            if (window.YomieTutorial && typeof window.YomieTutorial.toggleHelpMenu === 'function') {
-                window.YomieTutorial.toggleHelpMenu();
+            if (window.codenextremoteTutorial && typeof window.codenextremoteTutorial.toggleHelpMenu === 'function') {
+                window.codenextremoteTutorial.toggleHelpMenu();
             } else if (window.Tutorial && typeof window.Tutorial.toggleHelpMenu === 'function') {
                 window.Tutorial.toggleHelpMenu();
             }

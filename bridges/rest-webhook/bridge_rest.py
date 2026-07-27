@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Yomie CDAP — REST / Webhook Bridge.
+"""codenextremote CDAP — REST / Webhook Bridge.
 
 Polls HTTP endpoints and/or listens for incoming webhooks.  Pushes values
-to Yomie via CDAP, and writes back to REST APIs on command.
+to codenextremote via CDAP, and writes back to REST APIs on command.
 
 Usage:
-    pip install yomie-cdap aiohttp
+    pip install codenextremote-cdap aiohttp
     python bridge_rest.py --config config.json
 """
 
@@ -22,7 +22,7 @@ from typing import Any
 import aiohttp
 from aiohttp import web
 
-from yomie_cdap import CDAPBridge, gauge, toggle, textWidget
+from codenextremote_cdap import CDAPBridge, gauge, toggle, textWidget
 
 logger = logging.getLogger("bridge_rest")
 
@@ -250,7 +250,7 @@ class RESTBridge:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Yomie CDAP REST/Webhook Bridge")
+    parser = argparse.ArgumentParser(description="codenextremote CDAP REST/Webhook Bridge")
     parser.add_argument("--config", "-c", default="config.json", help="Path to config file")
     parser.add_argument("--log-level", "-l", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()

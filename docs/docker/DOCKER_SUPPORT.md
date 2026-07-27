@@ -1,8 +1,8 @@
-# 🐳 Docker Installation Guide - Yomie Console
+# 🐳 Docker Installation Guide - codenextremote Console
 
-Complete guide for running Yomie Console with RustDesk in Docker containers.
+Complete guide for running codenextremote Console with RustDesk in Docker containers.
 
-> ⚠️ **IMPORTANT**: Yomie images are built locally - they are NOT published to Docker Hub. Always use `docker compose build` or `docker compose up --build` instead of `docker compose pull`.
+> ⚠️ **IMPORTANT**: codenextremote images are built locally - they are NOT published to Docker Hub. Always use `docker compose build` or `docker compose up --build` instead of `docker compose pull`.
 
 ## Table of Contents
 
@@ -53,8 +53,8 @@ This installer provides:
 ### 1. Create Project Directory
 
 ```bash
-mkdir -p /opt/yomie-docker
-cd /opt/yomie-docker
+mkdir -p /opt/codenextremote-docker
+cd /opt/codenextremote-docker
 ```
 
 ### 2. Create docker-compose.yml
@@ -63,45 +63,45 @@ cd /opt/yomie-docker
 version: '3.8'
 
 services:
-  # RustDesk HBBS (Signal Server) with Yomie API
+  # RustDesk HBBS (Signal Server) with codenextremote API
   hbbs:
     image: rustdesk/rustdesk-server:latest
-    container_name: yomie-hbbs
+    container_name: codenextremote-hbbs
     command: hbbs -k _ --api-port 21114
     ports:
       - "21115:21115"
       - "21116:21116"
       - "21116:21116/udp"
-      - "21114:21114"       # API port for Yomie
+      - "21114:21114"       # API port for codenextremote
     volumes:
       - ./data:/root
     environment:
       - ALWAYS_USE_RELAY=N
     networks:
-      - yomie-net
+      - codenextremote-net
     restart: unless-stopped
 
   # RustDesk HBBR (Relay Server)
   hbbr:
     image: rustdesk/rustdesk-server:latest
-    container_name: yomie-hbbr
+    container_name: codenextremote-hbbr
     command: hbbr -k _
     ports:
       - "21117:21117"
     volumes:
       - ./data:/root
     networks:
-      - yomie-net
+      - codenextremote-net
     restart: unless-stopped
     depends_on:
       - hbbs
 
-  # Yomie Web Console
+  # codenextremote Web Console
   console:
     build:
       context: ./console
       dockerfile: Dockerfile
-    container_name: yomie-console
+    container_name: codenextremote-console
     ports:
       - "5000:5000"
     volumes:
@@ -113,13 +113,13 @@ services:
       - PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:?Set FLASK_SECRET_KEY in .env or export it}
     networks:
-      - yomie-net
+      - codenextremote-net
     restart: unless-stopped
     depends_on:
       - hbbs
 
 networks:
-  yomie-net:
+  codenextremote-net:
     driver: bridge
 ```
 
@@ -171,10 +171,10 @@ EOF
 
 ```bash
 # Clone repository first if you haven't
-git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git /tmp/yomie
+git clone https://github.com/shamstabraiz/Rustdesk-FreeConsole.git /tmp/codenextremote
 
 # Copy web files
-cp -r /tmp/yomie/web/* console/
+cp -r /tmp/codenextremote/web/* console/
 ```
 
 ### 6. Start Services
@@ -208,8 +208,8 @@ version: '3.8'
 services:
   hbbs:
     image: rustdesk/rustdesk-server:latest
-    container_name: yomie-hbbs
-    hostname: yomie-hbbs
+    container_name: codenextremote-hbbs
+    hostname: codenextremote-hbbs
     command: hbbs -k _ --api-port 21114
     ports:
       - "21115:21115"           # TCP hole punching
@@ -217,13 +217,13 @@ services:
       - "21116:21116/udp"       # UDP hole punching
       - "21114:21114"           # HTTP API
     volumes:
-      - yomie-data:/root
+      - codenextremote-data:/root
     environment:
       - ALWAYS_USE_RELAY=N
       - ENCRYPTED_ONLY=1
       - DB_URL=./db_v2.sqlite3
     networks:
-      yomie-net:
+      codenextremote-net:
         aliases:
           - hbbs
     restart: unless-stopped
@@ -235,15 +235,15 @@ services:
 
   hbbr:
     image: rustdesk/rustdesk-server:latest
-    container_name: yomie-hbbr
-    hostname: yomie-hbbr
+    container_name: codenextremote-hbbr
+    hostname: codenextremote-hbbr
     command: hbbr -k _
     ports:
       - "21117:21117"           # Relay port
     volumes:
-      - yomie-data:/root
+      - codenextremote-data:/root
     networks:
-      yomie-net:
+      codenextremote-net:
         aliases:
           - hbbr
     restart: unless-stopped
@@ -255,12 +255,12 @@ services:
     build:
       context: ./console
       dockerfile: Dockerfile
-    container_name: yomie-console
-    hostname: yomie-console
+    container_name: codenextremote-console
+    hostname: codenextremote-console
     ports:
       - "5000:5000"
     volumes:
-      - yomie-data:/opt/rustdesk:ro
+      - codenextremote-data:/opt/rustdesk:ro
       - console-data:/app/data
     environment:
       - DB_PATH=/opt/rustdesk/db_v2.sqlite3
@@ -270,7 +270,7 @@ services:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
       - FLASK_ENV=production
     networks:
-      - yomie-net
+      - codenextremote-net
     restart: unless-stopped
     depends_on:
       - hbbs
@@ -281,13 +281,13 @@ services:
       retries: 3
 
 volumes:
-  yomie-data:
+  codenextremote-data:
     driver: local
   console-data:
     driver: local
 
 networks:
-  yomie-net:
+  codenextremote-net:
     driver: bridge
     ipam:
       config:
@@ -296,7 +296,7 @@ networks:
 
 ---
 
-## Using Pre-built Yomie Binaries in Docker
+## Using Pre-built codenextremote Binaries in Docker
 
 If you want to use the enhanced HBBS with ban enforcement:
 
@@ -337,11 +337,11 @@ cp hbbs-patch/bin-with-api/hbbs-v8-api ./hbbs-v8-api
 cp hbbs-patch/bin-with-api/hbbr-v8-api ./hbbr-v8-api
 
 # Build custom image
-docker build -t yomie-hbbs:v8 -f Dockerfile.hbbs .
+docker build -t codenextremote-hbbs:v8 -f Dockerfile.hbbs .
 
 # Update docker-compose.yml to use custom image
 # Replace: image: rustdesk/rustdesk-server:latest
-# With:    image: yomie-hbbs:v8
+# With:    image: codenextremote-hbbs:v8
 ```
 
 ---
@@ -352,41 +352,41 @@ docker build -t yomie-hbbs:v8 -f Dockerfile.hbbs .
 
 ```bash
 # Create network
-docker network create yomie-net
+docker network create codenextremote-net
 
 # Create data volume
-docker volume create yomie-data
+docker volume create codenextremote-data
 
 # Run HBBS
 docker run -d \
-  --name yomie-hbbs \
-  --network yomie-net \
+  --name codenextremote-hbbs \
+  --network codenextremote-net \
   -p 21115:21115 \
   -p 21116:21116 \
   -p 21116:21116/udp \
   -p 21114:21114 \
-  -v yomie-data:/root \
+  -v codenextremote-data:/root \
   rustdesk/rustdesk-server:latest \
   hbbs -k _ --api-port 21114
 
 # Run HBBR
 docker run -d \
-  --name yomie-hbbr \
-  --network yomie-net \
+  --name codenextremote-hbbr \
+  --network codenextremote-net \
   -p 21117:21117 \
-  -v yomie-data:/root \
+  -v codenextremote-data:/root \
   rustdesk/rustdesk-server:latest \
   hbbr -k _
 
 # Run Console (after building)
 docker run -d \
-  --name yomie-console \
-  --network yomie-net \
+  --name codenextremote-console \
+  --network codenextremote-net \
   -p 5000:5000 \
-  -v yomie-data:/opt/rustdesk:ro \
+  -v codenextremote-data:/opt/rustdesk:ro \
   -e DB_PATH=/opt/rustdesk/db_v2.sqlite3 \
   -e FLASK_SECRET_KEY=$(openssl rand -hex 32) \
-  yomie-console:latest
+  codenextremote-console:latest
 ```
 
 ---
@@ -410,14 +410,14 @@ docker run -d \
 **Solution:**
 ```bash
 # Access HBBS container
-docker exec -it yomie-hbbs /bin/sh
+docker exec -it codenextremote-hbbs /bin/sh
 
 # Add missing column
 sqlite3 /root/db_v2.sqlite3 "ALTER TABLE peer ADD COLUMN last_online TEXT;"
 sqlite3 /root/db_v2.sqlite3 "ALTER TABLE peer ADD COLUMN is_deleted INTEGER DEFAULT 0;"
 
 # Restart container
-docker restart yomie-hbbs yomie-console
+docker restart codenextremote-hbbs codenextremote-console
 ```
 
 ### Issue: Cannot Connect to API
@@ -425,13 +425,13 @@ docker restart yomie-hbbs yomie-console
 **Solution:**
 ```bash
 # Check if API is responding
-docker exec yomie-hbbs curl -s http://localhost:21114/api/health
+docker exec codenextremote-hbbs curl -s http://localhost:21114/api/health
 
 # Check logs
-docker logs yomie-hbbs --tail 50
+docker logs codenextremote-hbbs --tail 50
 
 # Verify port mapping
-docker port yomie-hbbs
+docker port codenextremote-hbbs
 ```
 
 ### Issue: Console Cannot Access Database
@@ -439,13 +439,13 @@ docker port yomie-hbbs
 **Solution:**
 ```bash
 # Check volume mounts
-docker inspect yomie-console | grep Mounts -A 20
+docker inspect codenextremote-console | grep Mounts -A 20
 
 # Verify database exists
-docker exec yomie-hbbs ls -la /root/*.sqlite3
+docker exec codenextremote-hbbs ls -la /root/*.sqlite3
 
 # Check permissions
-docker exec yomie-console ls -la /opt/rustdesk/
+docker exec codenextremote-console ls -la /opt/rustdesk/
 ```
 
 ### Viewing Logs
@@ -459,7 +459,7 @@ docker-compose logs -f hbbs
 docker-compose logs -f console
 
 # Last 100 lines
-docker logs yomie-hbbs --tail 100
+docker logs codenextremote-hbbs --tail 100
 ```
 
 ---
@@ -470,29 +470,29 @@ docker logs yomie-hbbs --tail 100
 
 ```bash
 sudo cp -r /opt/rustdesk /opt/rustdesk-backup
-sudo cp -r /opt/YomieConsole /opt/YomieConsole-backup
+sudo cp -r /opt/codenextremoteConsole /opt/codenextremoteConsole-backup
 ```
 
 ### 2. Stop Native Services
 
 ```bash
-sudo systemctl stop hbbs hbbr yomie
-sudo systemctl disable hbbs hbbr yomie
+sudo systemctl stop hbbs hbbr codenextremote
+sudo systemctl disable hbbs hbbr codenextremote
 ```
 
 ### 3. Copy Data to Docker Volume
 
 ```bash
 # Create directory for Docker data
-mkdir -p /opt/yomie-docker/data
+mkdir -p /opt/codenextremote-docker/data
 
 # Copy RustDesk data
-sudo cp /opt/rustdesk/db_v2.sqlite3 /opt/yomie-docker/data/
-sudo cp /opt/rustdesk/id_ed25519* /opt/yomie-docker/data/
-sudo cp /opt/rustdesk/.api_key /opt/yomie-docker/data/
+sudo cp /opt/rustdesk/db_v2.sqlite3 /opt/codenextremote-docker/data/
+sudo cp /opt/rustdesk/id_ed25519* /opt/codenextremote-docker/data/
+sudo cp /opt/rustdesk/.api_key /opt/codenextremote-docker/data/
 
 # Set permissions
-sudo chown -R 1000:1000 /opt/yomie-docker/data
+sudo chown -R 1000:1000 /opt/codenextremote-docker/data
 ```
 
 ### 4. Update docker-compose.yml
@@ -501,13 +501,13 @@ Use bind mount instead of named volume:
 
 ```yaml
 volumes:
-  - /opt/yomie-docker/data:/root
+  - /opt/codenextremote-docker/data:/root
 ```
 
 ### 5. Start Docker Services
 
 ```bash
-cd /opt/yomie-docker
+cd /opt/codenextremote-docker
 docker-compose up -d
 ```
 
@@ -528,10 +528,10 @@ docker-compose up -d
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name yomie.yourdomain.com;
+    server_name codenextremote.yourdomain.com;
 
-    ssl_certificate /etc/letsencrypt/live/yomie.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yomie.yourdomain.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/codenextremote.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/codenextremote.yourdomain.com/privkey.pem;
 
     location / {
         proxy_pass http://localhost:5000;

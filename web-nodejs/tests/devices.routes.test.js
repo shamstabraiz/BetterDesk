@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Devices Routes Tests
+ * codenextremote Console - Devices Routes Tests
  */
 
 const request = require('supertest');

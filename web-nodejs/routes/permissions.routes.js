@@ -1,12 +1,12 @@
 /**
- * Yomie Console - Permissions Routes (RBAC Phase 52)
+ * codenextremote Console - Permissions Routes (RBAC Phase 52)
  * Role and permission management for admins.
  */
 
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requirePermission } = require('../middleware/auth');
-const yomieApi = require('../services/yomieApi');
+const codenextremoteApi = require('../services/codenextremoteApi');
 
 // ── Page Route ───────────────────────────────────
 
@@ -28,7 +28,7 @@ router.get('/permissions', requireAuth, requirePermission('server.config'), (req
  */
 router.get('/api/panel/roles', requireAuth, requirePermission('user.view'), async (req, res) => {
     try {
-        const result = await yomieApi.listRoles();
+        const result = await codenextremoteApi.listRoles();
         if (!result.success) {
             return res.status(500).json({ success: false, error: result.error });
         }
@@ -44,7 +44,7 @@ router.get('/api/panel/roles', requireAuth, requirePermission('user.view'), asyn
  */
 router.get('/api/panel/roles/:role/permissions', requireAuth, requirePermission('user.view'), async (req, res) => {
     try {
-        const result = await yomieApi.getRolePermissions(req.params.role);
+        const result = await codenextremoteApi.getRolePermissions(req.params.role);
         if (!result.success) {
             return res.status(500).json({ success: false, error: result.error });
         }
@@ -60,7 +60,7 @@ router.get('/api/panel/roles/:role/permissions', requireAuth, requirePermission(
  */
 router.get('/api/panel/role-permissions', requireAuth, requirePermission('server.config'), async (req, res) => {
     try {
-        const result = await yomieApi.listRolePermissionOverrides(req.query.role);
+        const result = await codenextremoteApi.listRolePermissionOverrides(req.query.role);
         if (!result.success) {
             return res.status(500).json({ success: false, error: result.error });
         }
@@ -80,7 +80,7 @@ router.post('/api/panel/role-permissions', requireAuth, requirePermission('serve
         if (!role || !permission || typeof granted !== 'boolean') {
             return res.status(400).json({ success: false, error: 'Missing required fields: role, permission, granted' });
         }
-        const result = await yomieApi.setRolePermission(role, permission, granted);
+        const result = await codenextremoteApi.setRolePermission(role, permission, granted);
         if (!result.success) {
             return res.status(400).json({ success: false, error: result.error || 'Failed to set permission' });
         }
@@ -96,7 +96,7 @@ router.post('/api/panel/role-permissions', requireAuth, requirePermission('serve
  */
 router.delete('/api/panel/role-permissions/:role/:permission', requireAuth, requirePermission('server.config'), async (req, res) => {
     try {
-        const result = await yomieApi.deleteRolePermission(req.params.role, req.params.permission);
+        const result = await codenextremoteApi.deleteRolePermission(req.params.role, req.params.permission);
         if (!result.success) {
             return res.status(400).json({ success: false, error: result.error || 'Failed to delete override' });
         }

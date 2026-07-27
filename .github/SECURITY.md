@@ -10,7 +10,7 @@
 
 ## Reporting a Vulnerability
 
-We take the security of Yomie seriously. If you discover a security vulnerability, please report it responsibly.
+We take the security of codenextremote seriously. If you discover a security vulnerability, please report it responsibly.
 
 ### How to Report
 
@@ -45,17 +45,17 @@ We take the security of Yomie seriously. If you discover a security vulnerabilit
 
 The following components are in scope:
 
-- **Yomie Go Server** (`yomie-server/`) — signal, relay, API, database
+- **codenextremote Go Server** (`codenextremote-server/`) — signal, relay, API, database
 - **Node.js Web Console** (`web-nodejs/`) — Express.js app, routes, middleware
-- **Desktop Client** (`yomie-client/`) — Tauri app, Rust backend, TypeScript frontend
-- **CDAP Agent** (`yomie-agent/`) — Go agent binary
-- **Installer Scripts** (`yomie.sh`, `yomie.ps1`, `yomie-docker.sh`)
+- **Desktop Client** (`codenextremote-client/`) — Tauri app, Rust backend, TypeScript frontend
+- **CDAP Agent** (`codenextremote-agent/`) — Go agent binary
+- **Installer Scripts** (`codenextremote.sh`, `codenextremote.ps1`, `codenextremote-docker.sh`)
 - **Docker Images** (`Dockerfile*`, `docker-compose*.yml`)
 - **SDKs** (`sdks/python/`, `sdks/nodejs/`)
 
 ### Out of Scope
 
-- Third-party dependencies (report to upstream maintainers, but notify us if it affects Yomie)
+- Third-party dependencies (report to upstream maintainers, but notify us if it affects codenextremote)
 - Social engineering attacks
 - Denial of service via network flooding (volumetric attacks)
 - Issues in archived components (`archive/`)
@@ -75,4 +75,4 @@ We gratefully acknowledge security researchers who report vulnerabilities respon
 4. Rotate API keys regularly
 5. Enable TOTP 2FA for all admin accounts
 6. Review audit logs periodically
-7. Keep Yomie updated to the latest supported version
+7. Keep codenextremote updated to the latest supported version

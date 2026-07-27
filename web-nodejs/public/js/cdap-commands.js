@@ -1,5 +1,5 @@
 /**
- * Yomie Console - CDAP Command Sender
+ * codenextremote Console - CDAP Command Sender
  * Handles sending commands to CDAP devices with confirmation dialogs,
  * cooldown management, and command log tracking.
  */
@@ -24,7 +24,7 @@
         }
         lastCommandTime[key] = now;
 
-        const csrfToken = window.Yomie?.csrfToken || '';
+        const csrfToken = window.codenextremote?.csrfToken || '';
 
         try {
             const res = await fetch(`/api/cdap/devices/${encodeURIComponent(deviceId)}/command`, {
@@ -73,10 +73,10 @@
     }
 
     function sendWithConfirm(deviceId, widgetId, action, value, confirmMsg) {
-        const __ = window.Yomie?.translations || {};
+        const __ = window.codenextremote?.translations || {};
         const title = __?.cdap?.confirm_command || 'Confirm Command';
 
-        if (!window.YomieModal) {
+        if (!window.codenextremoteModal) {
             if (confirm(confirmMsg || title)) {
                 return send(deviceId, widgetId, action, value);
             }
@@ -84,7 +84,7 @@
         }
 
         return new Promise((resolve) => {
-            window.YomieModal.confirm({
+            window.codenextremoteModal.confirm({
                 title: title,
                 message: confirmMsg || `${action} → ${widgetId}?`,
                 confirmText: __?.common?.confirm || 'Confirm',
@@ -164,8 +164,8 @@
     }
 
     function showToast(message, type) {
-        if (window.YomieNotifications?.show) {
-            window.YomieNotifications.show(message, type);
+        if (window.codenextremoteNotifications?.show) {
+            window.codenextremoteNotifications.show(message, type);
         }
     }
 

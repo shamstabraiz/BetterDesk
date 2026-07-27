@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Desktop Login Screen (Phase 46)
+ * codenextremote Console — Desktop Login Screen (Phase 46)
  * Windows 11-style full-screen login with lock screen, TOTP 2FA, and multi-user selector.
  */
 
@@ -22,7 +22,7 @@
     // ============ Session Expiry Detection ============
 
     function checkSessionExpired() {
-        if (window.Yomie && window.Yomie.sessionExpired) {
+        if (window.codenextremote && window.codenextremote.sessionExpired) {
             // Skip lock screen, go straight to login form with message
             var lockScreen = document.getElementById('dl-lock-screen');
             var loginLayer = document.getElementById('dl-login-layer');
@@ -139,7 +139,7 @@
 
         if (!form) return;
 
-        var csrfToken = (window.Yomie && window.Yomie.csrfToken) || '';
+        var csrfToken = (window.codenextremote && window.codenextremote.csrfToken) || '';
 
         // Password toggle
         if (passwordToggle && passwordInput) {
@@ -244,7 +244,7 @@
 
         if (!form) return;
 
-        var csrfToken = (window.Yomie && window.Yomie.csrfToken) || '';
+        var csrfToken = (window.codenextremote && window.codenextremote.csrfToken) || '';
 
         // Digit input navigation + auto-submit on 6th digit
         var digits = form.querySelectorAll('.dl-totp-digit');
@@ -349,7 +349,7 @@
     function renderUserChips() {
         var container = document.getElementById('dl-users');
         if (!container) return;
-        var users = (window.Yomie && window.Yomie.users) || [];
+        var users = (window.codenextremote && window.codenextremote.users) || [];
         if (!users.length) return;
 
         var html = '';
@@ -400,9 +400,9 @@
     // ============ Helpers ============
 
     function _t(key) {
-        if (window.Yomie && window.Yomie.translations) {
+        if (window.codenextremote && window.codenextremote.translations) {
             var keys = key.split('.');
-            var val = window.Yomie.translations;
+            var val = window.codenextremote.translations;
             for (var i = 0; i < keys.length; i++) {
                 if (val && typeof val === 'object') val = val[keys[i]];
                 else return key;

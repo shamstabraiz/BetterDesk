@@ -1,17 +1,17 @@
 /**
- * Yomie Console - Device Tokens Management
+ * codenextremote Console - Device Tokens Management
  * Client-side logic for device enrollment token management.
  */
 (function () {
     'use strict';
 
-    const _ = window.Yomie?.translations
-        ? (key) => key.split('.').reduce((o, k) => (o && o[k]) || key, window.Yomie.translations)
+    const _ = window.codenextremote?.translations
+        ? (key) => key.split('.').reduce((o, k) => (o && o[k]) || key, window.codenextremote.translations)
         : (key) => key;
 
     let allTokens = [];
     let currentFilter = 'all';
-    const csrfToken = window.Yomie?.csrfToken || '';
+    const csrfToken = window.codenextremote?.csrfToken || '';
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@
     }
 
     function showToast(message, type) {
-        if (window.Yomie?.notify) { window.Yomie.notify(message, type); return; }
+        if (window.codenextremote?.notify) { window.codenextremote.notify(message, type); return; }
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');

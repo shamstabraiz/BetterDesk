@@ -1,14 +1,14 @@
-# Yomie SDK Overview
+# codenextremote SDK Overview
 
-The Yomie SDK enables developers to build custom CDAP agents and bridges that
-integrate with the Yomie management platform.
+The codenextremote SDK enables developers to build custom CDAP agents and bridges that
+integrate with the codenextremote management platform.
 
 ## Available SDKs
 
 | SDK | Language | Package | Directory |
 |-----|----------|---------|-----------|
-| Python | Python 3.8+ | `yomie-cdap` | `sdks/python/` |
-| Node.js | Node.js 18+ | `yomie-cdap` | `sdks/nodejs/` |
+| Python | Python 3.8+ | `codenextremote-cdap` | `sdks/python/` |
+| Node.js | Node.js 18+ | `codenextremote-cdap` | `sdks/nodejs/` |
 
 ## Architecture
 
@@ -17,7 +17,7 @@ Your Application Code
         │
         ▼
 ┌─────────────────┐
-│  Yomie SDK │    CDAPBridge class handles:
+│  codenextremote SDK │    CDAPBridge class handles:
 │  (Python/Node)  │    - WebSocket connection management
 │                 │    - Authentication
 │  CDAPBridge     │    - Manifest registration
@@ -29,7 +29,7 @@ Your Application Code
          │
          ▼
 ┌─────────────────┐
-│  Yomie     │
+│  codenextremote     │
 │  Go Server      │
 │  CDAP Gateway   │
 │  (:21122/cdap)  │
@@ -46,7 +46,7 @@ implement your agent logic.
 
 ### Widget
 
-Widgets define the UI elements that appear in the Yomie web console for your device.
+Widgets define the UI elements that appear in the codenextremote web console for your device.
 Each widget has a type (gauge, toggle, button, etc.), an ID, and configuration.
 Use factory methods: `Widget.gauge()`, `Widget.toggle()`, `Widget.button()`, etc.
 

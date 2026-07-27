@@ -1,5 +1,5 @@
 /**
- * Yomie Console - i18n API Routes
+ * codenextremote Console - i18n API Routes
  */
 
 const express = require('express');
@@ -85,7 +85,7 @@ router.post('/set/:code', (req, res) => {
             });
         }
         
-        res.cookie('yomie_lang', code, {
+        res.cookie('codenextremote_lang', code, {
             maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
             httpOnly: false, // Intentionally accessible to JS for client-side i18n
             sameSite: 'lax',

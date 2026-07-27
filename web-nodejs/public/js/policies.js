@@ -150,7 +150,7 @@
     }
 
     try {
-      const csrfToken = window.Yomie?.csrfToken || '';
+      const csrfToken = window.codenextremote?.csrfToken || '';
       const resp = await fetch(`/api/panel/policies/${encodeURIComponent(currentOrgId)}/${section}`, {
         method: 'PUT',
         headers: {

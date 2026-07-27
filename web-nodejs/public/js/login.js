@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Login Page
+ * codenextremote Console - Login Page
  */
 
 (function() {
@@ -21,7 +21,7 @@
         
         if (!loginForm) return;
         
-        const csrfToken = window.Yomie?.csrfToken || '';
+        const csrfToken = window.codenextremote?.csrfToken || '';
         
         // Password visibility toggle
         passwordToggle?.addEventListener('click', () => {

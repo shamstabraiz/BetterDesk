@@ -1,6 +1,6 @@
 # Screenshots Placeholder
 
-This directory contains screenshots of Yomie Console for documentation purposes.
+This directory contains screenshots of codenextremote Console for documentation purposes.
 
 ## Required Screenshots
 

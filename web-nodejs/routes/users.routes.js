@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Users Routes
+ * codenextremote Console - Users Routes
  * User management for admins (CRUD operations)
  */
 
@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const authService = require('../services/authService');
 const db = require('../services/database');
-const { apiClient } = require('../services/yomieApi');
+const { apiClient } = require('../services/codenextremoteApi');
 const { requireAuth, requirePermission, isSuperAdminRole } = require('../middleware/auth');
 const { passwordChangeLimiter } = require('../middleware/rateLimiter');
 

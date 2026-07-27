@@ -1,5 +1,5 @@
 #!/bin/sh
-# Docker Entrypoint for Yomie Console (Node.js)
+# Docker Entrypoint for codenextremote Console (Node.js)
 # ---------------------------------------------------
 # The Node.js application handles all database initialization,
 # migration, and admin user creation automatically on startup.
@@ -7,7 +7,7 @@
 set -e
 
 echo "========================================"
-echo "  Yomie Console - Container Startup"
+echo "  codenextremote Console - Container Startup"
 echo "  Version: 2.4.0 (Node.js)"
 echo "========================================"
 
@@ -16,7 +16,7 @@ echo ""
 echo "Configuration:"
 echo "  NODE_ENV:        ${NODE_ENV:-production}"
 echo "  PORT:            ${PORT:-5000}"
-echo "  SERVER_BACKEND:  ${SERVER_BACKEND:-yomie}"
+echo "  SERVER_BACKEND:  ${SERVER_BACKEND:-codenextremote}"
 echo "  DB_TYPE:         ${DB_TYPE:-sqlite}"
 echo "  RUSTDESK_PATH:   ${RUSTDESK_PATH:-/opt/rustdesk}"
 echo "  DATA_DIR:        ${DATA_DIR:-/app/data}"
@@ -64,15 +64,15 @@ if [ "${DB_TYPE:-sqlite}" = "sqlite" ]; then
     fi
 fi
 
-# Wait for Yomie server (hbbs) to be available if using yomie backend
-if [ "${SERVER_BACKEND}" = "yomie" ] && [ -n "${HBBS_API_URL}" ]; then
-    echo "Waiting for Yomie server..."
+# Wait for codenextremote server (hbbs) to be available if using codenextremote backend
+if [ "${SERVER_BACKEND}" = "codenextremote" ] && [ -n "${HBBS_API_URL}" ]; then
+    echo "Waiting for codenextremote server..."
     RETRIES=0
     MAX_RETRIES=30
     while [ "$RETRIES" -lt "$MAX_RETRIES" ]; do
         if curl -sf "${HBBS_API_URL}/health" >/dev/null 2>&1 || \
            curl -sf "${BETTERDESK_API_URL:-${HBBS_API_URL}}" >/dev/null 2>&1; then
-            echo "  Yomie server is ready"
+            echo "  codenextremote server is ready"
             break
         fi
         RETRIES=$((RETRIES + 1))
@@ -80,7 +80,7 @@ if [ "${SERVER_BACKEND}" = "yomie" ] && [ -n "${HBBS_API_URL}" ]; then
         sleep 2
     done
     if [ "$RETRIES" -ge "$MAX_RETRIES" ]; then
-        echo "  WARNING: Yomie server not reachable after ${MAX_RETRIES} attempts"
+        echo "  WARNING: codenextremote server not reachable after ${MAX_RETRIES} attempts"
         echo "  Starting console anyway (some features may be unavailable)..."
     fi
 fi
@@ -109,7 +109,7 @@ if [ "${DB_TYPE}" = "postgresql" ] && [ -n "${DATABASE_URL}" ]; then
 fi
 
 echo ""
-echo "Starting Yomie Console..."
+echo "Starting codenextremote Console..."
 echo "  Web Interface: http://localhost:${PORT:-5000}"
 echo "  Client API:    port ${API_PORT:-21121}"
 echo ""

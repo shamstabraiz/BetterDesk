@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client - File Transfer Module
+ * codenextremote Web Remote Client - File Transfer Module
  * Handles RustDesk file transfer protocol: browse, download, upload, manage
  *
  * Protocol (names are from the remote agent's perspective — same as native RustDesk):

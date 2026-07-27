@@ -1,7 +1,7 @@
-# Gitleaks configuration for Yomie
+# Gitleaks configuration for codenextremote
 # Suppresses false positives from auto-generated lock files
 
-title = "Yomie Gitleaks Config"
+title = "codenextremote Gitleaks Config"
 
 [allowlist]
   description = "Allowlisted files and patterns"

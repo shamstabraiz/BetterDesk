@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Users Page
+ * codenextremote Console - Users Page
  * User management for admins
  */
 

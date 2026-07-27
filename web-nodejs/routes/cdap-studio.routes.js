@@ -1,13 +1,13 @@
 /**
- * Yomie Console — CDAP SDK Studio Routes
+ * codenextremote Console — CDAP SDK Studio Routes
  * Visual node editor for building CDAP bridge flows.
- * Phase 14 of the Yomie 3.0 Roadmap.
+ * Phase 14 of the codenextremote 3.0 Roadmap.
  */
 
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
-const yomieApi = require('../services/yomieApi');
+const codenextremoteApi = require('../services/codenextremoteApi');
 const db = require('../services/dbAdapter');
 const crypto = require('crypto');
 

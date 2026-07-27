@@ -1,12 +1,12 @@
 /**
- * Yomie Console - Client-side i18n
+ * codenextremote Console - Client-side i18n
  */
 
 (function() {
     'use strict';
     
-    const translations = window.Yomie?.translations || {};
-    const currentLang = window.Yomie?.lang || 'en';
+    const translations = window.codenextremote?.translations || {};
+    const currentLang = window.codenextremote?.lang || 'en';
     
     /**
      * Get translation by key with optional interpolation

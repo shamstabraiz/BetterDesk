@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Help Requests Page
+ * codenextremote Console — Help Requests Page
  *
  * Polls the BD-API for incoming help requests and renders them as cards.
  * Operators can accept, resolve, connect, or delete requests.

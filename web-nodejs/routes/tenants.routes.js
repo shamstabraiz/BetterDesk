@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Multi-Tenancy API Routes
+ * codenextremote Console — Multi-Tenancy API Routes
  *
  * Provides organization / tenant management for multi-client deployments.
  * Each tenant has its own set of devices, users, policies, and data

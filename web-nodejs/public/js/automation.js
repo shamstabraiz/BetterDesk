@@ -1,20 +1,20 @@
 /**
- * Yomie Console - Automation Page Script
+ * codenextremote Console - Automation Page Script
  */
 
 (function () {
     'use strict';
 
-    const _ = window.Yomie?.translations
+    const _ = window.codenextremote?.translations
         ? (key) => {
             const keys = key.split('.');
-            let val = window.Yomie.translations;
+            let val = window.codenextremote.translations;
             for (const k of keys) { val = val?.[k]; }
             return val || key;
         }
         : (key) => key;
 
-    const csrfToken = window.Yomie?.csrfToken || '';
+    const csrfToken = window.codenextremote?.csrfToken || '';
 
     // ---- Tab switching ----
 
@@ -344,7 +344,7 @@
     }
 
     function showToast(message, type) {
-        if (window.Yomie?.notify) { window.Yomie.notify(message, type); return; }
+        if (window.codenextremote?.notify) { window.codenextremote.notify(message, type); return; }
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');

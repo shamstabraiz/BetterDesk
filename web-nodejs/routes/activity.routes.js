@@ -1,8 +1,8 @@
 /**
- * Yomie Console — Activity Monitoring API Routes
+ * codenextremote Console — Activity Monitoring API Routes
  *
  * Receives application usage sessions and idle state from the
- * Yomie desktop agent.  Provides admin endpoints for viewing
+ * codenextremote desktop agent.  Provides admin endpoints for viewing
  * activity summaries and per-device session details.
  *
  * Endpoints:

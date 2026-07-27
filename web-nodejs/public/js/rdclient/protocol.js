@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client - Protocol Handler
+ * codenextremote Web Remote Client - Protocol Handler
  * Implements RustDesk rendezvous and peer-to-peer protocol using protobuf
  */
 
@@ -203,7 +203,7 @@ class RDProtocol {
                 username: opts.username || '',
                 password: passwordHash,
                 myId: opts.myId || 'web-client-ft',
-                myName: opts.myName || 'Yomie Web',
+                myName: opts.myName || 'codenextremote Web',
                 myPlatform: 'Web',
                 version: '1.2.4',
                 // Must match desktop session (peer_id + name + session_id) so the
@@ -247,7 +247,7 @@ class RDProtocol {
                 username: opts.username || '',
                 password: passwordHash,
                 myId: opts.myId || 'web-client',
-                myName: opts.myName || 'Yomie Web',
+                myName: opts.myName || 'codenextremote Web',
                 myPlatform: 'Web',
                 version: '1.2.4',
                 sessionId: opts.sessionId != null ? opts.sessionId : Date.now(),
@@ -400,7 +400,7 @@ class RDProtocol {
     }
 
     /**
-     * Toggle flashlight / torch on remote mobile device (Yomie extension).
+     * Toggle flashlight / torch on remote mobile device (codenextremote extension).
      * @param {boolean} on
      */
     buildToggleFlashCustom(on) {

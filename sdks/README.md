@@ -1,7 +1,7 @@
-# Yomie CDAP — SDKs & Bridges
+# codenextremote CDAP — SDKs & Bridges
 
 Software Development Kits and reference bridge implementations for the
-**Connected Device Automation Protocol (CDAP)** used by Yomie server.
+**Connected Device Automation Protocol (CDAP)** used by codenextremote server.
 
 ## SDKs
 
@@ -20,13 +20,13 @@ Software Development Kits and reference bridge implementations for the
 
 ## Native Agent
 
-The **Yomie Agent** is a standalone Go binary that runs on target devices,
+The **codenextremote Agent** is a standalone Go binary that runs on target devices,
 providing system monitoring, terminal access, file browsing, screenshots, and
 clipboard sync through CDAP.
 
 | Component | Directory | Language |
 |-----------|-----------|----------|
-| **Agent** | [`yomie-agent/`](yomie-agent/) | Go 1.25+ |
+| **Agent** | [`codenextremote-agent/`](codenextremote-agent/) | Go 1.25+ |
 
 ## Quick Start
 
@@ -57,9 +57,9 @@ bridge.run();
 ### Go Agent
 
 ```bash
-cd yomie-agent
-go build -o yomie-agent .
-./yomie-agent -server ws://your-server:21122/cdap -auth api_key -key YOUR_KEY
+cd codenextremote-agent
+go build -o codenextremote-agent .
+./codenextremote-agent -server ws://your-server:21122/cdap -auth api_key -key YOUR_KEY
 ```
 
 ## CDAP Protocol Overview

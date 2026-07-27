@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client - Video Decoder
+ * codenextremote Web Remote Client - Video Decoder
  * Uses WebCodecs API for hardware-accelerated video decoding (preferred).
  * Falls back to JMuxer (H.264 via MSE) when WebCodecs is unavailable
  * (e.g., insecure HTTP context on non-localhost).

@@ -1,4 +1,4 @@
-// Yomie Server — Clean-room RustDesk-compatible signal + relay server
+// codenextremote Server — Clean-room RustDesk-compatible signal + relay server
 // Single binary replacing both hbbs and hbbr
 package main
 
@@ -46,7 +46,7 @@ func main() {
 	defer logCleanup()
 
 	log.Printf("========================================")
-	log.Printf("  Yomie Server %s", Version)
+	log.Printf("  codenextremote Server %s", Version)
 	log.Printf("  Build: %s", BuildDate)
 	log.Printf("========================================")
 	log.Printf("  Mode:       %s", cfg.Mode)
@@ -503,7 +503,7 @@ func parseFlags() *config.Config {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("yomie-server %s (built %s)\n", Version, BuildDate)
+		fmt.Printf("codenextremote-server %s (built %s)\n", Version, BuildDate)
 		os.Exit(0)
 	}
 

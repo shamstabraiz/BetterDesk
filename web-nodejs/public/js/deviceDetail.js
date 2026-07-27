@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Device Detail Panel
+ * codenextremote Console - Device Detail Panel
  * Enterprise-grade slide-over panel for device management.
  *
  * Usage:
@@ -724,8 +724,8 @@ const DeviceDetail = (function () {
     function _folderName(folderId) {
         if (!folderId) return _('folders.unassigned');
         // Try to get folder name from the global folders list (devices.js maintains it)
-        if (window._yomie_folders) {
-            const f = window._yomie_folders.find(f => f.id === folderId);
+        if (window._codenextremote_folders) {
+            const f = window._codenextremote_folders.find(f => f.id === folderId);
             if (f) return Utils.escapeHtml(f.name);
         }
         return '#' + folderId;
@@ -751,8 +751,8 @@ const DeviceDetail = (function () {
         // Footer buttons
         panel.querySelector('#dp-close-btn')?.addEventListener('click', close);
         panel.querySelector('#dp-edit-btn')?.addEventListener('click', function () {
-            if (window.YomieDevices && typeof window.YomieDevices.showEditModal === 'function' && device) {
-                window.YomieDevices.showEditModal(device.id);
+            if (window.codenextremoteDevices && typeof window.codenextremoteDevices.showEditModal === 'function' && device) {
+                window.codenextremoteDevices.showEditModal(device.id);
             } else {
                 Notifications.error(_('errors.server_error'));
             }
@@ -1134,8 +1134,8 @@ const DeviceDetail = (function () {
 
         switch (action) {
             case 'edit':
-                if (window.YomieDevices && typeof window.YomieDevices.showEditModal === 'function') {
-                    window.YomieDevices.showEditModal(device.id);
+                if (window.codenextremoteDevices && typeof window.codenextremoteDevices.showEditModal === 'function') {
+                    window.codenextremoteDevices.showEditModal(device.id);
                 } else {
                     Notifications.error(_('errors.server_error'));
                 }

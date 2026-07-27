@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client — Dedicated FILE_TRANSFER session
+ * codenextremote Web Remote Client — Dedicated FILE_TRANSFER session
  *
  * Native RustDesk opens a second connection with ConnType.FILE_TRANSFER for
  * file browse/transfer. Old agents ignore FileAction on a desktop (DEFAULT_CONN)
@@ -35,8 +35,8 @@ class RDFileSession {
         this.deviceId = opts.deviceId;
         this.proto = opts.proto;
         this.serverPubKey = opts.serverPubKey || '';
-        this.myName = opts.myName || 'Yomie Web';
-        this.myId = opts.myId || ('yomie-web-' + Date.now().toString(36));
+        this.myName = opts.myName || 'codenextremote Web';
+        this.myId = opts.myId || ('codenextremote-web-' + Date.now().toString(36));
         this.sessionId = opts.sessionId != null ? opts.sessionId : Date.now();
         this._cached2faCode = opts.cached2faCode || null;
         this._emit = opts.emit || (() => {});

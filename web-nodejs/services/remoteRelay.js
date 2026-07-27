@@ -1,7 +1,7 @@
 /**
- * Yomie Console — Remote Desktop WebSocket Relay
+ * codenextremote Console — Remote Desktop WebSocket Relay
  *
- * Bridges the Yomie desktop agent (JPEG screen stream) and the operator
+ * Bridges the codenextremote desktop agent (JPEG screen stream) and the operator
  * browser viewer (Canvas element).
  *
  * Endpoints:

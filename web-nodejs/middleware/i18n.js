@@ -1,5 +1,5 @@
 /**
- * Yomie Console - i18n Middleware
+ * codenextremote Console - i18n Middleware
  * Injects translation function and language info into templates
  */
 
@@ -39,12 +39,12 @@ function parseAcceptLanguage(header) {
 function i18nMiddleware(req, res, next) {
     // Language detection priority:
     // 1. URL query param ?lang=xx
-    // 2. Cookie yomie_lang
+    // 2. Cookie codenextremote_lang
     // 3. Accept-Language header
     // 4. Default language
     
     let lang = req.query.lang
-        || req.cookies?.yomie_lang
+        || req.cookies?.codenextremote_lang
         || parseAcceptLanguage(req.headers['accept-language'])
         || config.defaultLanguage;
     
@@ -55,7 +55,7 @@ function i18nMiddleware(req, res, next) {
     
     // Set language cookie if from query param
     if (req.query.lang && manager.hasLanguage(req.query.lang)) {
-        res.cookie('yomie_lang', req.query.lang, {
+        res.cookie('codenextremote_lang', req.query.lang, {
             maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
             httpOnly: false,
             sameSite: 'lax'

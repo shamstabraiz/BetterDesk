@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Yomie CDAP — SNMP v2c/v3 Bridge.
+"""codenextremote CDAP — SNMP v2c/v3 Bridge.
 
-Periodically polls SNMP OIDs and pushes values to Yomie via CDAP.
+Periodically polls SNMP OIDs and pushes values to codenextremote via CDAP.
 Supports counter-rate computation, timetick formatting, and byte formatting.
 
 Usage:
-    pip install yomie-cdap pysnmplib
+    pip install codenextremote-cdap pysnmplib
     python bridge_snmp.py --config config.json
 """
 
@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from yomie_cdap import CDAPBridge, gauge, textWidget
+from codenextremote_cdap import CDAPBridge, gauge, textWidget
 
 logger = logging.getLogger("bridge_snmp")
 
@@ -228,7 +228,7 @@ class SNMPBridge:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Yomie CDAP SNMP Bridge")
+    parser = argparse.ArgumentParser(description="codenextremote CDAP SNMP Bridge")
     parser.add_argument("--config", "-c", default="config.json", help="Path to config file")
     parser.add_argument("--log-level", "-l", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()

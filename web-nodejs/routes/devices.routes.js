@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Devices Routes
+ * codenextremote Console - Devices Routes
  */
 
 const express = require('express');
@@ -415,8 +415,8 @@ router.put('/api/devices/:id/tags', requireAuth, requirePermission('device.edit'
             });
         }
 
-        // Yomie backend: delegate to Go server
-        if (serverBackend.isYomie()) {
+        // codenextremote backend: delegate to Go server
+        if (serverBackend.iscodenextremote()) {
             const result = await serverBackend.setPeerTags(id, cleaned);
             if (!result || !result.success) {
                 return res.status(400).json({
@@ -460,7 +460,7 @@ router.post('/api/devices/bulk-delete', requireAuth, requirePermission('device.d
         let deleted = 0;
         for (const id of ids) {
             const result = await serverBackend.deleteDevice(id);
-            // In yomie mode, result is {success, data}; in rustdesk, result has .changes
+            // In codenextremote mode, result is {success, data}; in rustdesk, result has .changes
             if (result && (result.success || result.changes)) deleted++;
         }
         
@@ -489,7 +489,7 @@ router.post('/api/devices/bulk-delete', requireAuth, requirePermission('device.d
  */
 router.get('/api/devices/:id/access-policy', requireAuth, requirePermission('device.view'), async (req, res) => {
     try {
-        const goApi = require('../services/yomieApi');
+        const goApi = require('../services/codenextremoteApi');
         const result = await goApi.getAccessPolicy(req.params.id);
         res.json(result);
     } catch (err) {
@@ -503,7 +503,7 @@ router.get('/api/devices/:id/access-policy', requireAuth, requirePermission('dev
  */
 router.put('/api/devices/:id/access-policy', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
-        const goApi = require('../services/yomieApi');
+        const goApi = require('../services/codenextremoteApi');
         const result = await goApi.saveAccessPolicy(req.params.id, req.body);
         res.json(result);
     } catch (err) {
@@ -517,7 +517,7 @@ router.put('/api/devices/:id/access-policy', requireAuth, requirePermission('dev
  */
 router.delete('/api/devices/:id/access-policy', requireAuth, requirePermission('device.edit'), async (req, res) => {
     try {
-        const goApi = require('../services/yomieApi');
+        const goApi = require('../services/codenextremoteApi');
         const result = await goApi.deleteAccessPolicy(req.params.id);
         res.json(result);
     } catch (err) {

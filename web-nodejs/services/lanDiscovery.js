@@ -1,5 +1,5 @@
 /**
- * Yomie Console - LAN Discovery Service
+ * codenextremote Console - LAN Discovery Service
  *
  * UDP broadcast responder on port 21119.
  * Clients send a JSON probe; the server replies with its identity
@@ -7,10 +7,10 @@
  *
  * Protocol:
  *   Client → broadcast 255.255.255.255:21119
- *     { "type": "yomie-discover", "version": 1 }
+ *     { "type": "codenextremote-discover", "version": 1 }
  *
  *   Server → unicast reply to client
- *     { "type": "yomie-announce", "version": 1, "server": { ... } }
+ *     { "type": "codenextremote-announce", "version": 1, "server": { ... } }
  *
  * @module services/lanDiscovery
  */
@@ -50,7 +50,7 @@ function buildAnnouncement() {
     }
 
     return {
-        type: 'yomie-announce',
+        type: 'codenextremote-announce',
         version: PROTOCOL_VERSION,
         server: {
             name: os.hostname(),
@@ -79,7 +79,7 @@ function startDiscoveryService() {
     udpServer.on('message', (msg, rinfo) => {
         try {
             const data = JSON.parse(msg.toString('utf8'));
-            if (data.type !== 'yomie-discover') return;
+            if (data.type !== 'codenextremote-discover') return;
 
             const announcement = buildAnnouncement();
             const reply = Buffer.from(JSON.stringify(announcement), 'utf8');

@@ -1,0 +1,4655 @@
+﻿#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    codenextremote Console Manager v3.0.0 - All-in-One Interactive Tool for Windows
+
+.DESCRIPTION
+    Features:
+      - Fresh installation (Node.js web console)
+      - Minimal installation (Go server only, no web console)
+      - Update existing installation
+      - Repair/fix issues (enhanced with graceful shutdown)
+      - Validate installation
+      - Backup & restore
+      - Reset admin password
+      - Build & deploy server (rebuild Go binary with rollback)
+      - Full diagnostics
+      - SHA256 binary verification
+      - Auto mode (non-interactive)
+      - Enhanced service management with health verification
+      - Port conflict detection
+      - Fixed ban system (device-specific, not IP-based)
+      - RustDesk Client API (login, address book sync)
+      - TOTP Two-Factor Authentication
+      - SSL/TLS certificate configuration
+      - PostgreSQL database support
+      - SQLite to PostgreSQL migration
+      - CDAP (Custom Device API Protocol) support
+
+.PARAMETER Auto
+    Run installation in automatic mode (non-interactive)
+
+.PARAMETER SkipVerify
+    Skip SHA256 verification of binaries
+
+.PARAMETER NodeJs
+    Install Node.js web console (default)
+
+.PARAMETER PostgreSQL
+    Use PostgreSQL instead of SQLite
+
+.PARAMETER PgUri
+    PostgreSQL connection URI (implies -PostgreSQL)
+
+.EXAMPLE
+    .\codenextremote.ps1
+    Interactive mode
+
+.EXAMPLE
+    .\codenextremote.ps1 -Auto
+    Automatic installation with Node.js console and SQLite
+
+.EXAMPLE
+    .\codenextremote.ps1 -Auto -PostgreSQL
+    Automatic installation with PostgreSQL
+
+.EXAMPLE
+    .\codenextremote.ps1 -SkipVerify
+    Skip binary verification
+#>
+
+param(
+    [switch]$Auto,
+    [switch]$SkipVerify,
+    [switch]$Minimal,
+    [switch]$NodeJs,
+    [switch]$PostgreSQL,
+    [string]$PgUri = "",
+    [switch]$Flask  # Deprecated, kept for backward compatibility
+)
+
+#===============================================================================
+# Configuration
+#===============================================================================
+
+$script:VERSION = "3.0.0"
+$script:ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Auto mode flags
+$script:AUTO_MODE = $Auto
+$script:SKIP_VERIFY = $SkipVerify
+$script:MINIMAL_MODE = $Minimal
+
+# Console type preference
+$script:PREFERRED_CONSOLE_TYPE = "nodejs"  # Always Node.js (Flask removed in v2.3.0)
+if ($Flask) { 
+    Write-Host "WARNING: Flask console is deprecated. Node.js will be installed instead." -ForegroundColor Yellow
+    $script:PREFERRED_CONSOLE_TYPE = "nodejs" 
+}
+
+# Database configuration
+$script:USE_POSTGRESQL = $PostgreSQL -or ($env:USE_POSTGRESQL -eq "true")
+$script:POSTGRESQL_URI = if ($PgUri) { $PgUri } elseif ($env:POSTGRESQL_URI) { $env:POSTGRESQL_URI } else { "" }
+$script:POSTGRESQL_USER = if ($env:POSTGRESQL_USER) { $env:POSTGRESQL_USER } else { "codenextremote" }
+$script:POSTGRESQL_PASS = if ($env:POSTGRESQL_PASS) { $env:POSTGRESQL_PASS } else { "" }
+$script:POSTGRESQL_DB = if ($env:POSTGRESQL_DB) { $env:POSTGRESQL_DB } else { "codenextremote" }
+$script:POSTGRESQL_HOST = if ($env:POSTGRESQL_HOST) { $env:POSTGRESQL_HOST } else { "localhost" }
+$script:POSTGRESQL_PORT = if ($env:POSTGRESQL_PORT) { $env:POSTGRESQL_PORT } else { "5432" }
+
+# Go server configuration
+$script:GO_SERVER_SOURCE = Join-Path $script:ScriptDir "codenextremote-server"
+$script:GO_MIN_VERSION = "1.25"
+# Legacy Rust checksums (deprecated, kept for migration purposes)
+$script:HBBS_WINDOWS_X86_64_SHA256 = "B790FA44CAC7482A057ED322412F6D178FB33F3B05327BFA753416E9879BD62F"
+$script:HBBR_WINDOWS_X86_64_SHA256 = "368C71E8D3AEF4C5C65177FBBBB99EA045661697A89CB7C2A703759C575E8E9F"
+
+# Default paths
+$script:RUSTDESK_PATH = if ($env:RUSTDESK_PATH) { $env:RUSTDESK_PATH } else { "C:\codenextremote" }
+$script:CONSOLE_PATH = if ($env:CONSOLE_PATH) { $env:CONSOLE_PATH } else { "C:\codenextremoteConsole" }
+$script:BACKUP_DIR = if ($env:BACKUP_DIR) { $env:BACKUP_DIR } else { "C:\codenextremote-Backups" }
+$script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
+
+# API configuration
+$script:API_PORT = if ($env:API_PORT) { $env:API_PORT } else { "21114" }
+$script:STORE_ADMIN_CREDENTIALS = ($env:STORE_ADMIN_CREDENTIALS -eq "true")
+
+# Common installation paths to search
+$script:COMMON_RUSTDESK_PATHS = @(
+    "C:\codenextremote",
+    "C:\RustDesk",
+    "C:\Program Files\codenextremote",
+    "C:\Program Files\RustDesk",
+    "$env:LOCALAPPDATA\codenextremote"
+)
+
+$script:COMMON_CONSOLE_PATHS = @(
+    "C:\codenextremoteConsole",
+    "C:\Program Files\codenextremoteConsole",
+    "$env:LOCALAPPDATA\codenextremoteConsole"
+)
+
+# Service names
+$script:SERVER_SERVICE = "codenextremoteServer"    # Go server (replaces HBBS + HBBR)
+$script:HBBS_SERVICE = "codenextremoteSignal"      # Legacy Rust signal
+$script:HBBR_SERVICE = "codenextremoteRelay"       # Legacy Rust relay
+$script:CONSOLE_SERVICE = "codenextremoteConsole"
+
+# Status variables
+$script:INSTALL_STATUS = "none"
+$script:SERVER_RUNNING = $false  # Go server
+$script:HBBS_RUNNING = $false    # Legacy Rust
+$script:HBBR_RUNNING = $false    # Legacy Rust
+$script:CONSOLE_RUNNING = $false
+$script:BINARIES_OK = $false
+$script:DATABASE_OK = $false
+$script:CONSOLE_TYPE = "none"  # none, nodejs
+$script:SERVER_TYPE = "none"    # none, go, rust
+
+# Logging
+$script:LOG_FILE = "$env:TEMP\codenextremote_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+
+#===============================================================================
+# Helper Functions
+#===============================================================================
+
+function Write-Log {
+    param([string]$Message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "[$timestamp] $Message" | Out-File -FilePath $script:LOG_FILE -Append -Encoding UTF8
+}
+
+function Print-Header {
+    Clear-Host
+    Write-Host @"
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║   ██████╗ ███████╗████████╗████████╗███████╗██████╗              ║
+║   ██╔══██╗██╔════╝╚══██╔══╝╚══██╔══╝██╔════╝██╔══██╗             ║
+║   ██████╔╝█████╗     ██║      ██║   █████╗  ██████╔╝             ║
+║   ██╔══██╗██╔══╝     ██║      ██║   ██╔══╝  ██╔══██╗             ║
+║   ██████╔╝███████╗   ██║      ██║   ███████╗██║  ██║             ║
+║   ╚═════╝ ╚══════╝   ╚═╝      ╚═╝   ╚══════╝╚═╝  ╚═╝             ║
+║                    ██████╗ ███████╗███████╗██╗  ██╗              ║
+║                    ██╔══██╗██╔════╝██╔════╝██║ ██╔╝              ║
+║                    ██║  ██║█████╗  ███████╗█████╔╝               ║
+║                    ██║  ██║██╔══╝  ╚════██║██╔═██╗               ║
+║                    ██████╔╝███████╗███████║██║  ██╗              ║
+║                    ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝              ║
+║                                                                  ║
+║                  Console Manager v$($script:VERSION)             ║
+╚══════════════════════════════════════════════════════════════════╝
+"@ -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  ⚠  WINDOWS SUPPORT: EXPERIMENTAL (Tier 3)" -ForegroundColor Yellow
+    Write-Host "     Primary platform: Linux. Report issues at GitHub." -ForegroundColor DarkYellow
+    Write-Host ""
+}
+
+function Print-Success {
+    param([string]$Message)
+    Write-Host "[OK] " -ForegroundColor Green -NoNewline
+    Write-Host $Message
+    Write-Log "SUCCESS: $Message"
+}
+
+function Print-Error {
+    param([string]$Message)
+    Write-Host "[X] " -ForegroundColor Red -NoNewline
+    Write-Host $Message
+    Write-Log "ERROR: $Message"
+}
+
+function Print-Warning {
+    param([string]$Message)
+    Write-Host "[!] " -ForegroundColor Yellow -NoNewline
+    Write-Host $Message
+    Write-Log "WARNING: $Message"
+}
+
+function Print-Info {
+    param([string]$Message)
+    Write-Host "[i] " -ForegroundColor Blue -NoNewline
+    Write-Host $Message
+    Write-Log "INFO: $Message"
+}
+
+function Print-Step {
+    param([string]$Message)
+    Write-Host "[>] " -ForegroundColor Magenta -NoNewline
+    Write-Host $Message
+    Write-Log "STEP: $Message"
+}
+
+function Press-Enter {
+    Write-Host ""
+    Write-Host "Press Enter to continue..." -ForegroundColor Cyan
+    if (-not $script:AUTO_MODE) {
+        $null = Read-Host
+    }
+}
+
+function Confirm-Action {
+    param([string]$Prompt = "Continue?")
+    if ($script:AUTO_MODE) { return $true }
+    
+    $response = Read-Host "$Prompt [y/N]"
+    return $response -match "^[YyTt]"
+}
+
+function Get-PublicIP {
+    try {
+        $ip = (Invoke-WebRequest -Uri "https://ifconfig.me/ip" -UseBasicParsing -TimeoutSec 10).Content.Trim()
+        return $ip
+    } catch {
+        try {
+            $ip = (Invoke-WebRequest -Uri "https://icanhazip.com" -UseBasicParsing -TimeoutSec 10).Content.Trim()
+            return $ip
+        } catch {
+            return "127.0.0.1"
+        }
+    }
+}
+
+function Generate-RandomPassword {
+    param([int]$Length = 16)
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    $password = -join ((1..$Length) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+    return $password
+}
+
+#===============================================================================
+# Detection Functions
+#===============================================================================
+
+function Detect-Installation {
+    $script:INSTALL_STATUS = "none"
+    $script:SERVER_RUNNING = $false
+    $script:HBBS_RUNNING = $false
+    $script:HBBR_RUNNING = $false
+    $script:CONSOLE_RUNNING = $false
+    $script:BINARIES_OK = $false
+    $script:DATABASE_OK = $false
+    $script:CONSOLE_TYPE = "none"
+    $script:SERVER_TYPE = "none"
+    
+    # Check paths and binary type
+    if (Test-Path $script:RUSTDESK_PATH) {
+        # Check for Go server first
+        if (Test-Path "$script:RUSTDESK_PATH\codenextremote-server.exe") {
+            $script:BINARIES_OK = $true
+            $script:SERVER_TYPE = "go"
+            $script:INSTALL_STATUS = "partial"
+        }
+        # Fallback: Check for legacy Rust binaries
+        elseif ((Test-Path "$script:RUSTDESK_PATH\hbbs.exe") -or (Test-Path "$script:RUSTDESK_PATH\hbbs-v8-api.exe")) {
+            $script:BINARIES_OK = $true
+            $script:SERVER_TYPE = "rust"
+            $script:INSTALL_STATUS = "partial"
+            Print-Warning "Legacy Rust binaries detected. Consider upgrading to Go server."
+        }
+    }
+    
+    # Check database (SQLite file or PostgreSQL)
+    $detectedDbType = "sqlite"
+    $envFile = Join-Path $script:CONSOLE_PATH ".env"
+    if (Test-Path $envFile) {
+        $dbTypeLine = Select-String -Path $envFile -Pattern '^DB_TYPE=' -SimpleMatch | Select-Object -First 1
+        if ($dbTypeLine) {
+            $detectedDbType = ($dbTypeLine.Line -split '=', 2)[1].Trim()
+        }
+    }
+
+    if ($detectedDbType -eq "postgres") {
+        # PostgreSQL: we trust the config -- full validation is done by Do-Validate
+        $script:DATABASE_OK = $true
+    } elseif (Test-Path "$script:RUSTDESK_PATH\db_v2.sqlite3") {
+        $script:DATABASE_OK = $true
+    }
+    
+    # Detect console type
+    if (Test-Path $script:CONSOLE_PATH) {
+        if ((Test-Path "$script:CONSOLE_PATH\server.js") -or (Test-Path "$script:CONSOLE_PATH\package.json")) {
+            $script:CONSOLE_TYPE = "nodejs"
+        } elseif (Test-Path "$script:CONSOLE_PATH\app.py") {
+            $script:CONSOLE_TYPE = "nodejs"  # Legacy Flask, will be migrated
+            Print-Warning "Legacy Flask console detected. Will be migrated to Node.js on update."
+        }
+        
+        if ($script:CONSOLE_TYPE -ne "none" -and $script:BINARIES_OK) {
+            $script:INSTALL_STATUS = "complete"
+        }
+    }
+    
+    # Check services - Go server first
+    $serverService = Get-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+    if ($serverService -and $serverService.Status -eq 'Running') {
+        $script:SERVER_RUNNING = $true
+        $script:HBBS_RUNNING = $true  # Go handles both
+        $script:HBBR_RUNNING = $true
+    } else {
+        # Check legacy Rust services
+        $hbbsService = Get-Service -Name $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+        if ($hbbsService -and $hbbsService.Status -eq 'Running') {
+            $script:HBBS_RUNNING = $true
+        }
+        
+        $hbbrService = Get-Service -Name $script:HBBR_SERVICE -ErrorAction SilentlyContinue
+        if ($hbbrService -and $hbbrService.Status -eq 'Running') {
+            $script:HBBR_RUNNING = $true
+        }
+    }
+    
+    $consoleService = Get-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    if ($consoleService -and $consoleService.Status -eq 'Running') {
+        $script:CONSOLE_RUNNING = $true
+    }
+}
+
+# Preserve database configuration from existing .env file
+# This MUST be called before Install-NodeJsConsole during UPDATE/REPAIR
+# to prevent switching from PostgreSQL to SQLite
+function Preserve-DatabaseConfig {
+    $envFile = Join-Path $script:CONSOLE_PATH ".env"
+    
+    if (Test-Path $envFile) {
+        # Read existing DB_TYPE
+        $dbTypeLine = Select-String -Path $envFile -Pattern '^DB_TYPE=' -SimpleMatch | Select-Object -First 1
+        $existingDbType = if ($dbTypeLine) { ($dbTypeLine.Line -split '=', 2)[1].Trim() } else { "" }
+        
+        # Read existing DATABASE_URL
+        $dbUrlLine = Select-String -Path $envFile -Pattern '^DATABASE_URL=' -SimpleMatch | Select-Object -First 1
+        $existingDbUrl = if ($dbUrlLine) { ($dbUrlLine.Line -split '=', 2)[1].Trim() } else { "" }
+        
+        if ($existingDbType -eq "postgres" -and $existingDbUrl) {
+            $script:USE_POSTGRESQL = $true
+            $script:POSTGRESQL_URI = $existingDbUrl
+            Print-Info "Preserving PostgreSQL configuration from existing .env"
+        } elseif ($existingDbType -eq "sqlite") {
+            $script:USE_POSTGRESQL = $false
+            $script:POSTGRESQL_URI = ""
+            Print-Info "Preserving SQLite configuration from existing .env"
+        }
+    }
+}
+
+function Auto-DetectPaths {
+    $found = $false
+    
+    # Check configured path first - Go server or legacy Rust
+    if ($script:RUSTDESK_PATH -and (Test-Path $script:RUSTDESK_PATH)) {
+        if ((Test-Path "$script:RUSTDESK_PATH\codenextremote-server.exe") -or 
+            (Test-Path "$script:RUSTDESK_PATH\hbbs.exe") -or 
+            (Test-Path "$script:RUSTDESK_PATH\hbbs-v8-api.exe")) {
+            Print-Info "Using configured RustDesk path: $script:RUSTDESK_PATH"
+            $found = $true
+        }
+    }
+    
+    # Auto-detect if not found
+    if (-not $found) {
+        foreach ($path in $script:COMMON_RUSTDESK_PATHS) {
+            if ((Test-Path $path) -and 
+                ((Test-Path "$path\codenextremote-server.exe") -or 
+                 (Test-Path "$path\hbbs.exe") -or 
+                 (Test-Path "$path\hbbs-v8-api.exe"))) {
+                $script:RUSTDESK_PATH = $path
+                Print-Success "Detected RustDesk installation: $script:RUSTDESK_PATH"
+                $found = $true
+                break
+            }
+        }
+    }
+    
+    # Default path for new installations
+    if (-not $found) {
+        $script:RUSTDESK_PATH = "C:\codenextremote"
+        Print-Info "No installation detected. Default path: $script:RUSTDESK_PATH"
+    }
+    
+    # Auto-detect Console path and type
+    $consoleFound = $false
+    $script:CONSOLE_TYPE = "none"
+    
+    foreach ($path in $script:COMMON_CONSOLE_PATHS) {
+        # Check for Node.js console first (server.js or package.json)
+        if ((Test-Path $path) -and ((Test-Path "$path\server.js") -or (Test-Path "$path\package.json"))) {
+            $script:CONSOLE_PATH = $path
+            $script:CONSOLE_TYPE = "nodejs"
+            Print-Success "Detected Node.js Console: $script:CONSOLE_PATH"
+            $consoleFound = $true
+            break
+        }
+        # Check for legacy Flask/Python console (app.py) - migrate to Node.js
+        if ((Test-Path $path) -and (Test-Path "$path\app.py") -and -not (Test-Path "$path\server.js")) {
+            $script:CONSOLE_PATH = $path
+            $script:CONSOLE_TYPE = "nodejs"  # Will be migrated
+            Print-Warning "Legacy Flask console detected at $path. Will be migrated to Node.js."
+            $consoleFound = $true
+            break
+        }
+    }
+    
+    if (-not $consoleFound) {
+        $script:CONSOLE_PATH = "C:\codenextremoteConsole"
+    }
+    
+    # Update DB_PATH
+    $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
+}
+
+function Print-Status {
+    Detect-Installation
+    
+    Write-Host ""
+    Write-Host "=== System Status ===" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  System:       " -NoNewline; Write-Host "Windows $([System.Environment]::OSVersion.Version)" -ForegroundColor Cyan
+    Write-Host "  Architecture: " -NoNewline; Write-Host $env:PROCESSOR_ARCHITECTURE -ForegroundColor Cyan
+    Write-Host ""
+    
+    Write-Host "=== Configured Paths ===" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  RustDesk:     " -NoNewline; Write-Host $script:RUSTDESK_PATH -ForegroundColor Cyan
+    Write-Host "  Console:      " -NoNewline; Write-Host $script:CONSOLE_PATH -ForegroundColor Cyan
+    Write-Host "  Database:     " -NoNewline; Write-Host $script:DB_PATH -ForegroundColor Cyan
+    Write-Host ""
+    
+    Write-Host "=== Installation Status ===" -ForegroundColor White
+    Write-Host ""
+    
+    switch ($script:INSTALL_STATUS) {
+        "complete" { Write-Host "  Status:       " -NoNewline; Write-Host "[OK] Installed" -ForegroundColor Green }
+        "partial"  { Write-Host "  Status:       " -NoNewline; Write-Host "[!] Partial installation" -ForegroundColor Yellow }
+        "none"     { Write-Host "  Status:       " -NoNewline; Write-Host "[X] Not installed" -ForegroundColor Red }
+    }
+    
+    if ($script:BINARIES_OK) {
+        $serverLabel = if ($script:SERVER_TYPE -eq "go") { " (Go: signal + relay + API)" } else { " (Legacy Rust)" }
+        Write-Host "  Server:       " -NoNewline; Write-Host "[OK]$serverLabel" -ForegroundColor Green
+    } else {
+        Write-Host "  Server:       " -NoNewline; Write-Host "[X] Not found" -ForegroundColor Red
+    }
+    
+    if ($script:DATABASE_OK) {
+        Write-Host "  Database:     " -NoNewline; Write-Host "[OK]" -ForegroundColor Green
+    } else {
+        Write-Host "  Database:     " -NoNewline; Write-Host "[X] Not found" -ForegroundColor Red
+    }
+    
+    if (Test-Path $script:CONSOLE_PATH) {
+        $consoleTypeLabel = switch ($script:CONSOLE_TYPE) {
+            "nodejs" { " (Node.js)" }
+            default { "" }
+        }
+        Write-Host "  Web Console:  " -NoNewline; Write-Host "[OK]$consoleTypeLabel" -ForegroundColor Green
+    } else {
+        Write-Host "  Web Console:  " -NoNewline; Write-Host "[X] Not found" -ForegroundColor Red
+    }
+    
+    Write-Host ""
+    Write-Host "=== Services Status ===" -ForegroundColor White
+    Write-Host ""
+    
+    # Check if using Go server or legacy Rust
+    if ($script:SERVER_RUNNING -or $script:SERVER_TYPE -eq "go") {
+        if ($script:SERVER_RUNNING) {
+            Write-Host "  codenextremote Server (Go): " -NoNewline; Write-Host "* Active (Signal + Relay + API)" -ForegroundColor Green
+        } else {
+            # Check service state for better diagnostics
+            $svc = Get-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+            if ($svc -and $svc.Status -eq 'Stopped') {
+                Write-Host "  codenextremote Server (Go): " -NoNewline; Write-Host "o Stopped" -ForegroundColor Red
+                Write-Host "    Hint: Check logs at $script:RUSTDESK_PATH\logs\server_error.log" -ForegroundColor Yellow
+            } else {
+                Write-Host "  codenextremote Server (Go): " -NoNewline; Write-Host "o Inactive" -ForegroundColor Red
+            }
+        }
+    } else {
+        # Legacy Rust services
+        if ($script:HBBS_RUNNING) {
+            Write-Host "  HBBS (Signal): " -NoNewline; Write-Host "* Active " -ForegroundColor Green -NoNewline
+            Write-Host "(Legacy Rust)" -ForegroundColor Yellow
+        } else {
+            Write-Host "  HBBS (Signal): " -NoNewline; Write-Host "o Inactive" -ForegroundColor Red
+        }
+        
+        if ($script:HBBR_RUNNING) {
+            Write-Host "  HBBR (Relay):  " -NoNewline; Write-Host "* Active " -ForegroundColor Green -NoNewline
+            Write-Host "(Legacy Rust)" -ForegroundColor Yellow
+        } else {
+            Write-Host "  HBBR (Relay):  " -NoNewline; Write-Host "o Inactive" -ForegroundColor Red
+        }
+    }
+    
+    if ($script:CONSOLE_RUNNING) {
+        Write-Host "  Web Console:   " -NoNewline; Write-Host "* Active" -ForegroundColor Green
+    } else {
+        $consoleSvc = Get-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+        if ($consoleSvc -and $consoleSvc.Status -eq 'Stopped') {
+            Write-Host "  Web Console:   " -NoNewline; Write-Host "o Stopped" -ForegroundColor Red
+            Write-Host "    Hint: Check logs at $script:CONSOLE_PATH\logs\console_error.log" -ForegroundColor Yellow
+        } else {
+            Write-Host "  Web Console:   " -NoNewline; Write-Host "o Inactive" -ForegroundColor Red
+        }
+    }
+    
+    Write-Host ""
+}
+
+#===============================================================================
+# Go Installation and Compilation Functions
+#===============================================================================
+
+function Test-GoInstalled {
+    $goCmd = Get-Command go -ErrorAction SilentlyContinue
+    if (-not $goCmd) {
+        return $false
+    }
+    
+    $goVersionOutput = & go version 2>&1
+    $goMatch = [regex]::Match($goVersionOutput, 'go(\d+)\.(\d+)(?:\.(\d+))?')
+    if (-not $goMatch.Success) {
+        return $false
+    }
+
+    $goVersion = $goMatch.Groups[0].Value.Replace('go', '')
+    $currentMajor = [int]$goMatch.Groups[1].Value
+    $currentMinor = [int]$goMatch.Groups[2].Value
+    $currentPatch = if ($goMatch.Groups[3].Success) { [int]$goMatch.Groups[3].Value } else { 0 }
+
+    # Security hardening: reject vulnerable Go 1.26.0 stdlib.
+    if ($currentMajor -eq 1 -and $currentMinor -eq 26 -and $currentPatch -eq 0) {
+        Print-Warning "Detected vulnerable Go version $goVersion (known stdlib CVEs)."
+        return $false
+    }
+    $minMajor = [int]($script:GO_MIN_VERSION.Split('.')[0])
+    $minMinor = [int]($script:GO_MIN_VERSION.Split('.')[1])
+    
+    if ($currentMajor -gt $minMajor -or ($currentMajor -eq $minMajor -and $currentMinor -ge $minMinor)) {
+        return $true
+    }
+    
+    Print-Warning "Go version $goVersion is older than required $script:GO_MIN_VERSION"
+    return $false
+}
+
+function Install-Golang {
+    Print-Step "Installing Go toolchain..."
+    
+    $goVersion = "1.26.1"
+    $goUrl = "https://go.dev/dl/go$goVersion.windows-amd64.zip"
+    $goZip = Join-Path $env:TEMP "go$goVersion.zip"
+    $goRoot = "C:\Go"
+    
+    Print-Info "Downloading Go $goVersion..."
+    try {
+        Invoke-WebRequest -Uri $goUrl -OutFile $goZip -UseBasicParsing
+    } catch {
+        Print-Error "Failed to download Go: $_"
+        return $false
+    }
+    
+    Print-Info "Extracting Go..."
+    if (Test-Path $goRoot) {
+        Remove-Item -Path $goRoot -Recurse -Force
+    }
+    
+    Expand-Archive -Path $goZip -DestinationPath "C:\" -Force
+    Remove-Item -Path $goZip -Force
+    
+    # Add to PATH if not already there
+    $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $goPath = "$goRoot\bin"
+    if ($envPath -notlike "*$goPath*") {
+        [Environment]::SetEnvironmentVariable("Path", "$envPath;$goPath", "Machine")
+        $env:Path = "$env:Path;$goPath"
+    }
+    
+    # Verify installation
+    if (Test-GoInstalled) {
+        Print-Success "Go $goVersion installed successfully"
+        return $true
+    } else {
+        Print-Error "Go installation verification failed"
+        return $false
+    }
+}
+
+function Compile-GoServer {
+    Print-Step "Compiling codenextremote Go Server..."
+    
+    if (-not (Test-Path $script:GO_SERVER_SOURCE)) {
+        Print-Error "Go server source not found at: $script:GO_SERVER_SOURCE"
+        return $false
+    }
+    
+    $currentDir = Get-Location
+    Set-Location $script:GO_SERVER_SOURCE
+    
+    Print-Info "Running 'go mod tidy'..."
+    & go mod tidy 2>&1 | ForEach-Object { Write-Host "  $_" }
+    
+    Print-Info "Building static binary..."
+    $env:CGO_ENABLED = "0"
+    $env:GOOS = "windows"
+    $env:GOARCH = "amd64"
+    
+    & go build -ldflags="-s -w" -o "codenextremote-server.exe" . 2>&1 | ForEach-Object { Write-Host "  $_" }
+    
+    Set-Location $currentDir
+    
+    $outputBinary = Join-Path $script:GO_SERVER_SOURCE "codenextremote-server.exe"
+    if (Test-Path $outputBinary) {
+        $size = [math]::Round((Get-Item $outputBinary).Length / 1MB, 2)
+        Print-Success "Build successful: codenextremote-server.exe ($size MB)"
+        return $true
+    } else {
+        Print-Error "Build failed - binary not created"
+        return $false
+    }
+}
+
+#===============================================================================
+# Binary Verification Functions
+#===============================================================================
+
+function Verify-BinaryChecksum {
+    param(
+        [string]$FilePath,
+        [string]$ExpectedHash
+    )
+    
+    $fileName = Split-Path -Leaf $FilePath
+    
+    if (-not (Test-Path $FilePath)) {
+        Print-Error "File not found: $FilePath"
+        return $false
+    }
+    
+    Print-Info "Verifying $fileName..."
+    $actualHash = (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToUpper()
+    
+    if ($actualHash -eq $ExpectedHash.ToUpper()) {
+        Print-Success "$fileName`: SHA256 OK"
+        return $true
+    } else {
+        Print-Error "$fileName`: SHA256 MISMATCH!"
+        Print-Error "  Expected: $ExpectedHash"
+        Print-Error "  Got:      $actualHash"
+        return $false
+    }
+}
+
+function Verify-GoBinary {
+    Print-Step "Verifying Go server binary..."
+    
+    $goBinary = Join-Path $script:GO_SERVER_SOURCE "codenextremote-server.exe"
+    
+    if (-not (Test-Path $goBinary)) {
+        Print-Error "Go binary not found: $goBinary"
+        return $false
+    }
+    
+    # Verify it's a valid Windows executable
+    try {
+        $peHeader = [System.IO.File]::ReadAllBytes($goBinary)[0..1]
+        if ($peHeader[0] -eq 0x4D -and $peHeader[1] -eq 0x5A) {  # MZ header
+            $size = [math]::Round((Get-Item $goBinary).Length / 1MB, 2)
+            Print-Success "Go binary valid: codenextremote-server.exe ($size MB)"
+            return $true
+        }
+    } catch {
+        Print-Error "Failed to read binary: $_"
+        return $false
+    }
+    
+    Print-Error "Invalid binary format"
+    return $false
+}
+
+function Verify-Binaries {
+    Print-Step "Verifying codenextremote binaries..."
+    
+    if ($script:SKIP_VERIFY) {
+        Print-Warning "Verification skipped (-SkipVerify)"
+        return $true
+    }
+    
+    # Check for Go binary first
+    $goBinary = Join-Path $script:GO_SERVER_SOURCE "codenextremote-server.exe"
+    
+    if (Test-Path $goBinary) {
+        return Verify-GoBinary
+    }
+    
+    # Fallback: Check legacy Rust binaries
+    $binSource = Join-Path $script:ScriptDir "hbbs-patch-v2"
+    $errors = 0
+    
+    $hbbsPath = Join-Path $binSource "hbbs-windows-x86_64.exe"
+    $hbbrPath = Join-Path $binSource "hbbr-windows-x86_64.exe"
+    
+    if (Test-Path $hbbsPath) {
+        if (-not (Verify-BinaryChecksum -FilePath $hbbsPath -ExpectedHash $script:HBBS_WINDOWS_X86_64_SHA256)) {
+            $errors++
+        }
+    }
+    
+    if (Test-Path $hbbrPath) {
+        if (-not (Verify-BinaryChecksum -FilePath $hbbrPath -ExpectedHash $script:HBBR_WINDOWS_X86_64_SHA256)) {
+            $errors++
+        }
+    }
+    
+    if ($errors -gt 0) {
+        Print-Error "Binary verification failed! $errors error(s)"
+        Print-Warning "Binaries may be corrupted or outdated."
+        if (-not $script:AUTO_MODE) {
+            if (-not (Confirm-Action "Continue anyway?")) {
+                return $false
+            }
+        } else {
+            return $false
+        }
+    } else {
+        Print-Success "All binaries verified"
+    }
+    
+    return $true
+}
+
+#===============================================================================
+# Installation Functions
+#===============================================================================
+
+function Install-Dependencies {
+    Print-Step "Checking dependencies..."
+    
+    # Check Python
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $pythonCmd) {
+        Print-Warning "Python not found! Please install Python 3.8+ from python.org"
+        Print-Info "Download: https://www.python.org/downloads/"
+        if (-not $script:AUTO_MODE) {
+            Press-Enter
+        }
+        return $false
+    }
+    
+    $pythonVersion = python --version 2>&1
+    Print-Info "Python: $pythonVersion"
+    
+    # Check pip
+    try {
+        $null = python -m pip --version 2>&1
+        Print-Success "pip is available"
+    } catch {
+        Print-Warning "pip not found, attempting to install..."
+        python -m ensurepip --upgrade
+    }
+    
+    # Install bcrypt for password hashing (used by reset-password fallback)
+    Print-Step "Installing Python packages..."
+    python -m pip install --quiet --upgrade pip
+    python -m pip install --quiet bcrypt requests
+    
+    Print-Success "Dependencies installed"
+    return $true
+}
+
+#===============================================================================
+# Node.js Installation Functions
+#===============================================================================
+
+function Install-NodeJs {
+    Print-Step "Checking Node.js installation..."
+    
+    # Check if Node.js is already installed and version is sufficient
+    $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+    if ($nodeCmd) {
+        $nodeVersion = (node --version) -replace 'v', '' -split '\.' | Select-Object -First 1
+        if ([int]$nodeVersion -ge 18) {
+            Print-Success "Node.js v$(node --version) already installed"
+            return $true
+        } else {
+            Print-Warning "Node.js version $nodeVersion is too old (need 18+). Upgrading..."
+        }
+    }
+    
+    Print-Step "Installing Node.js 20 LTS..."
+    
+    # Try winget first (Windows 10/11)
+    $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
+    if ($wingetCmd) {
+        Print-Info "Installing via winget..."
+        try {
+            winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements --silent
+            # Refresh PATH
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+            Print-Success "Node.js installed via winget"
+            return $true
+        } catch {
+            Print-Warning "winget installation failed, trying alternative method..."
+        }
+    }
+    
+    # Try chocolatey
+    $chocoCmd = Get-Command choco -ErrorAction SilentlyContinue
+    if ($chocoCmd) {
+        Print-Info "Installing via Chocolatey..."
+        try {
+            choco install nodejs-lts -y
+            # Refresh PATH
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+            Print-Success "Node.js installed via Chocolatey"
+            return $true
+        } catch {
+            Print-Warning "Chocolatey installation failed..."
+        }
+    }
+    
+    # Manual download as last resort
+    Print-Warning "Automatic installation not available."
+    Print-Info "Please install Node.js 20 LTS manually from: https://nodejs.org/"
+    Print-Info "After installation, restart the script."
+    return $false
+}
+
+#===============================================================================
+# PostgreSQL Functions
+#===============================================================================
+
+function Choose-DatabaseType {
+    if ($script:AUTO_MODE) {
+        if ($script:USE_POSTGRESQL) {
+            Print-Info "Auto mode: Using PostgreSQL"
+        } else {
+            Print-Info "Auto mode: Using SQLite (default)"
+        }
+        return
+    }
+    
+    Write-Host ""
+    Write-Host "Select Database Type:" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  1. SQLite (default)" -ForegroundColor Green
+    Write-Host "     Single-file database, zero setup. Good for " -ForegroundColor DarkGray -NoNewline
+    Write-Host ([char]0x2264) -NoNewline -ForegroundColor DarkGray
+    Write-Host "100 devices." -ForegroundColor DarkGray
+    Write-Host "     Data stored in $RUSTDESK_PATH\db_v2.sqlite3" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  2. PostgreSQL (production)" -ForegroundColor Green
+    Write-Host "     Full SQL database with connection pooling. Recommended for" -ForegroundColor DarkGray
+    Write-Host "     multi-server setups, >100 devices, or high availability." -ForegroundColor DarkGray
+    Write-Host "     Requires PostgreSQL 14+ (installed automatically if missing)." -ForegroundColor DarkGray
+    Write-Host ""
+    
+    $dbChoice = Read-Host "Choose database type [1]"
+    if ([string]::IsNullOrEmpty($dbChoice)) { $dbChoice = "1" }
+    
+    switch ($dbChoice) {
+        "2" {
+            $script:USE_POSTGRESQL = $true
+            Print-Info "Selected: PostgreSQL"
+            
+            Write-Host ""
+            $pgHost = Read-Host "PostgreSQL host [$($script:POSTGRESQL_HOST)]"
+            if (![string]::IsNullOrEmpty($pgHost)) { $script:POSTGRESQL_HOST = $pgHost }
+            
+            $pgPort = Read-Host "PostgreSQL port [$($script:POSTGRESQL_PORT)]"
+            if (![string]::IsNullOrEmpty($pgPort)) { $script:POSTGRESQL_PORT = $pgPort }
+            
+            $pgDb = Read-Host "PostgreSQL database [$($script:POSTGRESQL_DB)]"
+            if (![string]::IsNullOrEmpty($pgDb)) { $script:POSTGRESQL_DB = $pgDb }
+            
+            $pgUser = Read-Host "PostgreSQL user [$($script:POSTGRESQL_USER)]"
+            if (![string]::IsNullOrEmpty($pgUser)) { $script:POSTGRESQL_USER = $pgUser }
+            
+            $pgPass = Read-Host "PostgreSQL password (leave empty to generate)" -AsSecureString
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($pgPass)
+            $script:POSTGRESQL_PASS = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        }
+        default {
+            $script:USE_POSTGRESQL = $false
+            Print-Info "Selected: SQLite"
+        }
+    }
+}
+
+function Setup-PostgreSQLDatabase {
+    Print-Step "Setting up PostgreSQL database for codenextremote..."
+    
+    # Generate password if not set
+    if ([string]::IsNullOrEmpty($script:POSTGRESQL_PASS)) {
+        $script:POSTGRESQL_PASS = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 16 | ForEach-Object {[char]$_})
+        Print-Info "Generated PostgreSQL password"
+    }
+    
+    # Build connection URI
+    $script:POSTGRESQL_URI = "postgres://$($script:POSTGRESQL_USER):$($script:POSTGRESQL_PASS)@$($script:POSTGRESQL_HOST):$($script:POSTGRESQL_PORT)/$($script:POSTGRESQL_DB)?sslmode=disable"
+    
+    Print-Info "PostgreSQL URI configured: postgres://$($script:POSTGRESQL_USER):****@$($script:POSTGRESQL_HOST):$($script:POSTGRESQL_PORT)/$($script:POSTGRESQL_DB)"
+    Print-Warning "Note: On Windows, you must set up PostgreSQL manually before installation."
+    Print-Info "Required PostgreSQL setup:"
+    Print-Info "  1. Install PostgreSQL from https://www.postgresql.org/download/windows/"
+    Print-Info "  2. Create user: CREATE USER $($script:POSTGRESQL_USER) WITH PASSWORD '...' CREATEDB;"
+    Print-Info "  3. Create database: CREATE DATABASE $($script:POSTGRESQL_DB) OWNER $($script:POSTGRESQL_USER);"
+    
+    return $true
+}
+
+function Migrate-SQLiteToPostgreSQL {
+    Print-Step "Migrating existing SQLite data to PostgreSQL..."
+    
+    $sqliteDb = Join-Path $script:RUSTDESK_PATH "db_v2.sqlite3"
+    
+    if (-not (Test-Path $sqliteDb)) {
+        Print-Info "No existing SQLite database found, skipping migration"
+        return
+    }
+    
+    # Find migration binary
+    $migrateBin = $null
+    $migratePaths = @(
+        (Join-Path $script:ScriptDir "codenextremote-server\tools\migrate\migrate.exe"),
+        (Join-Path $script:ScriptDir "tools\migrate\migrate.exe")
+    )
+    
+    foreach ($path in $migratePaths) {
+        if (Test-Path $path) {
+            $migrateBin = $path
+            break
+        }
+    }
+    
+    if (-not $migrateBin) {
+        Print-Warning "Migration binary not found, skipping automatic migration"
+        Print-Info "You can migrate manually using: M -> 3 (SQLite -> PostgreSQL)"
+        return
+    }
+    
+    # Check if SQLite has data
+    try {
+        $peerCount = & sqlite3 $sqliteDb "SELECT COUNT(*) FROM peer;" 2>$null
+    } catch {
+        $peerCount = 0
+    }
+    
+    if ($peerCount -gt 0) {
+        Print-Info "Found $peerCount devices in SQLite database"
+        
+        if ($script:AUTO_MODE -or (Confirm-Action "Migrate existing data to PostgreSQL?")) {
+            Print-Step "Creating backup before migration..."
+            & $migrateBin -mode backup -src $sqliteDb 2>&1 | Out-Null
+            
+            Print-Step "Running SQLite -> PostgreSQL migration..."
+            $result = & $migrateBin -mode nodejs2go -src $sqliteDb -dst $script:POSTGRESQL_URI 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Print-Success "Migration completed! $peerCount devices migrated."
+            } else {
+                Print-Warning "Migration had issues: $result"
+            }
+        }
+    } else {
+        Print-Info "SQLite database is empty, no migration needed"
+    }
+}
+
+function Install-NodeJsConsole {
+    Print-Step "Installing Node.js Web Console..."
+    
+    # Install Node.js if not present
+    if (-not (Install-NodeJs)) {
+        Print-Error "Cannot proceed without Node.js"
+        return $false
+    }
+    
+    # Create directory
+    if (-not (Test-Path $script:CONSOLE_PATH)) {
+        New-Item -ItemType Directory -Path $script:CONSOLE_PATH -Force | Out-Null
+    }
+    
+    # Check for web-nodejs folder first, then web folder with server.js
+    $sourceFolder = $null
+    $webNodejsPath = Join-Path $script:ScriptDir "web-nodejs"
+    $webPath = Join-Path $script:ScriptDir "web"
+    
+    if (Test-Path (Join-Path $webNodejsPath "server.js")) {
+        $sourceFolder = $webNodejsPath
+        Print-Info "Found Node.js console in web-nodejs/"
+    } elseif (Test-Path (Join-Path $webPath "server.js")) {
+        $sourceFolder = $webPath
+        Print-Info "Found Node.js console in web/"
+    } else {
+        Print-Error "Node.js web console not found!"
+        Print-Info "Expected: $webNodejsPath\server.js or $webPath\server.js"
+        return $false
+    }
+    
+    # Copy web files
+    Copy-Item -Path "$sourceFolder\*" -Destination $script:CONSOLE_PATH -Recurse -Force
+    
+    # Install npm dependencies
+    Print-Step "Installing npm dependencies..."
+    Push-Location $script:CONSOLE_PATH
+    try {
+        $npmOutput = npm install --production 2>&1
+        $npmOutput | ForEach-Object { Write-Host "[npm] $_" }
+        if ($LASTEXITCODE -ne 0) {
+            Print-Error "npm install failed (exit code: $LASTEXITCODE)"
+            Print-Info "Check npm output above for details"
+            Pop-Location
+            return $false
+        }
+        
+        # Create data directory for databases
+        $dataDir = Join-Path $script:CONSOLE_PATH "data"
+        if (-not (Test-Path $dataDir)) {
+            New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+        }
+        
+        # Preserve existing authentication and session data during UPDATE.
+        # Only wipe auth.db and generate new credentials on FRESH install.
+        $envFile = Join-Path $script:CONSOLE_PATH ".env"
+        $existingSessionSecret = ""
+        $existingAdminPassword = ""
+        $isUpdate = $false
+        
+        if (Test-Path $envFile) {
+            $isUpdate = $true
+            $ssLine = Select-String -Path $envFile -Pattern '^SESSION_SECRET=' -SimpleMatch | Select-Object -First 1
+            $existingSessionSecret = if ($ssLine) { ($ssLine.Line -split '=', 2)[1].Trim() } else { "" }
+            $apLine = Select-String -Path $envFile -Pattern '^DEFAULT_ADMIN_PASSWORD=' -SimpleMatch | Select-Object -First 1
+            $existingAdminPassword = if ($apLine) { ($apLine.Line -split '=', 2)[1].Trim() } else { "" }
+        }
+        
+        if ($isUpdate -and $existingSessionSecret) {
+            # UPDATE: preserve existing auth database, session secret, and admin password
+            Print-Info "Preserving existing auth database and session configuration"
+            $nodejsAdminPassword = $existingAdminPassword
+            $sessionSecret = $existingSessionSecret
+        } else {
+            # FRESH INSTALL: remove old auth.db and generate new credentials
+            $authDbPath = Join-Path $dataDir "auth.db"
+            if (Test-Path $authDbPath) {
+                Print-Info "Removing old auth database (will be recreated with new credentials)..."
+                Remove-Item -Force -Path $authDbPath -ErrorAction SilentlyContinue
+                Remove-Item -Force -Path "$authDbPath-wal" -ErrorAction SilentlyContinue
+                Remove-Item -Force -Path "$authDbPath-shm" -ErrorAction SilentlyContinue
+            }
+            
+            # Generate admin password for Node.js console
+            $nodejsAdminPassword = Generate-RandomPassword
+            
+            # Create sentinel file so ensureDefaultAdmin() force-updates the password
+            # even if auth.db was somehow preserved (e.g. shared volume, manual copy)
+            New-Item -ItemType File -Path (Join-Path $dataDir ".force_password_update") -Force | Out-Null
+            
+            $sessionSecret = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 64 | ForEach-Object {[char]$_})
+        }
+        
+        # Database configuration
+        $dbConfig = ""
+        if ($script:USE_POSTGRESQL -and $script:POSTGRESQL_URI) {
+            $dbConfig = @"
+# Database: PostgreSQL
+DB_TYPE=postgres
+DATABASE_URL=$($script:POSTGRESQL_URI)
+DB_PATH=$script:RUSTDESK_PATH\db_v2.sqlite3
+"@
+        } else {
+            $dbConfig = @"
+# Database: SQLite
+DB_TYPE=sqlite
+DB_PATH=$script:RUSTDESK_PATH\db_v2.sqlite3
+"@
+        }
+        
+        $envContent = @"
+# codenextremote Node.js Console Configuration
+PORT=5000
+HOST=0.0.0.0
+NODE_ENV=production
+
+# RustDesk paths (critical for key/QR code generation)
+RUSTDESK_DIR=$script:RUSTDESK_PATH
+KEYS_PATH=$script:RUSTDESK_PATH
+PUB_KEY_PATH=$script:RUSTDESK_PATH\id_ed25519.pub
+API_KEY_PATH=$script:RUSTDESK_PATH\.api_key
+
+$dbConfig
+
+# Auth database location
+DATA_DIR=$dataDir
+
+# HBBS API
+HBBS_API_URL=http://localhost:$script:API_PORT/api
+
+# RustDesk Client API listener
+API_HOST=0.0.0.0
+
+# Server backend (codenextremote = Go server, rustdesk = legacy Rust)
+SERVER_BACKEND=codenextremote
+
+# Default admin credentials (used only on first startup)
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_PASSWORD=$nodejsAdminPassword
+
+# Session
+SESSION_SECRET=$sessionSecret
+
+# HTTPS (set to true and provide certificate paths to enable)
+HTTPS_ENABLED=false
+HTTPS_PORT=5443
+SSL_CERT_PATH=$script:RUSTDESK_PATH\ssl\codenextremote.crt
+SSL_KEY_PATH=$script:RUSTDESK_PATH\ssl\codenextremote.key
+SSL_CA_PATH=
+HTTP_REDIRECT_HTTPS=true
+
+# Go server API URL (uses HTTPS when TLS certificates are present)
+BETTERDESK_API_URL=http://localhost:$script:API_PORT/api
+"@
+        Set-Content -Path $envFile -Value $envContent
+        Print-Info "Created .env configuration file"
+        
+        if ($script:USE_POSTGRESQL) {
+            Print-Info "Database: PostgreSQL"
+        } else {
+            Print-Info "Database: SQLite"
+        }
+        
+        # Persist credentials only when explicitly requested.
+        if ($script:STORE_ADMIN_CREDENTIALS) {
+            $credsFile = Join-Path $dataDir ".admin_credentials"
+            "admin:$nodejsAdminPassword" | Out-File -FilePath $credsFile -Encoding UTF8
+        }
+        
+        $script:CONSOLE_TYPE = "nodejs"
+        Print-Success "Node.js Web Console installed"
+        return $true
+    } catch {
+        Print-Error "Failed to install npm dependencies: $_"
+        return $false
+    } finally {
+        Pop-Location
+    }
+}
+
+# Install-FlaskConsole removed in v2.3.0 - Flask support deprecated
+
+function Migrate-Console {
+    param(
+        [string]$FromType,
+        [string]$ToType
+    )
+    
+    Print-Step "Migrating from $FromType to $ToType..."
+    
+    # Backup existing console
+    $backupPath = Join-Path $script:BACKUP_DIR "console_${FromType}_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    if (-not (Test-Path $backupPath)) {
+        New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
+    }
+    
+    # Backup user database (auth.db) if exists
+    $authDb = Join-Path $script:CONSOLE_PATH "data\auth.db"
+    if (Test-Path $authDb) {
+        Copy-Item -Path $authDb -Destination $backupPath
+        Print-Info "Backed up user database"
+    }
+    
+    # Backup .env if exists
+    $envFile = Join-Path $script:CONSOLE_PATH ".env"
+    if (Test-Path $envFile) {
+        Copy-Item -Path $envFile -Destination $backupPath
+    }
+    
+    # Stop old console service/task
+    Stop-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue -Force
+    Stop-ScheduledTask -TaskName $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    
+    # Remove old console specific files
+    $venvPath = Join-Path $script:CONSOLE_PATH "venv"
+    $nodeModulesPath = Join-Path $script:CONSOLE_PATH "node_modules"
+    if (Test-Path $venvPath) { Remove-Item -Path $venvPath -Recurse -Force }
+    if (Test-Path $nodeModulesPath) { Remove-Item -Path $nodeModulesPath -Recurse -Force }
+    
+    Print-Success "Old $FromType console backed up to $backupPath"
+}
+
+function Install-Console {
+    # Always install Node.js console (Flask removed in v2.3.0)
+    Print-Info "Installing Node.js web console..."
+    
+    # Check for existing Flask console and migrate
+    if (Test-Path $script:CONSOLE_PATH) {
+        if ((Test-Path (Join-Path $script:CONSOLE_PATH "app.py")) -and -not (Test-Path (Join-Path $script:CONSOLE_PATH "server.js"))) {
+            Print-Warning "Legacy Flask console detected at $($script:CONSOLE_PATH)"
+            if (-not $script:AUTO_MODE) {
+                if (Confirm-Action "Migrate from Flask to Node.js?") {
+                    Migrate-Console -FromType "flask" -ToType "nodejs"
+                } else {
+                    Print-Info "Flask is deprecated. Installing Node.js alongside..."
+                }
+            } else {
+                Print-Info "Auto mode: Migrating from Flask to Node.js"
+                Migrate-Console -FromType "flask" -ToType "nodejs"
+            }
+        }
+    }
+    
+    return Install-NodeJsConsole
+}
+
+function Install-Binaries {
+    param(
+        [switch]$ForceRecompile
+    )
+    
+    Print-Step "Installing codenextremote Go Server..."
+    
+    # Create directory
+    if (-not (Test-Path $script:RUSTDESK_PATH)) {
+        New-Item -ItemType Directory -Path $script:RUSTDESK_PATH -Force | Out-Null
+    }
+    
+    # Check for Go server binary
+    $goBinaryPath = Join-Path $script:GO_SERVER_SOURCE "codenextremote-server.exe"
+    $needCompile = $false
+    
+    if (-not (Test-Path $goBinaryPath)) {
+        $needCompile = $true
+        Print-Info "Pre-compiled binary not found, attempting to compile..."
+    } elseif ($ForceRecompile) {
+        # During UPDATE: check if any .go source file is newer than the binary
+        $binaryTime = (Get-Item $goBinaryPath).LastWriteTime
+        $newerSource = Get-ChildItem -Path $script:GO_SERVER_SOURCE -Filter "*.go" -Recurse |
+            Where-Object { $_.LastWriteTime -gt $binaryTime } |
+            Select-Object -First 1
+        if ($newerSource) {
+            $needCompile = $true
+            Print-Info "Source code updated since last build, recompiling..."
+        } else {
+            Print-Info "Binary is up-to-date with source code"
+        }
+    }
+    
+    if ($needCompile) {
+        # Check if Go is installed
+        if (-not (Test-GoInstalled)) {
+            Print-Info "Installing Go toolchain..."
+            if (-not (Install-Golang)) {
+                Print-Error "Failed to install Go toolchain"
+                return $false
+            }
+        }
+        
+        # Compile Go server
+        if (-not (Compile-GoServer)) {
+            Print-Error "Failed to compile Go server"
+            return $false
+        }
+    } else {
+        Print-Info "Using existing Go server binary"
+    }
+    
+    # Verify binary
+    if (-not (Verify-Binaries)) {
+        Print-Error "Aborting installation due to verification failure"
+        return $false
+    }
+    
+    # Stop services and kill processes (prevents file locking)
+    Print-Info "Stopping services before binary installation..."
+    Stop-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue -Force
+    Stop-Service -Name $script:HBBS_SERVICE -ErrorAction SilentlyContinue -Force
+    Stop-Service -Name $script:HBBR_SERVICE -ErrorAction SilentlyContinue -Force
+    Stop-ScheduledTask -TaskName $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+    Stop-ScheduledTask -TaskName $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+    Stop-ScheduledTask -TaskName $script:HBBR_SERVICE -ErrorAction SilentlyContinue
+    
+    # Kill any remaining processes
+    Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "hbbs" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "hbbr" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 2
+    
+    # Target path
+    $serverTarget = Join-Path $script:RUSTDESK_PATH "codenextremote-server.exe"
+    
+    # Verify file is not locked
+    if (Test-Path $serverTarget) {
+        try {
+            $stream = [System.IO.File]::Open($serverTarget, 'Open', 'ReadWrite', 'None')
+            $stream.Close()
+        } catch {
+            Print-Warning "File $serverTarget is still locked, waiting..."
+            Start-Sleep -Seconds 3
+            Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+        }
+    }
+    
+    # Copy binary
+    Copy-Item -Path $goBinaryPath -Destination $serverTarget -Force
+    Print-Success "Installed codenextremote-server.exe (Go: signal + relay + API)"
+    
+    Print-Success "codenextremote Go Server v$script:VERSION installed"
+    return $true
+}
+
+function Update-EnvForTLS {
+    param(
+        [string]$CertPath,
+        [string]$KeyPath,
+        [bool]$UpdateApiUrls = $false
+    )
+    $envFile = Join-Path $script:CONSOLE_PATH ".env"
+    if (Test-Path $envFile) {
+        $content = Get-Content $envFile -Raw
+        $content = $content -replace 'HTTPS_ENABLED=.*', 'HTTPS_ENABLED=true'
+        $content = $content -replace 'SSL_CERT_PATH=.*', "SSL_CERT_PATH=$CertPath"
+        $content = $content -replace 'SSL_KEY_PATH=.*', "SSL_KEY_PATH=$KeyPath"
+        # Only update API URLs to HTTPS when --tls-api is active (proper certs, not self-signed)
+        if ($UpdateApiUrls) {
+            $content = $content -replace 'HBBS_API_URL=http://localhost', 'HBBS_API_URL=https://localhost'
+            $content = $content -replace 'BETTERDESK_API_URL=http://localhost', 'BETTERDESK_API_URL=https://localhost'
+        }
+        if ($content -match 'NODE_EXTRA_CA_CERTS=') {
+            $content = $content -replace 'NODE_EXTRA_CA_CERTS=.*', "NODE_EXTRA_CA_CERTS=$CertPath"
+        } else {
+            $content = $content.TrimEnd() + "`nNODE_EXTRA_CA_CERTS=$CertPath`n"
+        }
+        Set-Content -Path $envFile -Value $content -NoNewline
+        Print-Info "Updated .env with HTTPS configuration"
+    }
+}
+
+function Generate-SSLCertificates {
+    Print-Step "Generating self-signed TLS certificates..."
+    
+    $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
+    $certPath = Join-Path $sslDir "codenextremote.crt"
+    $keyPath = Join-Path $sslDir "codenextremote.key"
+    
+    # Skip if certificates already exist
+    if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
+        Print-Info "TLS certificates already exist at $sslDir"
+        Print-Info "Skipping certificate generation (use SSL config menu to regenerate)"
+        return $true
+    }
+    
+    New-Item -ItemType Directory -Path $sslDir -Force | Out-Null
+    
+    # Detect server IP for SAN
+    $serverIP = Get-PublicIP
+    
+    # Try PowerShell native certificate generation first
+    try {
+        $cert = New-SelfSignedCertificate `
+            -DnsName "localhost", $serverIP `
+            -CertStoreLocation "Cert:\LocalMachine\My" `
+            -NotAfter (Get-Date).AddYears(3) `
+            -KeyAlgorithm RSA `
+            -KeyLength 2048 `
+            -FriendlyName "codenextremote Server" `
+            -TextExtension @("2.5.29.17={text}DNS=localhost&IPAddress=$serverIP&IPAddress=127.0.0.1")
+        
+        # Export certificate (public)
+        Export-Certificate -Cert $cert -FilePath "$sslDir\codenextremote.cer" -Type CERT | Out-Null
+        
+        # Export PFX then convert to PEM using openssl if available
+        $pfxPath = Join-Path $sslDir "codenextremote.pfx"
+        $securePassword = ConvertTo-SecureString -String "codenextremote-temp" -Force -AsPlainText
+        Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePassword | Out-Null
+        
+        # Check if openssl is available for PEM conversion
+        $opensslCmd = Get-Command openssl -ErrorAction SilentlyContinue
+        if ($opensslCmd) {
+            & openssl pkcs12 -in $pfxPath -out $certPath -clcerts -nokeys -passin "pass:codenextremote-temp" 2>$null
+            & openssl pkcs12 -in $pfxPath -out $keyPath -nocerts -nodes -passin "pass:codenextremote-temp" 2>$null
+            Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
+        } else {
+            # Keep PFX format for Windows (Go server can use it)
+            Print-Info "OpenSSL not found - certificate stored as PFX"
+            Print-Info "PFX path: $pfxPath"
+        }
+        
+        # Clean up certificate from store
+        Remove-Item "Cert:\LocalMachine\My\$($cert.Thumbprint)" -ErrorAction SilentlyContinue
+        
+        # Enable HTTPS in .env so Node.js console (port 5000 + 21121) uses TLS
+        Update-EnvForTLS -CertPath $certPath -KeyPath $keyPath
+        
+        Print-Success "Self-signed TLS certificate generated"
+        Print-Info "Certificate: $sslDir"
+        Print-Info "SAN: DNS:localhost, IP:$serverIP, IP:127.0.0.1"
+        Print-Info "Valid for 3 years"
+        return $true
+    } catch {
+        Print-Warning "PowerShell certificate generation failed: $_"
+        
+        # Fallback: try openssl if available
+        $opensslCmd = Get-Command openssl -ErrorAction SilentlyContinue
+        if ($opensslCmd) {
+            Print-Info "Falling back to openssl..."
+            try {
+                & openssl req -x509 -nodes -days 1095 -newkey rsa:2048 `
+                    -keyout $keyPath `
+                    -out $certPath `
+                    -subj "/CN=$serverIP/O=codenextremote/C=US" `
+                    -addext "subjectAltName=IP:$serverIP,IP:127.0.0.1,DNS:localhost" 2>$null
+                
+                if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
+                    Update-EnvForTLS -CertPath $certPath -KeyPath $keyPath
+                    Print-Success "Self-signed TLS certificate generated (openssl)"
+                    return $true
+                }
+            } catch {
+                Print-Warning "OpenSSL fallback also failed"
+            }
+        }
+        
+        Print-Warning "Could not generate TLS certificates automatically"
+        Print-Info "Use SSL config menu (option C) to generate later"
+        return $false
+    }
+}
+
+function Setup-Services {
+    Print-Step "Configuring Windows services..."
+    
+    # SAFETY NET: Re-read database config from .env if script vars are empty.
+    # This prevents PostgreSQL -> SQLite regression during UPDATE/REPAIR
+    # if Preserve-DatabaseConfig was not called or vars were lost.
+    if (-not $script:USE_POSTGRESQL) {
+        $envFile = Join-Path $script:CONSOLE_PATH ".env"
+        if (Test-Path $envFile) {
+            $dtLine = Select-String -Path $envFile -Pattern '^DB_TYPE=' -SimpleMatch | Select-Object -First 1
+            $_envDbType = if ($dtLine) { ($dtLine.Line -split '=', 2)[1].Trim() } else { "" }
+            if ($_envDbType -eq "postgres") {
+                $duLine = Select-String -Path $envFile -Pattern '^DATABASE_URL=' -SimpleMatch | Select-Object -First 1
+                $_envDbUrl = if ($duLine) { ($duLine.Line -split '=', 2)[1].Trim() } else { "" }
+                if ($_envDbUrl) {
+                    $script:USE_POSTGRESQL = $true
+                    $script:POSTGRESQL_URI = $_envDbUrl
+                    Print-Info "Recovered PostgreSQL config from existing .env"
+                }
+            }
+        }
+    }
+    
+    $serverIP = Get-PublicIP
+    
+    # IPv6-only relay detection: many RustDesk clients cannot connect via IPv6-only relay.
+    # If the detected IP is IPv6, try to also resolve an IPv4 address for dual-stack support.
+    if ($serverIP -match ':') {
+        Print-Warning "Detected IPv6 address: $serverIP"
+        try {
+            $ipv4Addr = (Invoke-WebRequest -Uri "https://ipv4.icanhazip.com" -UseBasicParsing -TimeoutSec 5).Content.Trim()
+            if ($ipv4Addr -and $ipv4Addr -notmatch ':') {
+                $serverIP = $ipv4Addr
+                Print-Info "Using IPv4 address for relay compatibility: $serverIP"
+                Print-Info "(IPv6-only relay causes connection failures on many RustDesk clients)"
+            } else {
+                Print-Warning "No IPv4 address found. Relay connections may fail for clients without IPv6 support."
+                Print-Warning "If clients report 'Relay connection failed', set RELAY_SERVERS to an IPv4 address manually."
+            }
+        } catch {
+            Print-Warning "Could not detect IPv4 address. If relay fails, configure RELAY_SERVERS manually."
+        }
+    }
+    
+    # Warn if public IP detection failed -- relay will not work for remote clients
+    if ($serverIP -eq "127.0.0.1" -or $serverIP -match "^10\." -or $serverIP -match "^192\.168\." -or $serverIP -match "^172\.(1[6-9]|2[0-9]|3[0-1])\.") {
+        Print-Warning "Detected private/loopback IP: $serverIP"
+        Print-Warning "Remote clients will NOT be able to connect via relay!"
+        Print-Warning "If this is a public-facing server, set RELAY_SERVERS env var to your public IP."
+        Write-Host ""
+        Write-Host "  Example: `$env:RELAY_SERVERS='YOUR.PUBLIC.IP'; .\codenextremote.ps1" -ForegroundColor Yellow
+        Write-Host ""
+    }
+    
+    # Allow manual override via RELAY_SERVERS env var
+    if ($env:RELAY_SERVERS) {
+        $serverIP = $env:RELAY_SERVERS
+        Print-Info "Using RELAY_SERVERS override: $serverIP"
+    }
+    
+    Print-Info "Server IP: $serverIP"
+    Print-Info "API Port: $script:API_PORT"
+    
+    # Build database argument
+    $dbArg = ""
+    if ($script:USE_POSTGRESQL -and $script:POSTGRESQL_URI) {
+        $dbArg = "-db `"$($script:POSTGRESQL_URI)`""
+        Print-Info "Database: PostgreSQL"
+    } else {
+        $dbArg = "-db `"$($script:DB_PATH)`""
+        Print-Info "Database: SQLite"
+    }
+    
+    # Check for NSSM (Non-Sucking Service Manager)
+    $nssmPath = Get-Command nssm -ErrorAction SilentlyContinue
+    
+    if (-not $nssmPath) {
+        # Try to find NSSM in the project directory
+        $nssmLocalPath = Join-Path $script:ScriptDir "tools\nssm.exe"
+        if (Test-Path $nssmLocalPath) {
+            $nssmPath = $nssmLocalPath
+        } else {
+            Print-Warning "NSSM not found. Services will be created as scheduled tasks."
+            Print-Info "For proper Windows services, install NSSM from https://nssm.cc"
+            
+            # Create scheduled tasks as fallback
+            Setup-ScheduledTasks -ServerIP $serverIP
+            return
+        }
+    }
+    
+    $nssm = if ($nssmPath -is [System.Management.Automation.ApplicationInfo]) { $nssmPath.Source } else { $nssmPath }
+    
+    # Remove legacy services
+    & $nssm stop $script:HBBS_SERVICE 2>$null
+    & $nssm remove $script:HBBS_SERVICE confirm 2>$null
+    & $nssm stop $script:HBBR_SERVICE 2>$null
+    & $nssm remove $script:HBBR_SERVICE confirm 2>$null
+    & $nssm stop $script:SERVER_SERVICE 2>$null
+    & $nssm remove $script:SERVER_SERVICE confirm 2>$null
+    & $nssm stop $script:CONSOLE_SERVICE 2>$null
+    & $nssm remove $script:CONSOLE_SERVICE confirm 2>$null
+    
+    # Remove legacy Flask API service (deprecated in v2.3.0)
+    & $nssm stop "codenextremoteAPI" 2>$null
+    & $nssm remove "codenextremoteAPI" confirm 2>$null
+    
+    Start-Sleep -Seconds 2
+    
+    # Generate shared API key for Node.js <-> Go server communication
+    $apiKeyPath = Join-Path $script:RUSTDESK_PATH ".api_key"
+    if (-not (Test-Path $apiKeyPath)) {
+        $apiKeyBytes = New-Object byte[] 32
+        $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+        $rng.GetBytes($apiKeyBytes)
+        $rng.Dispose()
+        $apiKey = [System.BitConverter]::ToString($apiKeyBytes) -replace '-', '' | ForEach-Object { $_.ToLower() }
+        Set-Content -Path $apiKeyPath -Value $apiKey -NoNewline
+        Print-Info "Generated API key for console-server communication"
+    }
+    
+    # codenextremote Go Server (single binary: signal + relay + API)
+    $serverExe = Join-Path $script:RUSTDESK_PATH "codenextremote-server.exe"
+    $serverArgs = "-mode all -relay-servers $serverIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT"
+    
+    # Add -init-admin-pass to sync admin password with Node.js console
+    $adminPass = $null
+    $credsFile = Join-Path $script:CONSOLE_PATH "data\.admin_credentials"
+    if (Test-Path $credsFile) {
+        $credsContent = Get-Content $credsFile -Raw
+        if ($credsContent -match ':(.+)') {
+            $adminPass = $Matches[1].Trim()
+        }
+    }
+    if (-not $adminPass) {
+        $envFile = Join-Path $script:CONSOLE_PATH ".env"
+        if (Test-Path $envFile) {
+            $line = Get-Content $envFile | Where-Object { $_ -like 'DEFAULT_ADMIN_PASSWORD=*' } | Select-Object -First 1
+            if ($line) {
+                $adminPass = ($line -split '=', 2)[1].Trim()
+            }
+        }
+    }
+    if ($adminPass) {
+        $serverArgs += " -init-admin-pass `"$adminPass`""
+    }
+    
+    # Add TLS flags if certificates exist
+    $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
+    $certPath = Join-Path $sslDir "codenextremote.crt"
+    $keyPath = Join-Path $sslDir "codenextremote.key"
+    $apiScheme = "http"
+    $tlsIsSelfSigned = $false
+    if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
+        # Check if certificate is self-signed
+        try {
+            $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath)
+            $tlsIsSelfSigned = ($cert.Issuer -eq $cert.Subject) -or ($cert.Subject -like "*O=codenextremote*")
+            $cert.Dispose()
+        } catch {
+            $tlsIsSelfSigned = $true
+        }
+        
+        # Enable TLS on signal/relay for client encryption.
+        # API port (21114) MUST stay HTTP -- RustDesk desktop clients always send
+        # plain HTTP to signal_port-2 and do not support HTTPS for API endpoints.
+        $serverArgs += " -tls-cert `"$certPath`" -tls-key `"$keyPath`" -tls-signal -tls-relay"
+        
+        # Only add -tls-api and -force-https for proper (non-self-signed) certificates
+        # DISABLED: RustDesk clients always send HTTP to API port. API stays HTTP for all cert types.
+        if (-not $tlsIsSelfSigned) {
+            $apiScheme = "http"
+            Print-Info "TLS: Enabled for signal/relay (proper certificate, API stays HTTP)"
+        } else {
+            $apiScheme = "http"
+            Print-Info "TLS: Enabled for signal/relay (self-signed cert, API stays HTTP)"
+        }
+    } else {
+        Print-Info "TLS: Disabled (no certificate found)"
+    }
+    
+    & $nssm install $script:SERVER_SERVICE $serverExe $serverArgs
+    & $nssm set $script:SERVER_SERVICE AppDirectory $script:RUSTDESK_PATH
+    & $nssm set $script:SERVER_SERVICE DisplayName "codenextremote Go Server v$script:VERSION"
+    & $nssm set $script:SERVER_SERVICE Description "codenextremote Go Server (Signal + Relay + API)"
+    & $nssm set $script:SERVER_SERVICE Start SERVICE_AUTO_START
+    & $nssm set $script:SERVER_SERVICE AppStdout "$script:RUSTDESK_PATH\logs\server.log"
+    & $nssm set $script:SERVER_SERVICE AppStderr "$script:RUSTDESK_PATH\logs\server_error.log"
+    
+    Print-Success "Created codenextremote Go Server service"
+    
+    # Console Service (Web Interface) - Node.js only
+    if ($script:CONSOLE_TYPE -eq "nodejs") {
+        $nodeExe = (Get-Command node -ErrorAction SilentlyContinue).Source
+        if (-not $nodeExe) { $nodeExe = "node.exe" }
+        $serverJs = Join-Path $script:CONSOLE_PATH "server.js"
+        
+        & $nssm install $script:CONSOLE_SERVICE $nodeExe $serverJs
+        & $nssm set $script:CONSOLE_SERVICE AppDirectory $script:CONSOLE_PATH
+        & $nssm set $script:CONSOLE_SERVICE DisplayName "codenextremote Web Console (Node.js)"
+        & $nssm set $script:CONSOLE_SERVICE Description "codenextremote Web Management Console - Node.js"
+        & $nssm set $script:CONSOLE_SERVICE Start SERVICE_AUTO_START
+        $envExtra = @(
+            "NODE_ENV=production",
+            "RUSTDESK_DIR=$script:RUSTDESK_PATH",
+            "RUSTDESK_PATH=$script:RUSTDESK_PATH",
+            "KEYS_PATH=$script:RUSTDESK_PATH",
+            "DATA_DIR=$script:CONSOLE_PATH\data",
+            "DB_PATH=$script:RUSTDESK_PATH\db_v2.sqlite3",
+            "API_KEY_PATH=$script:RUSTDESK_PATH\.api_key",
+            "HBBS_API_URL=${apiScheme}://localhost:$($script:API_PORT)/api",
+            "BETTERDESK_API_URL=${apiScheme}://localhost:$($script:API_PORT)/api",
+            "SERVER_BACKEND=codenextremote",
+            "PORT=5000",
+            "HOST=0.0.0.0",
+            "API_HOST=0.0.0.0"
+        )
+        # Propagate database type to NSSM environment
+        if ($script:USE_POSTGRESQL -and $script:POSTGRESQL_URI) {
+            $envExtra += "DB_TYPE=postgres"
+            $envExtra += "DATABASE_URL=$($script:POSTGRESQL_URI)"
+        } else {
+            $envExtra += "DB_TYPE=sqlite"
+        }
+        # Enable HTTPS on Node.js console when TLS certs are available (for browser access)
+        # This is separate from Go API TLS -- the web panel can serve HTTPS for browsers
+        if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
+            $envExtra += "HTTPS_ENABLED=true"
+            $envExtra += "SSL_CERT_PATH=$certPath"
+            $envExtra += "SSL_KEY_PATH=$keyPath"
+        }
+        # Trust self-signed cert for localhost API communication
+        if ($tlsIsSelfSigned -and (Test-Path $certPath)) {
+            $envExtra += "NODE_EXTRA_CA_CERTS=$certPath"
+        }
+        & $nssm set $script:CONSOLE_SERVICE AppEnvironmentExtra $envExtra
+        & $nssm set $script:CONSOLE_SERVICE AppStdout "$script:CONSOLE_PATH\logs\console.log"
+        & $nssm set $script:CONSOLE_SERVICE AppStderr "$script:CONSOLE_PATH\logs\console_error.log"
+        Print-Success "Created Node.js console service"
+    }
+    
+    # Create logs directories
+    New-Item -ItemType Directory -Path "$script:RUSTDESK_PATH\logs" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$script:CONSOLE_PATH\logs" -Force | Out-Null
+    
+    Print-Success "Windows services configured"
+    Print-Info "Services: $script:SERVER_SERVICE, $script:CONSOLE_SERVICE"
+}
+
+function Setup-ScheduledTasks {
+    param([string]$ServerIP)
+    
+    Print-Step "Creating scheduled tasks as service alternative..."
+    
+    # Build database argument
+    $dbArg = ""
+    if ($script:USE_POSTGRESQL -and $script:POSTGRESQL_URI) {
+        $dbArg = "-db `"$($script:POSTGRESQL_URI)`""
+    } else {
+        $dbArg = "-db `"$($script:DB_PATH)`""
+    }
+    
+    # Remove existing tasks
+    Unregister-ScheduledTask -TaskName $script:SERVER_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $script:HBBS_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $script:HBBR_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $script:CONSOLE_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
+    
+    # codenextremote Go Server Task
+    $serverExe = Join-Path $script:RUSTDESK_PATH "codenextremote-server.exe"
+    $serverArgs = "-mode all -relay-servers $ServerIP $dbArg -key-file `"$script:RUSTDESK_PATH\id_ed25519`" -api-port $script:API_PORT"
+    
+    # Add -init-admin-pass to sync admin password with Node.js console
+    $adminPass = $null
+    $credsFile = Join-Path $script:CONSOLE_PATH "data\.admin_credentials"
+    if (Test-Path $credsFile) {
+        $credsContent = Get-Content $credsFile -Raw
+        if ($credsContent -match ':(.+)') {
+            $adminPass = $Matches[1].Trim()
+        }
+    }
+    if (-not $adminPass) {
+        $envFile = Join-Path $script:CONSOLE_PATH ".env"
+        if (Test-Path $envFile) {
+            $line = Get-Content $envFile | Where-Object { $_ -like 'DEFAULT_ADMIN_PASSWORD=*' } | Select-Object -First 1
+            if ($line) {
+                $adminPass = ($line -split '=', 2)[1].Trim()
+            }
+        }
+    }
+    if ($adminPass) {
+        $serverArgs += " -init-admin-pass `"$adminPass`""
+    }
+    
+    # Add TLS flags if certificates exist
+    $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
+    $certPath = Join-Path $sslDir "codenextremote.crt"
+    $keyPath = Join-Path $sslDir "codenextremote.key"
+    $tlsIsSelfSigned = $false
+    if ((Test-Path $certPath) -and (Test-Path $keyPath)) {
+        try {
+            $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath)
+            $tlsIsSelfSigned = ($cert.Issuer -eq $cert.Subject) -or ($cert.Subject -like "*O=codenextremote*")
+            $cert.Dispose()
+        } catch {
+            $tlsIsSelfSigned = $true
+        }
+        
+        $serverArgs += " -tls-cert `"$certPath`" -tls-key `"$keyPath`" -tls-signal -tls-relay"
+        if (-not $tlsIsSelfSigned) {
+            Print-Info "TLS: Enabled for signal/relay (proper certificate, API stays HTTP)"
+        } else {
+            Print-Info "TLS: Enabled for signal/relay (self-signed, API stays HTTP)"
+        }
+    }
+    
+    $serverAction = New-ScheduledTaskAction -Execute $serverExe -Argument $serverArgs -WorkingDirectory $script:RUSTDESK_PATH
+    $serverTrigger = New-ScheduledTaskTrigger -AtStartup
+    $serverPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    $serverSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+    Register-ScheduledTask -TaskName $script:SERVER_SERVICE -Action $serverAction -Trigger $serverTrigger -Principal $serverPrincipal -Settings $serverSettings -Description "codenextremote Go Server (Signal + Relay + API)" | Out-Null
+    
+    # Console Task - Node.js
+    if ($script:CONSOLE_TYPE -eq "nodejs") {
+        $nodeExe = (Get-Command node -ErrorAction SilentlyContinue).Source
+        if (-not $nodeExe) { $nodeExe = "node.exe" }
+        $serverJs = Join-Path $script:CONSOLE_PATH "server.js"
+        $consoleAction = New-ScheduledTaskAction -Execute $nodeExe -Argument $serverJs -WorkingDirectory $script:CONSOLE_PATH
+        $consoleDesc = "codenextremote Web Console (Node.js)"
+        Print-Info "Creating Node.js console task"
+    }
+    
+    $consoleTrigger = New-ScheduledTaskTrigger -AtStartup
+    $consolePrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    $consoleSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+    Register-ScheduledTask -TaskName $script:CONSOLE_SERVICE -Action $consoleAction -Trigger $consoleTrigger -Principal $consolePrincipal -Settings $consoleSettings -Description $consoleDesc | Out-Null
+    
+    Print-Success "Scheduled tasks created"
+}
+
+function Run-Migrations {
+    Print-Step "Running database migrations..."
+    
+    # Ensure database directory exists
+    $dbDir = Split-Path -Parent $script:DB_PATH
+    if (-not (Test-Path $dbDir)) {
+        New-Item -ItemType Directory -Path $dbDir -Force | Out-Null
+    }
+    
+    # Create database schema and add missing columns
+    $pythonScript = @"
+import sqlite3
+import os
+from datetime import datetime
+
+db_path = r'$($script:DB_PATH)'
+
+# Ensure db directory exists
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+conn = sqlite3.connect(db_path)
+cursor = conn.cursor()
+
+# Create peer table if not exists
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS peer (
+        guid BLOB PRIMARY KEY NOT NULL,
+        id VARCHAR(100) NOT NULL,
+        uuid BLOB NOT NULL,
+        pk BLOB NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        user BLOB,
+        status INTEGER DEFAULT 0,
+        note VARCHAR(300),
+        info TEXT NOT NULL,
+        last_online TEXT,
+        is_deleted INTEGER DEFAULT 0,
+        deleted_at TEXT,
+        updated_at TEXT,
+        previous_ids TEXT,
+        id_changed_at TEXT,
+        is_banned INTEGER DEFAULT 0
+    )
+''')
+
+# Create indexes
+cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS index_peer_id ON peer (id)')
+cursor.execute('CREATE INDEX IF NOT EXISTS index_peer_user ON peer (user)')
+cursor.execute('CREATE INDEX IF NOT EXISTS index_peer_created_at ON peer (created_at)')
+cursor.execute('CREATE INDEX IF NOT EXISTS index_peer_status ON peer (status)')
+
+# Create users table
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'viewer',
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_login DATETIME,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        CHECK (role IN ('admin', 'operator', 'viewer'))
+    )
+''')
+
+# Create sessions table
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS sessions (
+        token VARCHAR(64) PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        created_at DATETIME NOT NULL,
+        expires_at DATETIME NOT NULL,
+        last_activity DATETIME NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+''')
+
+# Create audit_log table
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        action VARCHAR(50) NOT NULL,
+        device_id VARCHAR(100),
+        details TEXT,
+        ip_address VARCHAR(50),
+        timestamp DATETIME NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    )
+''')
+
+# Create indexes for auth tables
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)')
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)')
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id)')
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_device ON audit_log(device_id)')
+cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)')
+
+# Add missing columns to peer table
+columns_to_add = [
+    ('status', 'INTEGER DEFAULT 0'),
+    ('last_online', 'TEXT'),
+    ('is_deleted', 'INTEGER DEFAULT 0'),
+    ('deleted_at', 'TEXT'),
+    ('updated_at', 'TEXT'),
+    ('note', 'TEXT'),
+    ('previous_ids', 'TEXT'),
+    ('id_changed_at', 'TEXT'),
+    ('is_banned', 'INTEGER DEFAULT 0'),
+]
+
+cursor.execute("PRAGMA table_info(peer)")
+existing_columns = [col[1] for col in cursor.fetchall()]
+
+for col_name, col_def in columns_to_add:
+    if col_name not in existing_columns:
+        try:
+            cursor.execute(f"ALTER TABLE peer ADD COLUMN {col_name} {col_def}")
+            print(f"  Added column: {col_name}")
+        except Exception as e:
+            pass
+
+conn.commit()
+conn.close()
+print("Database migrations completed")
+"@
+    
+    $pythonScript | python
+    
+    Print-Success "Migrations completed"
+}
+
+function Create-AdminUser {
+    Print-Step "Creating admin user..."
+    
+    # Detect console type
+    $currentConsoleType = ""
+    if (Test-Path (Join-Path $script:CONSOLE_PATH "server.js")) {
+        $currentConsoleType = "nodejs"
+    } elseif (Test-Path (Join-Path $script:CONSOLE_PATH "app.py")) {
+        $currentConsoleType = "nodejs"  # Legacy Flask detected, treat as Node.js
+        Print-Warning "Legacy Flask console detected. Please migrate to Node.js."
+    } else {
+        Print-Warning "No console detected, skipping admin creation"
+        return $null
+    }
+    
+    # Node.js console - admin is created automatically on startup.
+    # Prefer plaintext credentials file (legacy), then .env fallback.
+    $adminPassword = $null
+    $dataDir = Join-Path $script:CONSOLE_PATH "data"
+    $credsFile = Join-Path $dataDir ".admin_credentials"
+    if (Test-Path $credsFile) {
+        $creds = Get-Content $credsFile -Raw
+        $adminPassword = ($creds -split ':')[1].Trim()
+    }
+    if (-not $adminPassword) {
+        $envFile = Join-Path $script:CONSOLE_PATH ".env"
+        if (Test-Path $envFile) {
+            $line = Get-Content $envFile | Where-Object { $_ -like 'DEFAULT_ADMIN_PASSWORD=*' } | Select-Object -First 1
+            if ($line) {
+                $adminPassword = ($line -split '=', 2)[1].Trim()
+            }
+        }
+    }
+
+    if ($adminPassword) {
+        
+        Write-Host ""
+        Write-Host "============================================================" -ForegroundColor Green
+        Write-Host "             PANEL LOGIN CREDENTIALS                        " -ForegroundColor Green
+        Write-Host "============================================================" -ForegroundColor Green
+        Write-Host "  Login:    " -NoNewline; Write-Host "admin" -ForegroundColor White
+        Write-Host "  Password: " -NoNewline; Write-Host $adminPassword -ForegroundColor White
+        Write-Host "============================================================" -ForegroundColor Green
+        Write-Host ""
+        
+        if ($script:STORE_ADMIN_CREDENTIALS) {
+            # Legacy behavior (opt-in): persist plaintext credentials file
+            $mainCredsFile = Join-Path $script:RUSTDESK_PATH ".admin_credentials"
+            "admin:$adminPassword" | Out-File -FilePath $mainCredsFile -Encoding UTF8
+            Print-Info "Credentials saved in: $mainCredsFile"
+        } else {
+            Print-Warning "Credentials are not persisted by default (security hardening)."
+        }
+        return $adminPassword
+    } else {
+        Print-Warning "No Node.js admin credentials found"
+        Print-Info "Use password reset option to set a new admin password"
+        return $null
+    }
+}
+
+function Start-Services {
+    Print-Step "Starting services..."
+    
+    # Try Go server service first, then legacy
+    $goServiceExists = Get-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+    $legacyServiceExists = Get-Service -Name $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+    
+    if ($goServiceExists) {
+        # New Go single-binary architecture
+        Start-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+        Start-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    } elseif ($legacyServiceExists) {
+        # Legacy Rust architecture (hbbs + hbbr)
+        Start-Service -Name $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+        Start-Service -Name $script:HBBR_SERVICE -ErrorAction SilentlyContinue
+        Start-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    } else {
+        # Try scheduled tasks (Go first, then legacy)
+        $goTaskExists = Get-ScheduledTask -TaskName $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+        if ($goTaskExists) {
+            Start-ScheduledTask -TaskName $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+        } else {
+            Start-ScheduledTask -TaskName $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+            Start-ScheduledTask -TaskName $script:HBBR_SERVICE -ErrorAction SilentlyContinue
+        }
+        Start-ScheduledTask -TaskName $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    }
+    
+    Start-Sleep -Seconds 3
+    
+    Detect-Installation
+    
+    if ($script:SERVER_RUNNING -or ($script:HBBS_RUNNING -and $script:HBBR_RUNNING)) {
+        Print-Success "All services started"
+    } else {
+        Print-Warning "Some services may not be working properly"
+        Print-Info "Check logs in: $script:RUSTDESK_PATH\logs\"
+    }
+}
+
+function Stop-AllServices {
+    Print-Step "Stopping services..."
+    
+    # Stop Windows services (Go server + legacy)
+    Stop-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue -Force
+    Stop-Service -Name $script:HBBS_SERVICE -ErrorAction SilentlyContinue -Force
+    Stop-Service -Name $script:HBBR_SERVICE -ErrorAction SilentlyContinue -Force
+    Stop-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue -Force
+    
+    # Stop scheduled tasks
+    Stop-ScheduledTask -TaskName $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+    Stop-ScheduledTask -TaskName $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+    Stop-ScheduledTask -TaskName $script:HBBR_SERVICE -ErrorAction SilentlyContinue
+    Stop-ScheduledTask -TaskName $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    
+    # Kill processes directly (Go server + legacy)
+    Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "hbbs" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "hbbr" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
+        $_.MainModule.FileName -like "*codenextremote*" -or $_.CommandLine -like "*server.js*"
+    } | Stop-Process -Force -ErrorAction SilentlyContinue
+    
+    Start-Sleep -Seconds 2
+}
+
+#===============================================================================
+# Enhanced Service Management Functions (v2.1.2)
+#===============================================================================
+
+function Test-PortAvailable {
+    param([int]$Port, [string]$ServiceName = "unknown")
+    
+    $listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    
+    if ($listener) {
+        $process = Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue
+        Print-Error "Port $Port is in use by: $($process.Name) (PID: $($listener.OwningProcess))"
+        return $false
+    }
+    return $true
+}
+
+function Test-ServiceHealth {
+    param(
+        [string]$ServiceName,
+        [int]$ExpectedPort = 0,
+        [int]$TimeoutSeconds = 10
+    )
+    
+    # Check if process is running
+    $processName = if ($ServiceName -eq $script:SERVER_SERVICE) { "codenextremote-server" }
+                   elseif ($ServiceName -match "Signal") { "hbbs" }
+                   elseif ($ServiceName -match "Relay") { "hbbr" }
+                   elseif ($ServiceName -eq $script:CONSOLE_SERVICE) { "node" }
+                   else { "codenextremote-server" }
+    
+    $process = Get-Process -Name $processName -ErrorAction SilentlyContinue
+    
+    if (-not $process) {
+        Print-Error "Process $processName is not running"
+        return $false
+    }
+    
+    # Check port if specified
+    if ($ExpectedPort -gt 0) {
+        $elapsed = 0
+        while ($elapsed -lt $TimeoutSeconds) {
+            $listener = Get-NetTCPConnection -LocalPort $ExpectedPort -State Listen -ErrorAction SilentlyContinue
+            if ($listener) {
+                return $true
+            }
+            Start-Sleep -Seconds 1
+            $elapsed++
+        }
+        Print-Error "Service not listening on port $ExpectedPort after ${TimeoutSeconds}s"
+        return $false
+    }
+    
+    return $true
+}
+
+function Start-ServicesWithVerification {
+    Print-Step "Starting services with health verification..."
+    
+    $hasErrors = $false
+    
+    # Check ports first
+    if (-not (Test-PortAvailable -Port 21116 -ServiceName "codenextremote-server")) {
+        Print-Error "Port 21116 (ID server) not available"
+        $hasErrors = $true
+    }
+    
+    if (-not (Test-PortAvailable -Port 21117 -ServiceName "codenextremote-server")) {
+        Print-Error "Port 21117 (relay) not available"  
+        $hasErrors = $true
+    }
+    
+    if ($hasErrors) {
+        Print-Error "Cannot start services - ports in use"
+        Print-Info "Use: Get-NetTCPConnection -State Listen | Where-Object LocalPort -in 21116,21117"
+        return $false
+    }
+    
+    # Start Go Server (single binary: signal + relay + API)
+    Print-Info "Starting $($script:SERVER_SERVICE) (Go server)..."
+    $goServiceExists = Get-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+    
+    if ($goServiceExists) {
+        Start-Service -Name $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+    } else {
+        # Try scheduled task
+        $goTaskExists = Get-ScheduledTask -TaskName $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+        if ($goTaskExists) {
+            Start-ScheduledTask -TaskName $script:SERVER_SERVICE -ErrorAction SilentlyContinue
+        } else {
+            # Legacy fallback: start hbbs + hbbr separately
+            Print-Warning "Go server service not found, trying legacy hbbs/hbbr..."
+            $legacyService = Get-Service -Name $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+            if ($legacyService) {
+                Start-Service -Name $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+                Start-Service -Name $script:HBBR_SERVICE -ErrorAction SilentlyContinue
+            } else {
+                Start-ScheduledTask -TaskName $script:HBBS_SERVICE -ErrorAction SilentlyContinue
+                Start-ScheduledTask -TaskName $script:HBBR_SERVICE -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    
+    Start-Sleep -Seconds 3
+    
+    if (-not (Test-ServiceHealth -ServiceName $script:SERVER_SERVICE -ExpectedPort 21116 -TimeoutSeconds 10)) {
+        Print-Error "Failed to start codenextremote server"
+        return $false
+    }
+    Print-Success "codenextremote server started and healthy (signal + relay + API)"
+    
+    # Inject shared API key into Go server database for Node.js <-> Go communication
+    $apiKeyPath = Join-Path $script:RUSTDESK_PATH ".api_key"
+    $goDbPath = Join-Path $script:RUSTDESK_PATH "db_v2.sqlite3"
+    if ((Test-Path $apiKeyPath) -and (Test-Path $goDbPath)) {
+        $apiKey = Get-Content $apiKeyPath -Raw
+        $apiKey = $apiKey.Trim()
+        try {
+            $env:BETTERDESK_GO_DB_PATH = $goDbPath
+            $env:BETTERDESK_API_KEY_TMP = $apiKey
+            $pythonScript = "import os, sqlite3; conn = sqlite3.connect(os.environ['BETTERDESK_GO_DB_PATH']); conn.execute('INSERT OR REPLACE INTO server_config (key, value) VALUES (?, ?)', ('api_key', os.environ['BETTERDESK_API_KEY_TMP'])); conn.commit(); conn.close()"
+            python -c $pythonScript 2>$null
+            Remove-Item Env:BETTERDESK_GO_DB_PATH -ErrorAction SilentlyContinue
+            Remove-Item Env:BETTERDESK_API_KEY_TMP -ErrorAction SilentlyContinue
+            if ($LASTEXITCODE -eq 0) {
+                Print-Info "API key synced to Go server database"
+            }
+        } catch {
+            # Non-critical: API key sync failed, Node.js will still work with JWT auth
+        }
+    }
+    
+    # Start Console
+    Print-Info "Starting $($script:CONSOLE_SERVICE)..."
+    $consoleService = Get-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    if ($consoleService) {
+        Start-Service -Name $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    } else {
+        Start-ScheduledTask -TaskName $script:CONSOLE_SERVICE -ErrorAction SilentlyContinue
+    }
+    
+    Start-Sleep -Seconds 2
+    Print-Success "All services started and verified"
+    
+    return $true
+}
+
+#=============================================================================
+# Minimal Installation Function (Go server only, no web console)
+#===============================================================================
+
+function Do-InstallMinimal {
+    Print-Header
+    Write-Host "========== MINIMAL INSTALLATION (Server Only) ==========" -ForegroundColor White
+    Write-Host ""
+    
+    Print-Info "codenextremote Minimal installs the Go server binary only."
+    Print-Info "No web console, no Node.js, no npm dependencies."
+    Print-Info "Manage via REST API on port 21114 or TCP admin console."
+    Write-Host ""
+    
+    Detect-Installation
+    
+    if ($script:INSTALL_STATUS -eq "complete") {
+        Print-Warning "codenextremote is already installed!"
+        if (-not $script:AUTO_MODE) {
+            if (-not (Confirm-Action "Do you want to reinstall in Minimal mode?")) {
+                return
+            }
+        }
+        Do-BackupSilent
+    }
+    
+    # Choose database type (SQLite or PostgreSQL)
+    Choose-DatabaseType
+    
+    # Gracefully stop existing services
+    Graceful-StopServices
+    
+    # Create installation directory
+    $installDir = $script:INSTALL_DIR
+    if (-not (Test-Path $installDir)) {
+        New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+    }
+    
+    # Setup PostgreSQL if selected
+    if ($script:USE_POSTGRESQL) {
+        if (-not (Setup-PostgreSQLDatabase)) {
+            Print-Error "PostgreSQL setup failed"
+            return
+        }
+    }
+    
+    # Install Go server binary
+    Detect-Architecture
+    if (-not (Install-Binaries)) {
+        Print-Error "Binary installation failed"
+        return
+    }
+    
+    # Skip console installation entirely
+    Print-Info "Skipping web console (Minimal mode)"
+    
+    # Generate self-signed TLS certificates
+    Generate-SSLCertificates
+    
+    # Setup only the Go server service (no console service)
+    Setup-ServicesMinimal
+    
+    # Configure firewall rules (server ports only)
+    Print-Step "Configuring firewall rules..."
+    $ports = @(21114, 21115, 21116, 21117, 21118, 21119)
+    foreach ($port in $ports) {
+        try {
+            New-NetFirewallRule -DisplayName "codenextremote Port $port" -Direction Inbound -LocalPort $port -Protocol TCP -Action Allow -ErrorAction SilentlyContinue | Out-Null
+        } catch {}
+    }
+    # UDP for signal port
+    try {
+        New-NetFirewallRule -DisplayName "codenextremote Signal UDP 21116" -Direction Inbound -LocalPort 21116 -Protocol UDP -Action Allow -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
+    
+    # Start server
+    Print-Step "Starting codenextremote server..."
+    $svcName = "codenextremoteServer"
+    if (Get-Service $svcName -ErrorAction SilentlyContinue) {
+        Start-Service $svcName -ErrorAction SilentlyContinue
+    } elseif (Get-Command nssm -ErrorAction SilentlyContinue) {
+        nssm start $svcName 2>$null
+    }
+    
+    Start-Sleep -Seconds 3
+    
+    # Verify
+    $svc = Get-Service $svcName -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -eq "Running") {
+        Print-Success "codenextremote server is running"
+    } else {
+        Print-Warning "codenextremote server may not have started correctly"
+    }
+    
+    Write-Host ""
+    Print-Success "===== BETTERDESK MINIMAL INSTALLATION COMPLETE ====="
+    Write-Host ""
+    
+    $serverIP = Get-PublicIP
+    Write-Host "Server: $serverIP" -ForegroundColor Green
+    Write-Host "API: http://${serverIP}:21114" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Ports: 21114 (API), 21115-21117 (Signal/Relay), 21118-21119 (WS)" -ForegroundColor Yellow
+    Write-Host "No web console installed. Use REST API or TCP admin for management." -ForegroundColor Yellow
+    Write-Host ""
+    
+    Press-Enter
+}
+
+function Setup-ServicesMinimal {
+    Print-Step "Setting up codenextremote server service (Minimal mode)..."
+    
+    $goBinary = Join-Path $script:INSTALL_DIR "codenextremote-server.exe"
+    $keyDir = $script:INSTALL_DIR
+    $dbDir = $script:INSTALL_DIR
+    
+    # Build arguments
+    $serverArgs = "-key `"$keyDir`" -db `"$dbDir`""
+    
+    # Add relay servers
+    $serverIP = Get-PublicIP
+    if ($serverIP) {
+        $serverArgs += " -relay-servers $serverIP"
+    }
+    
+    # TLS configuration
+    $tlsCert = Join-Path $script:INSTALL_DIR "cert.pem"
+    $tlsKey = Join-Path $script:INSTALL_DIR "key.pem"
+    if ((Test-Path $tlsCert) -and (Test-Path $tlsKey)) {
+        $serverArgs += " -tls-cert `"$tlsCert`" -tls-key `"$tlsKey`" -tls-signal -tls-relay"
+    }
+    
+    # Remove old services
+    foreach ($oldSvc in @("RustDeskSignal", "RustDeskRelay", "codenextremoteAPI", "codenextremoteGo", "codenextremoteConsole")) {
+        if (Get-Service $oldSvc -ErrorAction SilentlyContinue) {
+            Stop-Service $oldSvc -Force -ErrorAction SilentlyContinue
+            if (Get-Command nssm -ErrorAction SilentlyContinue) {
+                nssm remove $oldSvc confirm 2>$null
+            } else {
+                sc.exe delete $oldSvc 2>$null
+            }
+        }
+    }
+    
+    # Install NSSM if not present
+    if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) {
+        Install-NSSM
+    }
+    
+    # Create server service via NSSM
+    $svcName = "codenextremoteServer"
+    if (Get-Service $svcName -ErrorAction SilentlyContinue) {
+        nssm remove $svcName confirm 2>$null
+    }
+    
+    nssm install $svcName $goBinary $serverArgs
+    nssm set $svcName AppDirectory $script:INSTALL_DIR
+    nssm set $svcName DisplayName "codenextremote Server (Minimal)"
+    nssm set $svcName Description "codenextremote Go server - signal, relay, and API"
+    nssm set $svcName Start SERVICE_AUTO_START
+    nssm set $svcName AppStdout (Join-Path $script:INSTALL_DIR "server.log")
+    nssm set $svcName AppStderr (Join-Path $script:INSTALL_DIR "server-error.log")
+    nssm set $svcName AppRotateFiles 1
+    nssm set $svcName AppRotateBytes 10485760
+    
+    # Database environment
+    $envExtra = "SIGNAL_PORT=21116"
+    if ($script:USE_POSTGRESQL -and $script:POSTGRESQL_URI) {
+        $envExtra += "`nDB_URL=$($script:POSTGRESQL_URI)"
+    }
+    nssm set $svcName AppEnvironmentExtra $envExtra
+    
+    Print-Success "codenextremote server service created (Minimal mode)"
+}
+
+#=============================================================================
+# Main Installation Function
+#===============================================================================
+
+function Do-Install {
+    Print-Header
+    Write-Host "========== FRESH INSTALLATION ==========" -ForegroundColor White
+    Write-Host ""
+    
+    Detect-Installation
+    
+    if ($script:INSTALL_STATUS -eq "complete") {
+        Print-Warning "codenextremote is already installed!"
+        if (-not $script:AUTO_MODE) {
+            if (-not (Confirm-Action "Do you want to reinstall?")) {
+                return
+            }
+        }
+        Do-BackupSilent
+    }
+    
+    Write-Host ""
+    Print-Info "Starting codenextremote Console v$script:VERSION installation..."
+    Write-Host ""
+    
+    # Choose database type (SQLite or PostgreSQL)
+    Choose-DatabaseType
+    
+    if (-not (Install-Dependencies)) { return }
+    
+    # Setup PostgreSQL if selected
+    if ($script:USE_POSTGRESQL) {
+        if (-not (Setup-PostgreSQLDatabase)) {
+            Print-Error "PostgreSQL setup failed"
+            return
+        }
+    }
+    
+    if (-not (Install-Binaries)) { Print-Error "Binary installation failed"; return }
+    if (-not (Install-Console)) { Print-Error "Console installation failed"; return }
+    
+    # Generate self-signed TLS certificates (default for fresh installs)
+    Generate-SSLCertificates
+    
+    # Migrate existing SQLite data to PostgreSQL if applicable
+    if ($script:USE_POSTGRESQL) {
+        Migrate-SQLiteToPostgreSQL
+    }
+    
+    Setup-Services
+    Run-Migrations
+    $adminPassword = Create-AdminUser
+    
+    # Configure firewall rules
+    Print-Step "Configuring Windows Firewall rules..."
+    Configure-Firewall | Out-Null
+    
+    Start-Services
+    
+    Write-Host ""
+    Print-Success "Installation completed successfully!"
+    Write-Host ""
+    
+    $serverIP = Get-PublicIP
+    $publicKey = ""
+    $pubKeyPath = Join-Path $script:RUSTDESK_PATH "id_ed25519.pub"
+    if (Test-Path $pubKeyPath) {
+        $publicKey = (Get-Content $pubKeyPath -Raw).Trim()
+    }
+    
+    $dbTypeInfo = "SQLite"
+    if ($script:USE_POSTGRESQL) { $dbTypeInfo = "PostgreSQL" }
+    
+    $tlsStatus = "Disabled"
+    $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
+    if ((Test-Path (Join-Path $sslDir "codenextremote.crt")) -and (Test-Path (Join-Path $sslDir "codenextremote.key"))) {
+        $tlsStatus = "Self-signed (auto-generated)"
+    }
+    
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host "              INSTALLATION INFO                             " -ForegroundColor Cyan
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host "  Panel Web:     " -NoNewline; Write-Host "http://${serverIP}:5000" -ForegroundColor White
+    Write-Host "  API Port:      " -NoNewline; Write-Host $script:API_PORT -ForegroundColor White
+    Write-Host "  Server ID:     " -NoNewline; Write-Host $serverIP -ForegroundColor White
+    Write-Host "  Database:      " -NoNewline; Write-Host $dbTypeInfo -ForegroundColor White
+    Write-Host "  TLS:           " -NoNewline; Write-Host $tlsStatus -ForegroundColor White
+    if ($publicKey) {
+        Write-Host "  Key:           " -NoNewline; Write-Host "$($publicKey.Substring(0, [Math]::Min(20, $publicKey.Length)))..." -ForegroundColor White
+    }
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Required ports (ensure firewall allows):" -ForegroundColor Yellow
+    Write-Host "    TCP/UDP 21116  - ID Server (client registration)"
+    Write-Host "    TCP    21115  - NAT type test"
+    Write-Host "    TCP    21117  - Relay Server"
+    Write-Host "    TCP    $($script:API_PORT)  - Server HTTP API"
+    Write-Host "    TCP    5000   - Web Console (admin panel)"
+    Write-Host "    TCP    21121  - RustDesk Client API (WAN)"
+    Write-Host ""
+    Write-Host "  RustDesk Client Configuration:" -ForegroundColor Yellow
+    Write-Host "    ID Server:    $serverIP"
+    Write-Host "    Relay Server: $serverIP"
+    if ($publicKey) {
+        Write-Host "    Key:          $publicKey"
+    }
+    Write-Host ""
+    
+    # Auto-configure firewall rules
+    Write-Host "  Configuring Windows Firewall rules..." -ForegroundColor Cyan
+    Configure-Firewall
+    Write-Host ""
+    
+    # Offer HTTPS Enterprise configuration for fresh installs
+    if (-not $script:AUTO_MODE) {
+        Write-Host ""
+        Print-Info "Enterprise TLS enables full HTTPS on ALL ports (panel, signal, relay, API)"
+        Print-Info "Recommended for production. Requires RustDesk client >= 1.3.x"
+        Write-Host ""
+        if (Confirm-Action "Would you like to configure HTTPS Enterprise now? (Option 5 in SSL menu)") {
+            Do-ConfigureSSL
+        }
+    }
+    
+    if (-not $script:AUTO_MODE) {
+        Press-Enter
+    }
+}
+
+#===============================================================================
+# Update Functions
+#===============================================================================
+
+function Do-Update {
+    Print-Header
+    Write-Host "========== UPDATE ==========" -ForegroundColor White
+    Write-Host ""
+    
+    Detect-Installation
+    
+    if ($script:INSTALL_STATUS -eq "none") {
+        Print-Error "codenextremote is not installed!"
+        Print-Info "Use 'FRESH INSTALLATION' option"
+        Press-Enter
+        return
+    }
+    
+    # Detect Rust -> Go upgrade (major architecture change)
+    if ($script:SERVER_TYPE -eq "rust") {
+        Print-Warning "Legacy Rust server (hbbs/hbbr) detected!"
+        Print-Warning "Upgrading from Rust to Go server requires a FRESH INSTALLATION."
+        Print-Info "The Go server is a single binary replacing both hbbs and hbbr."
+        Print-Info "Your data (keys, database) will be preserved during migration."
+        Write-Host ""
+        if (-not $script:AUTO_MODE) {
+            if (Confirm-Action "Proceed with fresh installation (recommended)?") {
+                Do-Install
+                return
+            } else {
+                Print-Warning "Continuing with update -- legacy Rust binaries will NOT be replaced with Go server."
+            }
+        } else {
+            Print-Info "Auto mode: Redirecting to fresh installation for Rust -> Go migration"
+            Do-Install
+            return
+        }
+    }
+    
+    # CRITICAL: Preserve database configuration before reinstalling console
+    # This prevents PostgreSQL -> SQLite switch during updates
+    Preserve-DatabaseConfig
+    
+    Print-Info "Creating backup before update..."
+    Do-BackupSilent
+    
+    Stop-AllServices
+    
+    if (-not (Install-Binaries -ForceRecompile)) { Print-Error "Binary update failed"; return }
+    if (-not (Install-Console)) { Print-Error "Console update failed"; return }
+    Run-Migrations
+    
+    # Update services with latest configuration
+    Setup-Services
+    
+    # Ensure admin user exists (especially for Node.js console migration)
+    Create-AdminUser | Out-Null
+    
+    Start-Services
+    
+    Print-Success "Update completed!"
+    Press-Enter
+}
+
+#===============================================================================
+# Repair Functions
+#===============================================================================
+
+function Do-Repair {
+    Print-Header
+    Write-Host "========== REPAIR INSTALLATION ==========" -ForegroundColor White
+    Write-Host ""
+    
+    Detect-Installation
+    
+    # CRITICAL: Preserve database configuration before any repair operation
+    # This prevents PostgreSQL -> SQLite switch when regenerating service files
+    Preserve-DatabaseConfig
+    
+    Print-Status
+    
+    Write-Host ""
+    Write-Host "What do you want to repair?" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  1. Repair binaries (replace with codenextremote)"
+    Write-Host "  2. Repair database (add missing columns)"
+    Write-Host "  3. Repair Windows services"
+    Write-Host "  4. Full repair (all of the above)"
+    Write-Host "  0. Back"
+    Write-Host ""
+    
+    $choice = Read-Host "Select option"
+    
+    switch ($choice) {
+        "1" { Repair-Binaries }
+        "2" { Repair-Database }
+        "3" { Repair-Services }
+        "4" { 
+            Repair-Binaries
+            Repair-Database
+            Repair-Services
+            Print-Success "Full repair completed!"
+        }
+        "0" { return }
+    }
+    
+    Press-Enter
+}
+
+function Repair-Binaries {
+    Print-Step "Repairing binaries (enhanced v2.1.2)..."
+    
+    # Verify binaries exist
+    $binSource = Join-Path $script:ScriptDir "hbbs-patch-v2"
+    $hbbsPath = Join-Path $binSource "hbbs-windows-x86_64.exe"
+    $hbbrPath = Join-Path $binSource "hbbr-windows-x86_64.exe"
+    
+    if (-not (Test-Path $hbbsPath) -or -not (Test-Path $hbbrPath)) {
+        Print-Error "codenextremote binaries not found in $binSource"
+        return
+    }
+    
+    # Backup current binaries
+    $timestamp = Get-Date -Format "yyyyMMddHHmmss"
+    if (Test-Path "$script:RUSTDESK_PATH\hbbs.exe") {
+        Copy-Item "$script:RUSTDESK_PATH\hbbs.exe" "$script:RUSTDESK_PATH\hbbs.exe.backup.$timestamp" -ErrorAction SilentlyContinue
+    }
+    if (Test-Path "$script:RUSTDESK_PATH\hbbr.exe") {
+        Copy-Item "$script:RUSTDESK_PATH\hbbr.exe" "$script:RUSTDESK_PATH\hbbr.exe.backup.$timestamp" -ErrorAction SilentlyContinue
+    }
+    
+    # Stop services and wait
+    Stop-AllServices
+    Start-Sleep -Seconds 3
+    
+    # Extra check - make sure files are not locked
+    $hbbsLocked = $false
+    $hbbrLocked = $false
+    
+    try {
+        if (Test-Path "$script:RUSTDESK_PATH\codenextremote-server.exe") {
+            $stream = [System.IO.File]::Open("$script:RUSTDESK_PATH\codenextremote-server.exe", 'Open', 'ReadWrite', 'None')
+            $stream.Close()
+        } elseif (Test-Path "$script:RUSTDESK_PATH\hbbs.exe") {
+            $stream = [System.IO.File]::Open("$script:RUSTDESK_PATH\hbbs.exe", 'Open', 'ReadWrite', 'None')
+            $stream.Close()
+        }
+    } catch {
+        $hbbsLocked = $true
+        Print-Warning "Server binary is still locked, killing stale processes..."
+        Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Get-Process -Name "hbbs" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep -Seconds 2
+    }
+    
+    try {
+        # Legacy hbbr check (Go server no longer uses separate relay binary)
+        if (Test-Path "$script:RUSTDESK_PATH\hbbr.exe") {
+            $stream = [System.IO.File]::Open("$script:RUSTDESK_PATH\hbbr.exe", 'Open', 'ReadWrite', 'None')
+            $stream.Close()
+        }
+    } catch {
+        $hbbrLocked = $true
+        Print-Warning "hbbr.exe is still locked, killing stale processes..."
+        Get-Process -Name "hbbr" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep -Seconds 2
+    }
+    
+    # Install binaries
+    if (-not (Install-Binaries)) {
+        Print-Error "Failed to install binaries"
+        return
+    }
+    
+    # Start with verification
+    if (-not (Start-ServicesWithVerification)) {
+        Print-Error "Services failed to start after repair"
+        return
+    }
+    
+    Print-Success "Binaries repaired and verified!"
+}
+
+function Repair-Database {
+    Print-Step "Repairing database..."
+    
+    Run-Migrations
+    
+    Print-Success "Database repaired"
+}
+
+function Repair-Services {
+    Print-Step "Repairing Windows services (enhanced v2.1.2)..."
+    
+    # Stop services first
+    Stop-AllServices
+    Start-Sleep -Seconds 2
+    
+    # Verify binaries exist (Go server: codenextremote-server.exe, fallback: legacy hbbs.exe)
+    $serverBinary = Join-Path $script:RUSTDESK_PATH "codenextremote-server.exe"
+    if (-not (Test-Path $serverBinary)) {
+        # Fallback to legacy Rust binary name
+        $serverBinary = Join-Path $script:RUSTDESK_PATH "hbbs.exe"
+        if (-not (Test-Path $serverBinary)) {
+            Print-Error "codenextremote-server.exe not found at $script:RUSTDESK_PATH"
+            Print-Info "Run 'Repair binaries' first"
+            return
+        }
+    }
+    
+    # Recreate services/tasks
+    Setup-Services
+    
+    # Start with verification
+    if (-not (Start-ServicesWithVerification)) {
+        Print-Error "Services failed to start after repair"
+        return
+    }
+    
+    Print-Success "Services repaired and verified!"
+}
+
+#===============================================================================
+# Validation Functions
+#===============================================================================
+
+function Do-Validate {
+    Print-Header
+    Write-Host "========== INSTALLATION VALIDATION ==========" -ForegroundColor White
+    Write-Host ""
+    
+    $errors = 0
+    $warnings = 0
+    
+    Detect-Installation
+    
+    Write-Host "Checking components..." -ForegroundColor White
+    Write-Host ""
+    
+    # Check directories
+    Write-Host "  RustDesk directory ($script:RUSTDESK_PATH): " -NoNewline
+    if (Test-Path $script:RUSTDESK_PATH) {
+        Write-Host "[OK]" -ForegroundColor Green
+    } else {
+        Write-Host "[X] Not found" -ForegroundColor Red
+        $errors++
+    }
+    
+    Write-Host "  Console directory ($script:CONSOLE_PATH): " -NoNewline
+    if (Test-Path $script:CONSOLE_PATH) {
+        Write-Host "[OK]" -ForegroundColor Green
+    } else {
+        Write-Host "[X] Not found" -ForegroundColor Red
+        $errors++
+    }
+    
+    # Check binaries (Go server or legacy Rust)
+    Write-Host "  codenextremote Server: " -NoNewline
+    if (Test-Path (Join-Path $script:RUSTDESK_PATH "codenextremote-server.exe")) {
+        Write-Host "[OK] (Go: signal + relay + API)" -ForegroundColor Green
+    } elseif ((Test-Path (Join-Path $script:RUSTDESK_PATH "hbbs.exe")) -and (Test-Path (Join-Path $script:RUSTDESK_PATH "hbbr.exe"))) {
+        Write-Host "[OK] (Legacy Rust)" -ForegroundColor Yellow
+        $warnings++
+    } else {
+        Write-Host "[X] Not found" -ForegroundColor Red
+        $errors++
+    }
+    
+    # Check database (SQLite or PostgreSQL)
+    Write-Host "  Database: " -NoNewline
+    $valDbType = "sqlite"
+    $envFilePath = Join-Path $script:CONSOLE_PATH ".env"
+    if (Test-Path $envFilePath) {
+        $dbLine = Select-String -Path $envFilePath -Pattern '^DB_TYPE=' -SimpleMatch | Select-Object -First 1
+        if ($dbLine) { $valDbType = ($dbLine.Line -split '=', 2)[1].Trim() }
+    }
+    if ($valDbType -eq "postgres") {
+        Write-Host "[OK] (PostgreSQL)" -ForegroundColor Green
+    } elseif (Test-Path $script:DB_PATH) {
+        Write-Host "[OK] (SQLite)" -ForegroundColor Green
+    } else {
+        # Go server creates DB on first start
+        Write-Host "[!] Not yet created (will be created when server starts)" -ForegroundColor Yellow
+        $warnings++
+    }
+    
+    # Check keys
+    Write-Host "  Public key: " -NoNewline
+    $pubKeyPath = Join-Path $script:RUSTDESK_PATH "id_ed25519.pub"
+    if (Test-Path $pubKeyPath) {
+        Write-Host "[OK]" -ForegroundColor Green
+    } else {
+        Write-Host "[!] Will be generated on first start" -ForegroundColor Yellow
+        $warnings++
+    }
+    
+    # Check services
+    Write-Host ""
+    Write-Host "Checking services..." -ForegroundColor White
+    Write-Host ""
+    
+    $services = @($script:HBBS_SERVICE, $script:HBBR_SERVICE, $script:CONSOLE_SERVICE)
+    foreach ($service in $services) {
+        Write-Host "  ${service}: " -NoNewline
+        $svc = Get-Service -Name $service -ErrorAction SilentlyContinue
+        if ($svc) {
+            if ($svc.Status -eq 'Running') {
+                Write-Host "[OK] Running" -ForegroundColor Green
+            } else {
+                Write-Host "[!] Not running ($($svc.Status))" -ForegroundColor Yellow
+                $warnings++
+            }
+        } else {
+            $task = Get-ScheduledTask -TaskName $service -ErrorAction SilentlyContinue
+            if ($task) {
+                if ($task.State -eq 'Running') {
+                    Write-Host "[OK] Running (task)" -ForegroundColor Green
+                } else {
+                    Write-Host "[!] Task exists but not running" -ForegroundColor Yellow
+                    $warnings++
+                }
+            } else {
+                Write-Host "[X] Not found" -ForegroundColor Red
+                $errors++
+            }
+        }
+    }
+    
+    # Check ports
+    Write-Host ""
+    Write-Host "Checking ports..." -ForegroundColor White
+    Write-Host ""
+    
+    $ports = @(
+        @{Port=21114; Desc="HBBS API"; Expected="hbbs"},
+        @{Port=21115; Desc="NAT Test"; Expected="hbbs"},
+        @{Port=21116; Desc="ID Server"; Expected="hbbs"},
+        @{Port=21117; Desc="Relay"; Expected="hbbr"},
+        @{Port=5000;  Desc="Web Console"; Expected="node"},
+        @{Port=21121; Desc="Client API"; Expected="node"}
+    )
+    foreach ($p in $ports) {
+        $status = Check-PortStatus -Port $p.Port -Protocol "TCP" -ExpectedService $p.Expected
+        Write-Host "  Port $($p.Port) ($($p.Desc)): " -NoNewline
+        if ($status.Listening) {
+            if ($status.Conflict) {
+                Write-Host "[!] CONFLICT - $($status.ProcessName) (PID $($status.PID))" -ForegroundColor Red
+                $errors++
+            } else {
+                Write-Host "[OK] $($status.ProcessName)" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "[!] Not listening" -ForegroundColor Yellow
+            $warnings++
+        }
+    }
+    
+    # Check firewall
+    Write-Host ""
+    Write-Host "Checking firewall..." -ForegroundColor White
+    Write-Host ""
+    
+    $firewallProfile = Get-NetFirewallProfile -ErrorAction SilentlyContinue
+    $activeProfiles = $firewallProfile | Where-Object { $_.Enabled -eq $true }
+    if ($activeProfiles) {
+        $fwPorts = @(21114, 21115, 21116, 21117, 21118, 21119, 5000, 5443, 21121)
+        $fwMissing = 0
+        foreach ($fwPort in $fwPorts) {
+            $rules = Get-NetFirewallRule -Direction Inbound -Enabled True -ErrorAction SilentlyContinue | 
+                Where-Object { $_.Action -eq 'Allow' } |
+                Get-NetFirewallPortFilter -ErrorAction SilentlyContinue | 
+                Where-Object { $_.LocalPort -eq $fwPort }
+            if (-not $rules) { $fwMissing++ }
+        }
+        if ($fwMissing -gt 0) {
+            Write-Host "  Firewall: $fwMissing rule(s) missing" -ForegroundColor Yellow
+            Write-Host "  Use DIAGNOSTICS > F to auto-configure" -ForegroundColor Yellow
+            $warnings += $fwMissing
+        } else {
+            Write-Host "  Firewall: All rules configured" -ForegroundColor Green
+        }
+    } else {
+        Write-Host "  Firewall: Disabled" -ForegroundColor Green
+    }
+    
+    # Summary
+    Write-Host ""
+    Write-Host "=======================================" -ForegroundColor White
+    
+    if ($errors -eq 0 -and $warnings -eq 0) {
+        Write-Host "[OK] Installation correct - no problems found" -ForegroundColor Green
+    } elseif ($errors -eq 0) {
+        Write-Host "[!] Found $warnings warning(s)" -ForegroundColor Yellow
+    } else {
+        Write-Host "[X] Found $errors error(s) and $warnings warning(s)" -ForegroundColor Red
+        Write-Host "Use 'REPAIR INSTALLATION' option to fix problems" -ForegroundColor Cyan
+    }
+    
+    Press-Enter
+}
+
+#===============================================================================
+# Backup Functions
+#===============================================================================
+
+function Do-Backup {
+    Print-Header
+    Write-Host "========== BACKUP ==========" -ForegroundColor White
+    Write-Host ""
+    
+    Do-BackupSilent
+    
+    Print-Success "Backup completed!"
+    Press-Enter
+}
+
+function Do-BackupSilent {
+    $backupName = "codenextremote_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    $backupPath = Join-Path $script:BACKUP_DIR $backupName
+    
+    if (-not (Test-Path $script:BACKUP_DIR)) {
+        New-Item -ItemType Directory -Path $script:BACKUP_DIR -Force | Out-Null
+    }
+    
+    New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
+    
+    Print-Step "Creating backup: $backupName"
+    
+    # Backup database
+    if (Test-Path $script:DB_PATH) {
+        Copy-Item -Path $script:DB_PATH -Destination $backupPath
+        Print-Info "  - Database"
+    }
+    
+    # Backup keys
+    $keyPath = Join-Path $script:RUSTDESK_PATH "id_ed25519"
+    if (Test-Path $keyPath) {
+        Copy-Item -Path $keyPath -Destination $backupPath
+        Copy-Item -Path "$keyPath.pub" -Destination $backupPath -ErrorAction SilentlyContinue
+        Print-Info "  - Keys"
+    }
+    
+    # Backup API key
+    $apiKeyPath = Join-Path $script:RUSTDESK_PATH ".api_key"
+    if (Test-Path $apiKeyPath) {
+        Copy-Item -Path $apiKeyPath -Destination $backupPath
+        Print-Info "  - API key"
+    }
+    
+    # Backup credentials (check both locations)
+    $consoleCredPath = Join-Path $script:CONSOLE_PATH "data\.admin_credentials"
+    $rustdeskCredPath = Join-Path $script:RUSTDESK_PATH ".admin_credentials"
+    if (Test-Path $consoleCredPath) {
+        Copy-Item -Path $consoleCredPath -Destination $backupPath
+        Print-Info "  - Login credentials"
+    } elseif (Test-Path $rustdeskCredPath) {
+        Copy-Item -Path $rustdeskCredPath -Destination $backupPath
+        Print-Info "  - Login credentials"
+    }
+    
+    # Create zip archive
+    $zipPath = "$backupPath.zip"
+    Compress-Archive -Path $backupPath -DestinationPath $zipPath -Force
+    Remove-Item -Path $backupPath -Recurse -Force
+    
+    Print-Success "Backup saved: $zipPath"
+}
+
+#===============================================================================
+# Password Reset Function
+#===============================================================================
+
+function Do-ResetPassword {
+    Print-Header
+    Write-Host "========== ADMIN PASSWORD RESET ==========" -ForegroundColor White
+    Write-Host ""
+    
+    # Detect console type
+    Detect-Installation
+    
+    if ($script:CONSOLE_TYPE -eq "none") {
+        Print-Error "No console installation detected"
+        Print-Info "Run installation first"
+        Press-Enter
+        return
+    }
+    
+    Write-Host "Detected console type: " -NoNewline
+    Write-Host "Node.js" -ForegroundColor Cyan
+    Write-Host ""
+    
+    Write-Host "Select option:"
+    Write-Host ""
+    Write-Host "  1. Generate new random password"
+    Write-Host "  2. Set custom password"
+    Write-Host "  0. Back"
+    Write-Host ""
+    
+    $choice = Read-Host "Choice"
+    
+    $newPassword = $null
+    
+    switch ($choice) {
+        "1" { $newPassword = Generate-RandomPassword }
+        "2" { 
+            $newPassword = Read-Host "Enter new password (min 8 chars)"
+            if ($newPassword.Length -lt 8) {
+                Print-Error "Password too short!"
+                Press-Enter
+                return
+            }
+        }
+        "0" { return }
+        default { return }
+    }
+    
+    if (-not $newPassword) { return }
+    
+    $success = $false
+    
+    if ($script:CONSOLE_TYPE -eq "nodejs") {
+        # Detect database type from console .env
+        $dbType = "sqlite"
+        $envFile = Join-Path $script:CONSOLE_PATH ".env"
+        if (Test-Path $envFile) {
+            $envContent = Get-Content $envFile -Raw -ErrorAction SilentlyContinue
+            if ($envContent -match '(?m)^DB_TYPE\s*=\s*(postgres|postgresql)') {
+                $dbType = "postgres"
+            }
+        }
+        
+        Print-Info "Database type: $dbType"
+        
+        # Use Node.js reset-password script (supports both SQLite and PostgreSQL)
+        $resetScript = Join-Path $script:CONSOLE_PATH "scripts\reset-password.js"
+        if (Test-Path $resetScript) {
+            Print-Info "Using reset-password.js script..."
+            $nodeExe = Get-Command "node" -ErrorAction SilentlyContinue
+            if ($nodeExe) {
+                Push-Location $script:CONSOLE_PATH
+                try {
+                    $env:DATA_DIR = Join-Path $script:CONSOLE_PATH "data"
+                    # The script reads .env for DB_TYPE and DATABASE_URL automatically
+                    & node $resetScript $newPassword admin
+                    if ($LASTEXITCODE -eq 0) {
+                        $success = $true
+                    }
+                } finally {
+                    Pop-Location
+                }
+            }
+        }
+        
+        # Fallback: direct database update
+        if (-not $success) {
+            Print-Info "Using direct database update..."
+            
+            if ($dbType -eq "postgres") {
+                # PostgreSQL mode -- need psycopg2 or pg module
+                Print-Warning "PostgreSQL password reset requires Node.js. Please ensure node is installed."
+                Print-Info "Alternatively, run: psql DATABASE_URL -c `"UPDATE users SET password_hash='...' WHERE username='admin'`""
+            } else {
+                # SQLite mode -- update auth.db directly
+                $authDbPath = Join-Path $script:CONSOLE_PATH "data\auth.db"
+                if (-not (Test-Path $authDbPath)) {
+                    $authDbPath = Join-Path $script:RUSTDESK_PATH "auth.db"
+                }
+                Print-Info "Auth database: $authDbPath"
+                
+                $env:BETTERDESK_AUTH_DB_PATH = $authDbPath
+                $env:BETTERDESK_RESET_PASSWORD = $newPassword
+                $pythonScript = @"
+import sqlite3
+import bcrypt
+import os
+
+auth_db_path = os.environ.get('BETTERDESK_AUTH_DB_PATH', '')
+
+# Create parent directory if needed
+os.makedirs(os.path.dirname(auth_db_path), exist_ok=True)
+
+conn = sqlite3.connect(auth_db_path)
+cursor = conn.cursor()
+
+# Ensure table exists (for fresh installations)
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT DEFAULT 'admin',
+    created_at TEXT DEFAULT (datetime('now')),
+    last_login TEXT
+)''')
+
+new_password = os.environ.get('BETTERDESK_RESET_PASSWORD', '')
+password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(12)).decode()
+
+cursor.execute("UPDATE users SET password_hash = ? WHERE username = 'admin'", (password_hash,))
+
+if cursor.rowcount == 0:
+    cursor.execute('''INSERT INTO users (username, password_hash, role)
+                      VALUES ('admin', ?, 'admin')''', (password_hash,))
+
+conn.commit()
+conn.close()
+print("Password updated successfully")
+"@
+                $output = $pythonScript | python 2>&1
+                Remove-Item Env:BETTERDESK_AUTH_DB_PATH -ErrorAction SilentlyContinue
+                Remove-Item Env:BETTERDESK_RESET_PASSWORD -ErrorAction SilentlyContinue
+                if ($output -match "successfully") {
+                    $success = $true
+                } else {
+                    Print-Warning "Python output: $output"
+                }
+            }
+        }
+    }
+    
+    Write-Host ""
+    if ($success) {
+        Write-Host "============================================================" -ForegroundColor Green
+        Write-Host "              NEW LOGIN CREDENTIALS                         " -ForegroundColor Green
+        Write-Host "============================================================" -ForegroundColor Green
+        Write-Host "  Login:    " -NoNewline; Write-Host "admin" -ForegroundColor White
+        Write-Host "  Password: " -NoNewline; Write-Host $newPassword -ForegroundColor White
+        Write-Host "============================================================" -ForegroundColor Green
+        
+        if ($script:STORE_ADMIN_CREDENTIALS) {
+            # Legacy behavior (opt-in): persist plaintext credentials
+            $consoleCredsFile = Join-Path $script:CONSOLE_PATH "data\.admin_credentials"
+            $rustdeskCredsFile = Join-Path $script:RUSTDESK_PATH ".admin_credentials"
+
+            # Create console data directory if it doesn't exist
+            $consoleDataDir = Join-Path $script:CONSOLE_PATH "data"
+            if (-not (Test-Path $consoleDataDir)) {
+                New-Item -ItemType Directory -Path $consoleDataDir -Force | Out-Null
+            }
+
+            "admin:$newPassword" | Out-File -FilePath $consoleCredsFile -Encoding UTF8
+            "admin:$newPassword" | Out-File -FilePath $rustdeskCredsFile -Encoding UTF8
+            Print-Info "Credentials saved to: $consoleCredsFile"
+        } else {
+            Print-Warning "Credentials are not persisted by default (security hardening)."
+        }
+    } else {
+        Print-Error "Failed to reset password!"
+        Print-Info "Make sure Node.js is installed and the console is set up correctly"
+    }
+    
+    Press-Enter
+}
+
+#===============================================================================
+# Diagnostics Function
+#===============================================================================
+
+function Check-PortStatus {
+    param(
+        [int]$Port,
+        [string]$Protocol = "TCP",
+        [string]$ExpectedService = ""
+    )
+    
+    $result = @{
+        Port = $Port
+        Protocol = $Protocol
+        Listening = $false
+        ProcessName = ""
+        PID = 0
+        Conflict = $false
+    }
+    
+    if ($Protocol -eq "TCP") {
+        $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    } else {
+        $conn = Get-NetUDPEndpoint -LocalPort $Port -ErrorAction SilentlyContinue
+    }
+    
+    if ($conn) {
+        $result.Listening = $true
+        $result.PID = $conn[0].OwningProcess
+        try {
+            $proc = Get-Process -Id $result.PID -ErrorAction SilentlyContinue
+            $result.ProcessName = $proc.ProcessName
+        } catch { }
+        
+        if ($ExpectedService -and $result.ProcessName -and 
+            $result.ProcessName -notmatch $ExpectedService) {
+            $result.Conflict = $true
+        }
+    }
+    
+    return $result
+}
+
+function Check-FirewallRules {
+    Write-Host ""
+    Write-Host "=== Windows Firewall ===" -ForegroundColor White
+    Write-Host ""
+    
+    $firewallProfile = Get-NetFirewallProfile -ErrorAction SilentlyContinue
+    if (-not $firewallProfile) {
+        Print-Warning "  Unable to query Windows Firewall"
+        return
+    }
+    
+    $activeProfiles = $firewallProfile | Where-Object { $_.Enabled -eq $true }
+    if ($activeProfiles) {
+        $profileNames = ($activeProfiles | ForEach-Object { $_.Name }) -join ", "
+        Write-Host "  Firewall active: $profileNames" -ForegroundColor Yellow
+    } else {
+        Write-Host "  Firewall: Disabled" -ForegroundColor Green
+        return
+    }
+    
+    # Check for codenextremote firewall rules
+    $requiredPorts = @(
+        @{Port=21115; Proto="TCP";  Name="NAT Test"},
+        @{Port=21116; Proto="TCP";  Name="ID Server TCP"},
+        @{Port=21116; Proto="UDP";  Name="ID Server UDP"},
+        @{Port=21117; Proto="TCP";  Name="Relay Server"},
+        @{Port=21118; Proto="TCP";  Name="WebSocket Signal"},
+        @{Port=21119; Proto="TCP";  Name="WebSocket Relay"},
+        @{Port=21114; Proto="TCP";  Name="HBBS API"},
+        @{Port=5000;  Proto="TCP";  Name="Web Console"},
+        @{Port=5443;  Proto="TCP";  Name="Web Console HTTPS"},
+        @{Port=21121; Proto="TCP";  Name="Client API"}
+    )
+    
+    $missingRules = @()
+    
+    foreach ($p in $requiredPorts) {
+        $rules = Get-NetFirewallRule -Direction Inbound -Enabled True -ErrorAction SilentlyContinue | 
+            Where-Object { $_.Action -eq 'Allow' } |
+            Get-NetFirewallPortFilter -ErrorAction SilentlyContinue | 
+            Where-Object { $_.LocalPort -eq $p.Port -and ($_.Protocol -eq $p.Proto -or $_.Protocol -eq 'Any') }
+        
+        if ($rules) {
+            Write-Host "  Port $($p.Port)/$($p.Proto) ($($p.Name)): " -NoNewline
+            Write-Host "ALLOWED" -ForegroundColor Green
+        } else {
+            Write-Host "  Port $($p.Port)/$($p.Proto) ($($p.Name)): " -NoNewline
+            Write-Host "NO RULE" -ForegroundColor Red
+            $missingRules += $p
+        }
+    }
+    
+    return $missingRules
+}
+
+function Configure-Firewall {
+    param([array]$MissingRules = @())
+    
+    if ($MissingRules.Count -eq 0) {
+        # Check all required ports
+        $requiredPorts = @(
+            @{Port=21115; Proto="TCP";  Name="codenextremote NAT Test"},
+            @{Port=21116; Proto="TCP";  Name="codenextremote ID Server TCP"},
+            @{Port=21116; Proto="UDP";  Name="codenextremote ID Server UDP"},
+            @{Port=21117; Proto="TCP";  Name="codenextremote Relay Server"},
+            @{Port=21118; Proto="TCP";  Name="codenextremote WebSocket Signal"},
+            @{Port=21119; Proto="TCP";  Name="codenextremote WebSocket Relay"},
+            @{Port=21114; Proto="TCP";  Name="codenextremote HBBS API"},
+            @{Port=5000;  Proto="TCP";  Name="codenextremote Web Console"},
+            @{Port=5443;  Proto="TCP";  Name="codenextremote Console HTTPS"},
+            @{Port=21121; Proto="TCP";  Name="codenextremote Client API"}
+        )
+        
+        foreach ($p in $requiredPorts) {
+            $rules = Get-NetFirewallRule -Direction Inbound -Enabled True -ErrorAction SilentlyContinue | 
+                Where-Object { $_.Action -eq 'Allow' } |
+                Get-NetFirewallPortFilter -ErrorAction SilentlyContinue | 
+                Where-Object { $_.LocalPort -eq $p.Port -and ($_.Protocol -eq $p.Proto -or $_.Protocol -eq 'Any') }
+            
+            if (-not $rules) {
+                $MissingRules += $p
+            }
+        }
+    }
+    
+    if ($MissingRules.Count -eq 0) {
+        Print-Success "All firewall rules are already configured"
+        return $true
+    }
+    
+    Print-Info "Creating $($MissingRules.Count) missing firewall rules..."
+    $created = 0
+    
+    foreach ($p in $MissingRules) {
+        $ruleName = "codenextremote - $($p.Name)"
+        try {
+            New-NetFirewallRule -DisplayName $ruleName `
+                -Direction Inbound -Action Allow `
+                -Protocol $p.Proto -LocalPort $p.Port `
+                -Profile Any -ErrorAction Stop | Out-Null
+            Print-Success "  Created rule: $ruleName (port $($p.Port)/$($p.Proto))"
+            $created++
+        } catch {
+            Print-Error "  Failed to create rule: $ruleName - $($_.Exception.Message)"
+        }
+    }
+    
+    Print-Info "$created/$($MissingRules.Count) firewall rules created"
+    return ($created -eq $MissingRules.Count)
+}
+
+function Do-Diagnostics {
+    Print-Header
+    Write-Host "========== DIAGNOSTICS ==========" -ForegroundColor White
+    Write-Host ""
+    
+    Detect-Installation
+    Print-Status
+    
+    Write-Host ""
+    Write-Host "=== Process Information ===" -ForegroundColor White
+    Write-Host ""
+    
+    $serverProc = Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue
+    if ($serverProc) {
+        Write-Host "  codenextremote Server: PID $($serverProc.Id), Memory $('{0:N0}' -f ($serverProc.WorkingSet64/1MB)) MB" -ForegroundColor Green
+    } else {
+        # Fallback: check legacy hbbs/hbbr processes
+        $hbbsProc = Get-Process -Name "hbbs" -ErrorAction SilentlyContinue
+        $hbbrProc = Get-Process -Name "hbbr" -ErrorAction SilentlyContinue
+        if ($hbbsProc -or $hbbrProc) {
+            if ($hbbsProc) {
+                Write-Host "  HBBS (legacy): PID $($hbbsProc.Id), Memory $('{0:N0}' -f ($hbbsProc.WorkingSet64/1MB)) MB" -ForegroundColor Yellow
+            }
+            if ($hbbrProc) {
+                Write-Host "  HBBR (legacy): PID $($hbbrProc.Id), Memory $('{0:N0}' -f ($hbbrProc.WorkingSet64/1MB)) MB" -ForegroundColor Yellow
+            }
+            Print-Warning "Legacy Rust processes detected. Consider migrating to Go server."
+        } else {
+            Write-Host "  codenextremote Server: Not running" -ForegroundColor Red
+        }
+    }
+    
+    Write-Host ""
+    Write-Host "=== Database Statistics ===" -ForegroundColor White
+    Write-Host ""
+    
+    if (Test-Path $script:DB_PATH) {
+        $fileInfo = Get-Item $script:DB_PATH
+        Write-Host "  Size: $('{0:N2}' -f ($fileInfo.Length/1KB)) KB"
+        Write-Host "  Modified: $($fileInfo.LastWriteTime)"
+        
+        # Get database counts
+        $pythonScript = @"
+import sqlite3
+db_path = r'$($script:DB_PATH)'
+conn = sqlite3.connect(db_path)
+cursor = conn.cursor()
+
+try:
+    cursor.execute("SELECT COUNT(*) FROM peer WHERE is_deleted = 0")
+    devices = cursor.fetchone()[0]
+    print(f"  Devices: {devices}")
+except:
+    print("  Devices: Unable to query")
+
+try:
+    cursor.execute("SELECT COUNT(*) FROM peer WHERE status = 1 AND is_deleted = 0")
+    online = cursor.fetchone()[0]
+    print(f"  Online:  {online}")
+except:
+    pass
+
+try:
+    cursor.execute("SELECT COUNT(*) FROM users")
+    users = cursor.fetchone()[0]
+    print(f"  Users:   {users}")
+except:
+    pass
+
+conn.close()
+"@
+        $pythonScript | python
+    } else {
+        Write-Host "  Database does not exist"
+    }
+    
+    # --- Port diagnostics ---
+    Write-Host ""
+    Write-Host "=== Port Diagnostics ===" -ForegroundColor White
+    Write-Host ""
+    
+    $portDefs = @(
+        @{Port=21114; Proto="TCP"; Expected="codenextremote-server"; Desc="Server API"},
+        @{Port=21115; Proto="TCP"; Expected="codenextremote-server"; Desc="NAT Test"},
+        @{Port=21116; Proto="TCP"; Expected="codenextremote-server"; Desc="ID Server (TCP)"},
+        @{Port=21116; Proto="UDP"; Expected="codenextremote-server"; Desc="ID Server (UDP)"},
+        @{Port=21117; Proto="TCP"; Expected="codenextremote-server"; Desc="Relay Server"},
+        @{Port=5000;  Proto="TCP"; Expected="node"; Desc="Web Console"},
+        @{Port=21121; Proto="TCP"; Expected="node"; Desc="Client API (WAN)"}
+    )
+    
+    $portIssues = 0
+    foreach ($pd in $portDefs) {
+        $status = Check-PortStatus -Port $pd.Port -Protocol $pd.Proto -ExpectedService $pd.Expected
+        
+        $label = "  Port $($pd.Port)/$($pd.Proto) ($($pd.Desc)):"
+        
+        if ($status.Listening) {
+            if ($status.Conflict) {
+                Write-Host "$label " -NoNewline
+                Write-Host "CONFLICT - used by $($status.ProcessName) (PID $($status.PID))" -ForegroundColor Red
+                $portIssues++
+            } else {
+                Write-Host "$label " -NoNewline
+                Write-Host "OK - $($status.ProcessName) (PID $($status.PID))" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "$label " -NoNewline
+            Write-Host "NOT LISTENING" -ForegroundColor Yellow
+        }
+    }
+    
+    if ($portIssues -gt 0) {
+        Write-Host ""
+        Print-Warning "$portIssues port conflict(s) detected!"
+        Write-Host "  Tip: Stop conflicting processes or change ports in configuration" -ForegroundColor Yellow
+        Write-Host "  Common fix: Ensure no other app uses ports 21114-21117, 5000, 21121" -ForegroundColor Yellow
+    }
+    
+    # --- Firewall diagnostics ---
+    $missingRules = Check-FirewallRules
+    
+    if ($missingRules -and $missingRules.Count -gt 0) {
+        Write-Host ""
+        Print-Warning "$($missingRules.Count) firewall rule(s) missing!"
+        Write-Host "  Use option 'F' from diagnostics menu to auto-configure firewall" -ForegroundColor Yellow
+    }
+    
+    # --- API connectivity test ---
+    Write-Host ""
+    Write-Host "=== API Connectivity ===" -ForegroundColor White
+    Write-Host ""
+    
+    $apiUrl = "http://127.0.0.1:$($script:API_PORT)/api/server-info"
+    try {
+        $response = Invoke-WebRequest -Uri $apiUrl -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+        Write-Host "  Server API ($($script:API_PORT)): " -NoNewline
+        Write-Host "OK (HTTP $($response.StatusCode))" -ForegroundColor Green
+    } catch {
+        Write-Host "  Server API ($($script:API_PORT)): " -NoNewline
+        Write-Host "UNREACHABLE" -ForegroundColor Red
+    }
+    
+    $consoleUrl = "http://127.0.0.1:5000/health"
+    try {
+        $response = Invoke-WebRequest -Uri $consoleUrl -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+        Write-Host "  Web Console (5000):   " -NoNewline
+        Write-Host "OK (HTTP $($response.StatusCode))" -ForegroundColor Green
+    } catch {
+        Write-Host "  Web Console (5000):   " -NoNewline
+        Write-Host "UNREACHABLE" -ForegroundColor Red
+    }
+    
+    # --- Diagnostics sub-menu ---
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  F. Configure firewall rules (auto-create missing rules)"
+    Write-Host "  P. Test port connectivity from outside (requires internet)"
+    Write-Host "  0. Back to main menu"
+    Write-Host ""
+    
+    $subChoice = Read-Host "  Select option"
+    
+    switch ($subChoice) {
+        "F" {
+            Write-Host ""
+            Configure-Firewall -MissingRules $missingRules
+            Press-Enter
+        }
+        "P" {
+            Write-Host ""
+            Write-Host "=== External Port Test ===" -ForegroundColor White
+            Write-Host ""
+            $serverIP = Get-PublicIP
+            Print-Info "Public IP: $serverIP"
+            Print-Info "Testing external port accessibility... (this may take a moment)"
+            Write-Host ""
+            
+            foreach ($port in @(21115, 21116, 21117)) {
+                Write-Host "  Port ${port}: " -NoNewline
+                try {
+                    $tcp = New-Object System.Net.Sockets.TcpClient
+                    $result = $tcp.BeginConnect($serverIP, $port, $null, $null)
+                    $success = $result.AsyncWaitHandle.WaitOne(3000)
+                    if ($success -and $tcp.Connected) {
+                        Write-Host "REACHABLE" -ForegroundColor Green
+                    } else {
+                        Write-Host "BLOCKED/UNREACHABLE" -ForegroundColor Red
+                    }
+                    $tcp.Close()
+                } catch {
+                    Write-Host "BLOCKED/UNREACHABLE" -ForegroundColor Red
+                }
+            }
+            Press-Enter
+        }
+        default { return }
+    }
+}
+
+#===============================================================================
+# Uninstall Function
+#===============================================================================
+
+function Do-Uninstall {
+    Print-Header
+    Write-Host "========== UNINSTALL ==========" -ForegroundColor Red
+    Write-Host ""
+    
+    Print-Warning "This operation will remove codenextremote Console!"
+    Write-Host ""
+    
+    if (-not (Confirm-Action "Are you sure you want to continue?")) {
+        return
+    }
+    
+    if (Confirm-Action "Create backup before uninstall?") {
+        Do-BackupSilent
+    }
+    
+    Print-Step "Stopping services..."
+    Stop-AllServices
+    
+    Print-Step "Removing services..."
+    
+    # Remove Windows services (NSSM)
+    $nssmPath = Get-Command nssm -ErrorAction SilentlyContinue
+    if ($nssmPath) {
+        $nssm = if ($nssmPath -is [System.Management.Automation.ApplicationInfo]) { $nssmPath.Source } else { $nssmPath }
+        & $nssm remove $script:HBBS_SERVICE confirm 2>$null
+        & $nssm remove $script:HBBR_SERVICE confirm 2>$null
+        & $nssm remove $script:CONSOLE_SERVICE confirm 2>$null
+    }
+    
+    # Remove scheduled tasks
+    Unregister-ScheduledTask -TaskName $script:HBBS_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $script:HBBR_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $script:CONSOLE_SERVICE -Confirm:$false -ErrorAction SilentlyContinue
+    
+    if (Confirm-Action "Remove installation files ($script:RUSTDESK_PATH)?") {
+        Remove-Item -Path $script:RUSTDESK_PATH -Recurse -Force -ErrorAction SilentlyContinue
+        Print-Info "Removed: $script:RUSTDESK_PATH"
+    }
+    
+    if (Confirm-Action "Remove Web Console ($script:CONSOLE_PATH)?") {
+        Remove-Item -Path $script:CONSOLE_PATH -Recurse -Force -ErrorAction SilentlyContinue
+        Print-Info "Removed: $script:CONSOLE_PATH"
+    }
+    
+    Print-Success "codenextremote has been uninstalled"
+    Press-Enter
+}
+
+#===============================================================================
+# Path Configuration
+#===============================================================================
+
+function Configure-Paths {
+    Print-Header
+    Write-Host ""
+    Write-Host "=== Path Configuration ===" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Current RustDesk path: " -NoNewline; Write-Host $script:RUSTDESK_PATH -ForegroundColor Cyan
+    Write-Host "  Current Console path:  " -NoNewline; Write-Host $script:CONSOLE_PATH -ForegroundColor Cyan
+    Write-Host "  Database path:         " -NoNewline; Write-Host $script:DB_PATH -ForegroundColor Cyan
+    Write-Host ""
+    
+    Write-Host "Options:" -ForegroundColor Yellow
+    Write-Host "  1. Auto-detect installation paths"
+    Write-Host "  2. Set RustDesk server path manually"
+    Write-Host "  3. Set Console path manually"
+    Write-Host "  4. Reset to defaults"
+    Write-Host "  0. Back to main menu"
+    Write-Host ""
+    
+    $choice = Read-Host "Select option [0-4]"
+    
+    switch ($choice) {
+        "1" {
+            $script:RUSTDESK_PATH = ""
+            $script:CONSOLE_PATH = ""
+            Auto-DetectPaths
+            Press-Enter
+            Configure-Paths
+        }
+        "2" {
+            Write-Host ""
+            $newPath = Read-Host "Enter RustDesk server path (e.g., C:\codenextremote)"
+            if ($newPath) {
+                if (Test-Path $newPath) {
+                    $script:RUSTDESK_PATH = $newPath
+                    $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
+                    Print-Success "RustDesk path set to: $script:RUSTDESK_PATH"
+                } else {
+                    Print-Warning "Directory does not exist: $newPath"
+                    if (Confirm-Action "Create this directory?") {
+                        New-Item -ItemType Directory -Path $newPath -Force | Out-Null
+                        $script:RUSTDESK_PATH = $newPath
+                        $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
+                        Print-Success "Created and set RustDesk path: $script:RUSTDESK_PATH"
+                    }
+                }
+            }
+            Press-Enter
+            Configure-Paths
+        }
+        "3" {
+            Write-Host ""
+            $newPath = Read-Host "Enter Console path (e.g., C:\codenextremoteConsole)"
+            if ($newPath) {
+                if (Test-Path $newPath) {
+                    $script:CONSOLE_PATH = $newPath
+                    Print-Success "Console path set to: $script:CONSOLE_PATH"
+                } else {
+                    Print-Warning "Directory does not exist: $newPath"
+                    if (Confirm-Action "Create this directory?") {
+                        New-Item -ItemType Directory -Path $newPath -Force | Out-Null
+                        $script:CONSOLE_PATH = $newPath
+                        Print-Success "Created and set Console path: $script:CONSOLE_PATH"
+                    }
+                }
+            }
+            Press-Enter
+            Configure-Paths
+        }
+        "4" {
+            $script:RUSTDESK_PATH = "C:\codenextremote"
+            $script:CONSOLE_PATH = "C:\codenextremoteConsole"
+            $script:DB_PATH = "$script:RUSTDESK_PATH\db_v2.sqlite3"
+            Print-Success "Paths reset to defaults"
+            Press-Enter
+            Configure-Paths
+        }
+        "0" { return }
+        default {
+            Print-Error "Invalid option"
+            Start-Sleep -Seconds 1
+            Configure-Paths
+        }
+    }
+}
+
+#===============================================================================
+# Build Functions
+#===============================================================================
+
+function Do-Build {
+    Print-Header
+    Write-Host "========== BUILD & DEPLOY ==========" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  1. Rebuild & deploy Go server (compile, stop, replace, start)"
+    Write-Host "  2. Compile Go server only (do not deploy)"
+    Write-Host "  3. Build legacy Rust binaries (archived, hbbs/hbbr)"
+    Write-Host "  0. Back to main menu"
+    Write-Host ""
+    $buildChoice = Read-Host "Select option [1]"
+    if ([string]::IsNullOrEmpty($buildChoice)) { $buildChoice = "1" }
+
+    switch ($buildChoice) {
+        "1" { Do-RebuildGoServer }
+        "2" { Do-CompileGoOnly }
+        "3" { Do-BuildLegacyRust }
+        "0" { return }
+        default { Print-Warning "Invalid option"; Start-Sleep -Seconds 1 }
+    }
+}
+
+# Rebuild & deploy Go server: compile -> backup -> stop -> replace -> start -> verify
+function Do-RebuildGoServer {
+    Print-Header
+    Write-Host "========== REBUILD & DEPLOY GO SERVER ==========" -ForegroundColor White
+    Write-Host ""
+
+    Detect-Installation
+
+    if ($script:INSTALL_STATUS -eq "none") {
+        Print-Warning "codenextremote is not installed. Binary will be compiled but not deployed."
+        if (-not (Confirm-Action "Continue with compilation only?")) {
+            Press-Enter
+            return
+        }
+        Do-CompileGoOnly
+        return
+    }
+
+    # Step 1: Compile
+    Print-Step "[1/5] Compiling Go server from source..."
+    if (-not (Compile-GoServer)) {
+        Print-Error "Compilation failed - aborting. Current installation is untouched."
+        Press-Enter
+        return
+    }
+
+    $newBinary = Join-Path $script:GO_SERVER_SOURCE "codenextremote-server.exe"
+    if (-not (Test-Path $newBinary)) {
+        Print-Error "Compiled binary not found at $newBinary"
+        Press-Enter
+        return
+    }
+
+    # Step 2: Backup current binary
+    Print-Step "[2/5] Backing up current binary..."
+    $installedBinary = Join-Path $script:RUSTDESK_PATH "codenextremote-server.exe"
+    $ts = Get-Date -Format "yyyyMMdd_HHmmss"
+    $backupPath = "${installedBinary}.backup.${ts}"
+    if (Test-Path $installedBinary) {
+        Copy-Item -Path $installedBinary -Destination $backupPath -Force
+        Print-Info "Backup: $backupPath"
+    } else {
+        Print-Info "No existing binary to backup"
+    }
+
+    # Step 3: Stop services
+    Print-Step "[3/5] Stopping services..."
+    Stop-AllServices
+
+    # Step 4: Replace binary
+    Print-Step "[4/5] Deploying new binary..."
+    if (-not (Test-Path $script:RUSTDESK_PATH)) {
+        New-Item -ItemType Directory -Path $script:RUSTDESK_PATH -Force | Out-Null
+    }
+
+    # Verify file is not locked
+    if (Test-Path $installedBinary) {
+        try {
+            $stream = [System.IO.File]::Open($installedBinary, 'Open', 'ReadWrite', 'None')
+            $stream.Close()
+        } catch {
+            Print-Warning "File is locked, waiting..."
+            Start-Sleep -Seconds 3
+            Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Sleep -Seconds 2
+        }
+    }
+
+    Copy-Item -Path $newBinary -Destination $installedBinary -Force
+    $size = [math]::Round((Get-Item $installedBinary).Length / 1MB, 2)
+    Print-Success "Deployed: $installedBinary ($size MB)"
+
+    # Step 5: Start services and verify
+    Print-Step "[5/5] Starting services..."
+    Start-ServicesWithVerification
+
+    # Verify
+    Start-Sleep -Seconds 3
+    $serverProcess = Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue
+    if ($serverProcess) {
+        Write-Host ""
+        Print-Success "Go server rebuilt and deployed successfully!"
+    } else {
+        Print-Error "Service failed to start after rebuild!"
+        Write-Host ""
+        Write-Host "Rolling back to previous binary..." -ForegroundColor Yellow
+        if (Test-Path $backupPath) {
+            # Stop again
+            Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+            Copy-Item -Path $backupPath -Destination $installedBinary -Force
+            Start-Services
+            Start-Sleep -Seconds 3
+            $rollbackProcess = Get-Process -Name "codenextremote-server" -ErrorAction SilentlyContinue
+            if ($rollbackProcess) {
+                Print-Success "Rollback successful - previous binary restored"
+            } else {
+                Print-Error "Rollback also failed. Check event log for details."
+            }
+        } else {
+            Print-Error "No backup to rollback to."
+        }
+    }
+
+    Press-Enter
+}
+
+# Compile Go server only (no deployment)
+function Do-CompileGoOnly {
+    Print-Header
+    Write-Host "========== COMPILE GO SERVER ==========" -ForegroundColor White
+    Write-Host ""
+
+    if (-not (Compile-GoServer)) {
+        Print-Error "Compilation failed"
+        Press-Enter
+        return
+    }
+
+    $newBinary = Join-Path $script:GO_SERVER_SOURCE "codenextremote-server.exe"
+    $size = [math]::Round((Get-Item $newBinary).Length / 1MB, 2)
+    Print-Success "Binary compiled: $newBinary ($size MB)"
+    Print-Info "Use option 7 -> 1 to deploy it, or copy manually."
+
+    Press-Enter
+}
+
+# Legacy Rust build (archived - hbbs/hbbr)
+function Do-BuildLegacyRust {
+    Print-Header
+    Write-Host "========== BUILD LEGACY RUST BINARIES ==========" -ForegroundColor White
+    Write-Host ""
+    Print-Warning "Legacy Rust binaries (hbbs/hbbr) are archived."
+    Print-Info "The Go server is the current architecture."
+    Write-Host ""
+    if (-not (Confirm-Action "Continue with legacy Rust build anyway?")) {
+        return
+    }
+
+    # Check Rust
+    $cargoCmd = Get-Command cargo -ErrorAction SilentlyContinue
+    if (-not $cargoCmd) {
+        Print-Error "Rust is not installed!"
+        Print-Info "Install from: https://rustup.rs"
+        if (Confirm-Action "Open Rust installation page?") {
+            Start-Process "https://rustup.rs"
+        }
+        Press-Enter
+        return
+    }
+
+    $rustVersion = rustc --version
+    Print-Info "Rust: $rustVersion"
+    Write-Host ""
+
+    $buildDir = Join-Path $env:TEMP "codenextremote_build_$((Get-Date).Ticks)"
+    New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
+
+    Push-Location $buildDir
+
+    try {
+        Print-Step "Downloading RustDesk Server sources..."
+        git clone --depth 1 --branch 1.1.14 https://github.com/rustdesk/rustdesk-server.git
+        Set-Location "rustdesk-server"
+        git submodule update --init --recursive
+
+        Print-Step "Applying codenextremote modifications..."
+
+        $srcDir = Join-Path $script:ScriptDir "hbbs-patch-v2\src"
+        if (Test-Path $srcDir) {
+            Copy-Item -Path "$srcDir\main.rs" -Destination "src\main.rs" -Force
+            Copy-Item -Path "$srcDir\http_api.rs" -Destination "src\http_api.rs" -Force
+            Copy-Item -Path "$srcDir\database.rs" -Destination "src\database.rs" -Force
+            Copy-Item -Path "$srcDir\peer.rs" -Destination "src\peer.rs" -Force -ErrorAction SilentlyContinue
+            Copy-Item -Path "$srcDir\rendezvous_server.rs" -Destination "src\rendezvous_server.rs" -Force -ErrorAction SilentlyContinue
+        } else {
+            Print-Error "Source modifications not found: $srcDir"
+            return
+        }
+
+        Print-Step "Compiling (may take several minutes)..."
+        cargo build --release
+
+        Print-Step "Copying binaries..."
+
+        $outputDir = Join-Path $script:ScriptDir "hbbs-patch-v2"
+        Copy-Item -Path "target\release\hbbs.exe" -Destination "$outputDir\hbbs-windows-x86_64.exe" -Force
+        Copy-Item -Path "target\release\hbbr.exe" -Destination "$outputDir\hbbr-windows-x86_64.exe" -Force
+
+        Print-Success "Legacy Rust compilation completed!"
+        Print-Info "Binaries saved in: $outputDir"
+
+    } finally {
+        Pop-Location
+        Remove-Item -Path $buildDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Press-Enter
+}
+
+#===============================================================================
+# SSL Certificate Configuration
+#===============================================================================
+
+function Do-ConfigureSSL {
+    Print-Header
+    Write-Host "========== SSL CERTIFICATE CONFIGURATION ==========" -ForegroundColor White
+    Write-Host ""
+    
+    $envFile = Join-Path $script:CONSOLE_PATH ".env"
+    if (-not (Test-Path $envFile)) {
+        Print-Error "Node.js console .env not found at $envFile"
+        Print-Info "Please install codenextremote first (option 1)"
+        Press-Enter
+        return
+    }
+    
+    Write-Host "  ─── Standard Options ───" -ForegroundColor Cyan
+    Write-Host "  1. Let's Encrypt (ACME)" -ForegroundColor Green
+    Write-Host "  2. Custom certificate (provide cert + key files)" -ForegroundColor Green
+    Write-Host "  3. Self-signed certificate (for testing)" -ForegroundColor Green
+    Write-Host "  4. Disable SSL (revert to HTTP)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  ─── Enterprise Options ───" -ForegroundColor Cyan
+    Write-Host "  5. Enterprise TLS (full HTTPS: panel + signal + relay + API)" -ForegroundColor Yellow
+    Write-Host ""
+    
+    $sslChoice = Read-Host "Choice [3]"
+    if ([string]::IsNullOrEmpty($sslChoice)) { $sslChoice = "3" }
+    
+    $envContent = Get-Content $envFile -Raw
+    $sslDir = Join-Path $script:RUSTDESK_PATH "ssl"
+    
+    switch ($sslChoice) {
+        "1" {
+            # Let's Encrypt
+            Print-Warning "Let's Encrypt is not yet supported on Windows via this script."
+            Print-Info "Please use Certbot manually or option 2 (custom certificate)."
+            Press-Enter
+            return
+        }
+        "2" {
+            # Custom certificate
+            Write-Host ""
+            $certPath = Read-Host "Path to certificate file (PEM)"
+            $keyPath = Read-Host "Path to private key file (PEM)"
+            $caPath = Read-Host "Path to CA bundle (optional, press Enter to skip)"
+            
+            if (-not (Test-Path $certPath)) {
+                Print-Error "Certificate file not found: $certPath"
+                Press-Enter
+                return
+            }
+            if (-not (Test-Path $keyPath)) {
+                Print-Error "Key file not found: $keyPath"
+                Press-Enter
+                return
+            }
+            
+            $envContent = $envContent -replace 'HTTPS_ENABLED=.*', 'HTTPS_ENABLED=true'
+            $envContent = $envContent -replace 'SSL_CERT_PATH=.*', "SSL_CERT_PATH=$certPath"
+            $envContent = $envContent -replace 'SSL_KEY_PATH=.*', "SSL_KEY_PATH=$keyPath"
+            if (-not [string]::IsNullOrEmpty($caPath) -and (Test-Path $caPath)) {
+                $envContent = $envContent -replace 'SSL_CA_PATH=.*', "SSL_CA_PATH=$caPath"
+            }
+            $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=true'
+            
+            Set-Content $envFile -Value $envContent -NoNewline
+            Print-Success "Custom SSL certificate configured"
+        }
+        "3" {
+            # Self-signed with full SANs
+            New-Item -ItemType Directory -Path $sslDir -Force | Out-Null
+            
+            $certPath = Join-Path $sslDir "codenextremote.crt"
+            $keyPath = Join-Path $sslDir "codenextremote.key"
+            
+            Write-Host ""
+            $certDomain = Read-Host "Enter domain name (optional, press Enter to skip)"
+            
+            # Detect IPs
+            $serverIp = Get-PublicIP
+            $lanIp = ""
+            try {
+                $lanIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { 
+                    $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254\.' 
+                } | Select-Object -First 1).IPAddress
+            } catch {
+                $lanIp = [System.Net.Dns]::GetHostAddresses($env:COMPUTERNAME) | 
+                    Where-Object { $_.AddressFamily -eq 'InterNetwork' -and $_.IPAddressToString -notmatch '^127\.' } | 
+                    Select-Object -First 1 -ExpandProperty IPAddressToString
+            }
+            
+            # Build SAN list
+            $sanList = "IP:$serverIp,IP:127.0.0.1,DNS:localhost"
+            if ($lanIp -and $lanIp -ne $serverIp) {
+                $sanList = "$sanList,IP:$lanIp"
+            }
+            if ($certDomain) {
+                $sanList = "DNS:$certDomain,$sanList"
+            }
+            
+            $cn = if ($certDomain) { $certDomain } else { $serverIp }
+            
+            Print-Step "Generating self-signed certificate..."
+            Print-Info "SANs: $sanList"
+            
+            # Use openssl if available, otherwise PowerShell
+            $openssl = Get-Command openssl -ErrorAction SilentlyContinue
+            if ($openssl) {
+                $sanArg = "subjectAltName=$sanList"
+                & openssl req -x509 -nodes -days 3650 -newkey rsa:2048 `
+                    -keyout $keyPath -out $certPath `
+                    -subj "/CN=$cn/O=codenextremote/C=PL" `
+                    -addext $sanArg 2>&1 | Out-Null
+                    
+                if (-not (Test-Path $certPath)) {
+                    # Fallback for older openssl without -addext
+                    & openssl req -x509 -nodes -days 3650 -newkey rsa:2048 `
+                        -keyout $keyPath -out $certPath `
+                        -subj "/CN=$cn/O=codenextremote/C=PL" 2>&1 | Out-Null
+                }
+            } else {
+                # PowerShell self-signed cert
+                $dnsNames = @("localhost")
+                if ($certDomain) { $dnsNames += $certDomain }
+                
+                $cert = New-SelfSignedCertificate -DnsName $dnsNames `
+                    -CertStoreLocation "cert:\LocalMachine\My" `
+                    -NotAfter (Get-Date).AddYears(10) `
+                    -KeyExportPolicy Exportable
+                    
+                # Export as PFX then convert to PEM via openssl if available
+                $pfxPath = Join-Path $sslDir "codenextremote.pfx"
+                $certBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx)
+                [System.IO.File]::WriteAllBytes($pfxPath, $certBytes)
+                
+                Print-Warning "Generated PFX certificate at $pfxPath"
+                Print-Warning "For full PEM support, install OpenSSL for Windows."
+                $certPath = $pfxPath
+                $keyPath = $pfxPath
+            }
+            
+            $envContent = $envContent -replace 'HTTPS_ENABLED=.*', 'HTTPS_ENABLED=true'
+            $envContent = $envContent -replace 'SSL_CERT_PATH=.*', "SSL_CERT_PATH=$certPath"
+            $envContent = $envContent -replace 'SSL_KEY_PATH=.*', "SSL_KEY_PATH=$keyPath"
+            $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=true'
+            
+            # Configure NODE_EXTRA_CA_CERTS for self-signed
+            if ($envContent -match 'NODE_EXTRA_CA_CERTS=') {
+                $envContent = $envContent -replace 'NODE_EXTRA_CA_CERTS=.*', "NODE_EXTRA_CA_CERTS=$certPath"
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nNODE_EXTRA_CA_CERTS=$certPath`n"
+            }
+            
+            Set-Content $envFile -Value $envContent -NoNewline
+            
+            # Configure Go server with TLS for signal/relay
+            $nssm = Get-Command nssm -ErrorAction SilentlyContinue
+            if ($nssm) {
+                $goSvcName = $script:SERVER_SERVICE
+                try {
+                    $goArgs = & nssm get $goSvcName AppParameters 2>$null
+                    if ($goArgs) {
+                        # Remove old TLS args
+                        $goArgs = $goArgs -replace ' -tls-cert [^ ]*', ''
+                        $goArgs = $goArgs -replace ' -tls-key [^ ]*', ''
+                        $goArgs = $goArgs -replace ' -tls-signal', ''
+                        $goArgs = $goArgs -replace ' -tls-relay', ''
+                        $goArgs = $goArgs -replace ' -tls-api', ''
+                        # Add new TLS args
+                        $goArgs = "$goArgs -tls-cert $certPath -tls-key $keyPath -tls-signal -tls-relay"
+                        & nssm set $goSvcName AppParameters $goArgs 2>$null
+                    }
+                } catch { }
+            }
+            
+            Print-Success "Self-signed certificate generated (valid 10 years)"
+            Print-Info "Certificate: $certPath"
+            if ($lanIp -and $lanIp -ne $serverIp) {
+                Print-Info "LAN IP included: $lanIp"
+            }
+            Print-Warning "Browsers will show security warning. Use Let's Encrypt for public servers."
+        }
+        "4" {
+            # Disable SSL
+            $envContent = $envContent -replace 'HTTPS_ENABLED=.*', 'HTTPS_ENABLED=false'
+            $envContent = $envContent -replace 'SSL_CERT_PATH=.*', 'SSL_CERT_PATH='
+            $envContent = $envContent -replace 'SSL_KEY_PATH=.*', 'SSL_KEY_PATH='
+            $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=false'
+            
+            # Remove TLS args from Go server
+            $nssm = Get-Command nssm -ErrorAction SilentlyContinue
+            if ($nssm) {
+                $goSvcName = $script:SERVER_SERVICE
+                try {
+                    $goArgs = & nssm get $goSvcName AppParameters 2>$null
+                    if ($goArgs) {
+                        $goArgs = $goArgs -replace ' -tls-cert [^ ]*', ''
+                        $goArgs = $goArgs -replace ' -tls-key [^ ]*', ''
+                        $goArgs = $goArgs -replace ' -tls-signal', ''
+                        $goArgs = $goArgs -replace ' -tls-relay', ''
+                        $goArgs = $goArgs -replace ' -tls-api', ''
+                        & nssm set $goSvcName AppParameters $goArgs 2>$null
+                    }
+                } catch { }
+            }
+            
+            Set-Content $envFile -Value $envContent -NoNewline
+            Print-Success "SSL disabled. Running in HTTP mode."
+        }
+        "5" {
+            # Enterprise TLS - full HTTPS on ALL channels including API
+            Print-Header
+            Write-Host "========== ENTERPRISE TLS CONFIGURATION ==========" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "  WARNING: Enterprise TLS enables HTTPS on ALL ports including API." -ForegroundColor Yellow
+            Write-Host "  This requires RustDesk client >= 1.3.x for full compatibility." -ForegroundColor Yellow
+            Write-Host "  Legacy clients may have connectivity issues." -ForegroundColor Yellow
+            Write-Host ""
+            
+            New-Item -ItemType Directory -Path $sslDir -Force | Out-Null
+            
+            $certPath = Join-Path $sslDir "codenextremote.crt"
+            $keyPath = Join-Path $sslDir "codenextremote.key"
+            
+            $certDomain = Read-Host "Enter domain name (optional, press Enter to skip)"
+            
+            # Detect IPs
+            $serverIp = Get-PublicIP
+            $lanIp = ""
+            try {
+                $lanIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { 
+                    $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254\.' 
+                } | Select-Object -First 1).IPAddress
+            } catch { }
+            
+            # Build comprehensive SAN list
+            $sanList = "IP:$serverIp,IP:127.0.0.1,DNS:localhost"
+            if ($lanIp -and $lanIp -ne $serverIp) {
+                $sanList = "$sanList,IP:$lanIp"
+            }
+            if ($certDomain) {
+                $sanList = "DNS:$certDomain,$sanList"
+            }
+            
+            $cn = if ($certDomain) { $certDomain } else { $serverIp }
+            
+            Print-Step "Generating Enterprise certificate..."
+            Print-Info "SANs: $sanList"
+            
+            $openssl = Get-Command openssl -ErrorAction SilentlyContinue
+            if ($openssl) {
+                $sanArg = "subjectAltName=$sanList"
+                & openssl req -x509 -nodes -days 3650 -newkey rsa:4096 `
+                    -keyout $keyPath -out $certPath `
+                    -subj "/CN=$cn/O=codenextremote Enterprise/C=PL" `
+                    -addext $sanArg 2>&1 | Out-Null
+                    
+                if (-not (Test-Path $certPath)) {
+                    & openssl req -x509 -nodes -days 3650 -newkey rsa:4096 `
+                        -keyout $keyPath -out $certPath `
+                        -subj "/CN=$cn/O=codenextremote Enterprise/C=PL" 2>&1 | Out-Null
+                }
+            } else {
+                $dnsNames = @("localhost")
+                if ($certDomain) { $dnsNames += $certDomain }
+                
+                $cert = New-SelfSignedCertificate -DnsName $dnsNames `
+                    -CertStoreLocation "cert:\LocalMachine\My" `
+                    -NotAfter (Get-Date).AddYears(10) `
+                    -KeyExportPolicy Exportable `
+                    -KeyLength 4096
+                    
+                $pfxPath = Join-Path $sslDir "codenextremote.pfx"
+                $certBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx)
+                [System.IO.File]::WriteAllBytes($pfxPath, $certBytes)
+                $certPath = $pfxPath
+                $keyPath = $pfxPath
+                Print-Warning "Generated PFX certificate. Install OpenSSL for PEM format."
+            }
+            
+            # === Configure Node.js Console for HTTPS ===
+            $envContent = $envContent -replace 'HTTPS_ENABLED=.*', 'HTTPS_ENABLED=true'
+            $envContent = $envContent -replace 'SSL_CERT_PATH=.*', "SSL_CERT_PATH=$certPath"
+            $envContent = $envContent -replace 'SSL_KEY_PATH=.*', "SSL_KEY_PATH=$keyPath"
+            $envContent = $envContent -replace 'HTTP_REDIRECT_HTTPS=.*', 'HTTP_REDIRECT_HTTPS=true'
+            
+            # Set ALLOW_SELF_SIGNED_CERTS
+            if ($envContent -match 'ALLOW_SELF_SIGNED_CERTS=') {
+                $envContent = $envContent -replace 'ALLOW_SELF_SIGNED_CERTS=.*', 'ALLOW_SELF_SIGNED_CERTS=true'
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nALLOW_SELF_SIGNED_CERTS=true`n"
+            }
+            
+            # Configure NODE_EXTRA_CA_CERTS
+            if ($envContent -match 'NODE_EXTRA_CA_CERTS=') {
+                $envContent = $envContent -replace 'NODE_EXTRA_CA_CERTS=.*', "NODE_EXTRA_CA_CERTS=$certPath"
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nNODE_EXTRA_CA_CERTS=$certPath`n"
+            }
+            
+            # Update API URLs to HTTPS
+            $envContent = $envContent -replace 'HBBS_API_URL=http://', 'HBBS_API_URL=https://'
+            $envContent = $envContent -replace 'BETTERDESK_API_URL=http://', 'BETTERDESK_API_URL=https://'
+            
+            # Set ENTERPRISE_TLS marker
+            if ($envContent -match 'ENTERPRISE_TLS=') {
+                $envContent = $envContent -replace 'ENTERPRISE_TLS=.*', 'ENTERPRISE_TLS=true'
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nENTERPRISE_TLS=true`n"
+            }
+            
+            Set-Content $envFile -Value $envContent -NoNewline
+            
+            # === Configure Go server with FULL TLS ===
+            $nssm = Get-Command nssm -ErrorAction SilentlyContinue
+            if ($nssm) {
+                $goSvcName = $script:SERVER_SERVICE
+                try {
+                    $goArgs = & nssm get $goSvcName AppParameters 2>$null
+                    if ($goArgs) {
+                        # Remove old TLS args
+                        $goArgs = $goArgs -replace ' -tls-cert [^ ]*', ''
+                        $goArgs = $goArgs -replace ' -tls-key [^ ]*', ''
+                        $goArgs = $goArgs -replace ' -tls-signal', ''
+                        $goArgs = $goArgs -replace ' -tls-relay', ''
+                        $goArgs = $goArgs -replace ' -tls-api', ''
+                        # Add FULL TLS args including -tls-api
+                        $goArgs = "$goArgs -tls-cert $certPath -tls-key $keyPath -tls-signal -tls-relay -tls-api"
+                        & nssm set $goSvcName AppParameters $goArgs 2>$null
+                    }
+                } catch { }
+            }
+            
+            Print-Success "Enterprise TLS configured successfully!"
+            Write-Host ""
+            Print-Info "Certificate: $certPath"
+            Print-Info "Valid: 10 years (RSA 4096-bit)"
+            if ($lanIp -and $lanIp -ne $serverIp) {
+                Print-Info "LAN IP: $lanIp"
+            }
+            Write-Host ""
+            Write-Host "  All connections now use TLS:" -ForegroundColor Yellow
+            Print-Info "  - Panel HTTPS: :5443 (or configured port)"
+            Print-Info "  - Signal TLS: :21116"
+            Print-Info "  - Relay TLS: :21117"
+            Print-Info "  - API HTTPS: :21114"
+            Write-Host ""
+            Print-Warning "For browsers/clients, you may need to import $certPath as trusted CA"
+        }
+        default {
+            Print-Warning "Invalid option"
+            Press-Enter
+            return
+        }
+    }
+    
+    # ── Update API URLs in .env when SSL is enabled/disabled ──
+    # API TLS (--tls-api) is only enabled for Enterprise TLS (option 5).
+    # Standard options (1-3): API stays HTTP, only signal/relay use TLS.
+    # Option 5 (Enterprise): ALL channels use TLS including API.
+    $envContent = Get-Content $envFile -Raw
+    
+    if ($sslChoice -eq "5") {
+        # === Enterprise TLS: Keep HTTPS for API (already configured in option handler) ===
+        Print-Info "Enterprise TLS mode: ALL connections use HTTPS/TLS"
+        
+        # Ensure NSSM service has ALLOW_SELF_SIGNED_CERTS
+        $nssm = Get-Command nssm -ErrorAction SilentlyContinue
+        if ($nssm) {
+            $svcName = $script:CONSOLE_SERVICE
+            try {
+                $currentEnv = & nssm get $svcName AppEnvironmentExtra 2>$null
+                if ($currentEnv -and $currentEnv -notmatch 'ALLOW_SELF_SIGNED_CERTS=') {
+                    $currentEnv = "$currentEnv`nALLOW_SELF_SIGNED_CERTS=true"
+                    & nssm set $svcName AppEnvironmentExtra $currentEnv 2>$null
+                }
+            } catch { }
+        }
+        
+    } elseif ($sslChoice -ne "4") {
+        # === Standard SSL (options 1-3): API stays HTTP for RustDesk client compatibility ===
+        $envContent = $envContent -replace 'HBBS_API_URL=https://localhost', 'HBBS_API_URL=http://localhost'
+        $envContent = $envContent -replace 'BETTERDESK_API_URL=https://localhost', 'BETTERDESK_API_URL=http://localhost'
+        
+        # For self-signed certs, Node.js needs NODE_EXTRA_CA_CERTS to trust the CA
+        $sslCertValue = [regex]::Match($envContent, 'SSL_CERT_PATH=(.+)').Groups[1].Value.Trim()
+        if ($sslCertValue -and (Test-Path $sslCertValue -ErrorAction SilentlyContinue)) {
+            if ($envContent -match 'NODE_EXTRA_CA_CERTS=') {
+                $envContent = $envContent -replace 'NODE_EXTRA_CA_CERTS=.*', "NODE_EXTRA_CA_CERTS=$sslCertValue"
+            } else {
+                $envContent = $envContent.TrimEnd() + "`nNODE_EXTRA_CA_CERTS=$sslCertValue`n"
+            }
+            Print-Info "NODE_EXTRA_CA_CERTS set to $sslCertValue"
+        }
+        
+        # Also update NSSM service environment if available
+        $nssm = Get-Command nssm -ErrorAction SilentlyContinue
+        if ($nssm) {
+            $svcName = $script:CONSOLE_SERVICE
+            try {
+                $currentEnv = & nssm get $svcName AppEnvironmentExtra 2>$null
+                if ($currentEnv) {
+                    # Ensure API URLs stay HTTP in NSSM service
+                    $currentEnv = $currentEnv -replace 'HBBS_API_URL=https://localhost', 'HBBS_API_URL=http://localhost'
+                    $currentEnv = $currentEnv -replace 'BETTERDESK_API_URL=https://localhost', 'BETTERDESK_API_URL=http://localhost'
+                    & nssm set $svcName AppEnvironmentExtra $currentEnv 2>$null
+                }
+            } catch { }
+            
+            # Remove -tls-api from Go server service (standard SSL doesn't use API TLS)
+            $goSvcName = $script:SERVER_SERVICE
+            try {
+                $goArgs = & nssm get $goSvcName AppParameters 2>$null
+                if ($goArgs) {
+                    $goArgs = $goArgs -replace ' -tls-api', ''
+                    $goArgs = $goArgs -replace ' -force-https', ''
+                    & nssm set $goSvcName AppParameters $goArgs 2>$null
+                }
+            } catch { }
+        }
+        
+        Print-Info "Signal/relay TLS enabled, API stays HTTP (RustDesk client compatibility)"
+    } else {
+        # === SSL disabled (option 4) — revert API URLs to HTTP ===
+        $envContent = $envContent -replace 'HBBS_API_URL=https://localhost', 'HBBS_API_URL=http://localhost'
+        $envContent = $envContent -replace 'BETTERDESK_API_URL=https://localhost', 'BETTERDESK_API_URL=http://localhost'
+        $envContent = $envContent -replace '(?m)^NODE_EXTRA_CA_CERTS=.*\r?\n?', ''
+        $envContent = $envContent -replace '(?m)^ENTERPRISE_TLS=.*\r?\n?', ''
+        $envContent = $envContent -replace 'ALLOW_SELF_SIGNED_CERTS=.*', 'ALLOW_SELF_SIGNED_CERTS=false'
+        
+        # Remove ALL TLS args from Go server service
+        $nssm = Get-Command nssm -ErrorAction SilentlyContinue
+        if ($nssm) {
+            $goSvcName = $script:SERVER_SERVICE
+            try {
+                $goArgs = & nssm get $goSvcName AppParameters 2>$null
+                if ($goArgs) {
+                    $goArgs = $goArgs -replace ' -tls-cert [^ ]*', ''
+                    $goArgs = $goArgs -replace ' -tls-key [^ ]*', ''
+                    $goArgs = $goArgs -replace ' -tls-signal', ''
+                    $goArgs = $goArgs -replace ' -tls-relay', ''
+                    $goArgs = $goArgs -replace ' -tls-api', ''
+                    $goArgs = $goArgs -replace ' -force-https', ''
+                    & nssm set $goSvcName AppParameters $goArgs 2>$null
+                }
+            } catch { }
+        }
+        
+        Print-Info "All TLS disabled, API URLs reverted to HTTP"
+    }
+    
+    Set-Content $envFile -Value $envContent -NoNewline
+    
+    Write-Host ""
+    if (Confirm-Action "Restart codenextremote to apply changes?") {
+        $serverService = $script:SERVER_SERVICE
+        $consoleService = $script:CONSOLE_SERVICE
+        if (Get-Service -Name $serverService -ErrorAction SilentlyContinue) {
+            Restart-Service -Name $serverService -Force -ErrorAction SilentlyContinue
+        }
+        if (Get-Service -Name $consoleService -ErrorAction SilentlyContinue) {
+            Restart-Service -Name $consoleService -Force -ErrorAction SilentlyContinue
+        }
+        Print-Success "codenextremote services restarted"
+    }
+    
+    Press-Enter
+}
+
+#===============================================================================
+# Database Migration Functions
+#===============================================================================
+
+function Do-MigrateDatabase {
+    Print-Header
+    Write-Host "========== DATABASE MIGRATION ==========" -ForegroundColor White
+    Write-Host ""
+
+    # Locate migration binary
+    $migrateBin = $null
+    $searchPaths = @(
+        (Join-Path $script:ScriptDir "codenextremote-server\tools\migrate\migrate.exe"),
+        (Join-Path $script:ScriptDir "tools\migrate\migrate.exe"),
+        (Join-Path $script:RUSTDESK_PATH "migrate.exe"),
+        "C:\codenextremote\migrate.exe"
+    )
+
+    foreach ($p in $searchPaths) {
+        if (Test-Path $p) {
+            $migrateBin = $p
+            break
+        }
+    }
+
+    if (-not $migrateBin) {
+        Print-Error "Migration binary not found!"
+        Print-Info "Expected at: $(Join-Path $script:ScriptDir 'codenextremote-server\tools\migrate\migrate.exe')"
+        Print-Info "Build it with: cd codenextremote-server; go build -o tools\migrate\migrate.exe ./tools/migrate/"
+        Press-Enter
+        return
+    }
+
+    Print-Info "Migration binary: $migrateBin"
+    Write-Host ""
+    Write-Host "  Migrate databases between different codenextremote components." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Migration Modes:" -ForegroundColor Yellow
+    Write-Host "  1. Rust -> Go          Migrate from legacy Rust hbbs database to Go server" -ForegroundColor Green
+    Write-Host "  2. Node.js -> Go       Migrate from Node.js web console to Go server" -ForegroundColor Green
+    Write-Host "  3. SQLite -> PostgreSQL Migrate codenextremote Go SQLite to PostgreSQL" -ForegroundColor Green
+    Write-Host "  4. PostgreSQL -> SQLite Migrate PostgreSQL back to SQLite" -ForegroundColor Green
+    Write-Host "  5. Backup              Create timestamped backup of SQLite database" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  0. Back to main menu" -ForegroundColor Red
+    Write-Host ""
+
+    $migChoice = Read-Host "Select migration mode"
+
+    switch ($migChoice) {
+        "1" {
+            # Rust -> Go
+            Write-Host ""
+            $defaultSrc = Join-Path $script:RUSTDESK_PATH "db_v2.sqlite3"
+            $srcDb = Read-Host "Source Rust database [$defaultSrc]"
+            if ([string]::IsNullOrEmpty($srcDb)) { $srcDb = $defaultSrc }
+
+            if (-not (Test-Path $srcDb)) {
+                Print-Error "Source database not found: $srcDb"
+                Press-Enter
+                return
+            }
+
+            $dstDb = Read-Host "Destination (SQLite path or postgres:// URI) [new file next to source]"
+
+            Print-Step "Creating backup before migration..."
+            & $migrateBin -mode backup -src $srcDb 2>&1 | ForEach-Object { Write-Host $_ }
+
+            Print-Step "Running Rust -> Go migration..."
+            if ([string]::IsNullOrEmpty($dstDb)) {
+                & $migrateBin -mode rust2go -src $srcDb 2>&1 | ForEach-Object { Write-Host $_ }
+            } else {
+                & $migrateBin -mode rust2go -src $srcDb -dst $dstDb 2>&1 | ForEach-Object { Write-Host $_ }
+            }
+
+            if ($LASTEXITCODE -eq 0) {
+                Print-Success "Rust -> Go migration completed successfully!"
+            } else {
+                Print-Error "Migration failed. Check the output above for details."
+            }
+        }
+        "2" {
+            # Node.js -> Go
+            Write-Host ""
+            $defaultSrc = Join-Path $script:RUSTDESK_PATH "db_v2.sqlite3"
+            $defaultAuth = Join-Path $script:CONSOLE_PATH "data\auth.db"
+
+            $srcDb = Read-Host "Source Node.js peer database [$defaultSrc]"
+            if ([string]::IsNullOrEmpty($srcDb)) { $srcDb = $defaultSrc }
+
+            if (-not (Test-Path $srcDb)) {
+                Print-Error "Source peer database not found: $srcDb"
+                Press-Enter
+                return
+            }
+
+            $authDb = Read-Host "Node.js auth database [$defaultAuth]"
+            if ([string]::IsNullOrEmpty($authDb)) { $authDb = $defaultAuth }
+
+            $dstDb = Read-Host "Destination (SQLite path or postgres:// URI) [new file next to source]"
+
+            Print-Step "Creating backup before migration..."
+            & $migrateBin -mode backup -src $srcDb 2>&1 | ForEach-Object { Write-Host $_ }
+            if (Test-Path $authDb) {
+                & $migrateBin -mode backup -src $authDb 2>&1 | ForEach-Object { Write-Host $_ }
+            }
+
+            Print-Step "Running Node.js -> Go migration..."
+            $args = @("-mode", "nodejs2go", "-src", $srcDb)
+            if (Test-Path $authDb) {
+                $args += @("-node-auth", $authDb)
+            }
+            if (-not [string]::IsNullOrEmpty($dstDb)) {
+                $args += @("-dst", $dstDb)
+            }
+            & $migrateBin @args 2>&1 | ForEach-Object { Write-Host $_ }
+
+            if ($LASTEXITCODE -eq 0) {
+                Print-Success "Node.js -> Go migration completed successfully!"
+            } else {
+                Print-Error "Migration failed. Check the output above for details."
+            }
+        }
+        "3" {
+            # SQLite -> PostgreSQL
+            Write-Host ""
+            $defaultSrc = Join-Path $script:RUSTDESK_PATH "db_v2.sqlite3"
+            $srcDb = Read-Host "Source SQLite database [$defaultSrc]"
+            if ([string]::IsNullOrEmpty($srcDb)) { $srcDb = $defaultSrc }
+
+            if (-not (Test-Path $srcDb)) {
+                Print-Error "Source database not found: $srcDb"
+                Press-Enter
+                return
+            }
+
+            $pgUri = Read-Host "PostgreSQL connection URI (postgres://user:pass@host:5432/dbname)"
+            if ([string]::IsNullOrEmpty($pgUri)) {
+                Print-Error "PostgreSQL URI is required"
+                Press-Enter
+                return
+            }
+
+            Print-Step "Creating backup before migration..."
+            & $migrateBin -mode backup -src $srcDb 2>&1 | ForEach-Object { Write-Host $_ }
+
+            Print-Step "Running SQLite -> PostgreSQL migration..."
+            & $migrateBin -mode sqlite2pg -src $srcDb -dst $pgUri 2>&1 | ForEach-Object { Write-Host $_ }
+
+            if ($LASTEXITCODE -eq 0) {
+                Print-Success "SQLite -> PostgreSQL migration completed successfully!"
+                Print-Info "Update your codenextremote Go server config: DB_URL=$pgUri"
+            } else {
+                Print-Error "Migration failed. Check the output above for details."
+            }
+        }
+        "4" {
+            # PostgreSQL -> SQLite
+            Write-Host ""
+            $pgUri = Read-Host "PostgreSQL connection URI (postgres://user:pass@host:5432/dbname)"
+            if ([string]::IsNullOrEmpty($pgUri)) {
+                Print-Error "PostgreSQL URI is required"
+                Press-Enter
+                return
+            }
+
+            $defaultDst = Join-Path $script:RUSTDESK_PATH "db_v2.sqlite3"
+            $dstDb = Read-Host "Destination SQLite file [$defaultDst]"
+            if ([string]::IsNullOrEmpty($dstDb)) { $dstDb = $defaultDst }
+
+            if (Test-Path $dstDb) {
+                Print-Warning "Destination file exists: $dstDb"
+                if (-not (Confirm-Action "Overwrite (backup will be created first)?")) {
+                    Press-Enter
+                    return
+                }
+                & $migrateBin -mode backup -src $dstDb 2>&1 | ForEach-Object { Write-Host $_ }
+            }
+
+            Print-Step "Running PostgreSQL -> SQLite migration..."
+            & $migrateBin -mode pg2sqlite -src $pgUri -dst $dstDb 2>&1 | ForEach-Object { Write-Host $_ }
+
+            if ($LASTEXITCODE -eq 0) {
+                Print-Success "PostgreSQL -> SQLite migration completed successfully!"
+            } else {
+                Print-Error "Migration failed. Check the output above for details."
+            }
+        }
+        "5" {
+            # Backup
+            Write-Host ""
+            $defaultSrc = Join-Path $script:RUSTDESK_PATH "db_v2.sqlite3"
+            $srcDb = Read-Host "SQLite database to backup [$defaultSrc]"
+            if ([string]::IsNullOrEmpty($srcDb)) { $srcDb = $defaultSrc }
+
+            if (-not (Test-Path $srcDb)) {
+                Print-Error "Database not found: $srcDb"
+                Press-Enter
+                return
+            }
+
+            Print-Step "Creating backup..."
+            & $migrateBin -mode backup -src $srcDb 2>&1 | ForEach-Object { Write-Host $_ }
+
+            if ($LASTEXITCODE -eq 0) {
+                Print-Success "Backup created successfully!"
+            } else {
+                Print-Error "Backup failed."
+            }
+        }
+        "0" { return }
+        default {
+            Print-Warning "Invalid option"
+        }
+    }
+
+    Press-Enter
+}
+
+#===============================================================================
+# Main Menu
+#===============================================================================
+
+function Show-Menu {
+    Print-Header
+    Print-Status
+    
+    Write-Host "========== MAIN MENU ==========" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  1. FRESH INSTALLATION"
+    Write-Host "  2. UPDATE"
+    Write-Host "  3. REPAIR INSTALLATION"
+    Write-Host "  4. INSTALLATION VALIDATION"
+    Write-Host "  5. Backup"
+    Write-Host "  6. Reset admin password"
+    Write-Host "  7. Build & deploy server"
+    Write-Host "  8. DIAGNOSTICS"
+    Write-Host "  9. UNINSTALL"
+    Write-Host ""
+    Write-Host "  L. MINIMAL INSTALLATION (server only)"
+    Write-Host "  C. Configure SSL certificates"
+    Write-Host "  M. Database migration"
+    Write-Host "  S. Settings (paths)"
+    Write-Host "  0. Exit"
+    Write-Host ""
+}
+
+function Main {
+    # Auto-detect paths on startup
+    Write-Host "Detecting installation..." -ForegroundColor Cyan
+    Auto-DetectPaths
+    Write-Host ""
+    Start-Sleep -Seconds 1
+    
+    # Auto mode - run installation directly
+    if ($script:AUTO_MODE) {
+        Print-Info "Running in AUTO mode..."
+        if ($script:MINIMAL_MODE) {
+            Do-InstallMinimal
+        } else {
+            Do-Install
+        }
+        exit 0
+    }
+    
+    while ($true) {
+        Show-Menu
+        $choice = Read-Host "Select option"
+        
+        switch ($choice) {
+            "1" { Do-Install }
+            "2" { Do-Update }
+            "3" { Do-Repair }
+            "4" { Do-Validate }
+            "5" { Do-Backup }
+            "6" { Do-ResetPassword }
+            "7" { Do-Build }
+            "8" { Do-Diagnostics }
+            "9" { Do-Uninstall }
+            "L" { Do-InstallMinimal }
+            "l" { Do-InstallMinimal }
+            "C" { Do-ConfigureSSL }
+            "c" { Do-ConfigureSSL }
+            "M" { Do-MigrateDatabase }
+            "m" { Do-MigrateDatabase }
+            "S" { Configure-Paths }
+            "s" { Configure-Paths }
+            "0" {
+                Write-Host ""
+                Print-Info "Goodbye!"
+                exit 0
+            }
+            default {
+                Print-Warning "Invalid option"
+                Start-Sleep -Seconds 1
+            }
+        }
+    }
+}
+
+# Run
+Main

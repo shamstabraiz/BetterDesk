@@ -1,4 +1,4 @@
-# Yomie Server v3.0 - Ulepszony System Statusu
+# codenextremote Server v3.0 - Ulepszony System Statusu
 
 ## Przegląd Zmian
 
@@ -233,7 +233,7 @@ cp hbbs-patch-v2/src/http_api_v3.rs hbbs-patch-v2/src/http_api.rs
 
 Następnie skompiluj:
 ```bash
-./build-yomie.sh --auto
+./build-codenextremote.sh --auto
 ```
 
 ---

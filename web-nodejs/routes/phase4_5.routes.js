@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Phase 4/5 scaffolding routes
+ * codenextremote Console — Phase 4/5 scaffolding routes
  *
  * Phase 4: operator identity profile + consent-popup metadata endpoint
  * Phase 5: agent templates (enrollment presets) + public downloads portal
@@ -253,7 +253,7 @@ router.post('/api/bd/enroll', async (req, res) => {
  */
 router.get('/portal', (req, res) => {
     res.render('downloads-portal', {
-        title: req.t ? req.t('portal.title') : 'Download Yomie',
+        title: req.t ? req.t('portal.title') : 'Download codenextremote',
         layout: false, // standalone page
     });
 });
@@ -268,9 +268,9 @@ router.get('/api/portal/installers', (req, res) => {
     res.json({
         success: true,
         installers: [
-            { platform: 'windows', arch: 'x64', url: `${base}/downloads/Yomie_Agent_x64-setup.exe`, format: 'nsis' },
-            { platform: 'linux',   arch: 'x64', url: `${base}/downloads/yomie-agent-linux-amd64`,   format: 'binary' },
-            { platform: 'linux',   arch: 'arm64', url: `${base}/downloads/yomie-agent-linux-arm64`, format: 'binary' },
+            { platform: 'windows', arch: 'x64', url: `${base}/downloads/codenextremote_Agent_x64-setup.exe`, format: 'nsis' },
+            { platform: 'linux',   arch: 'x64', url: `${base}/downloads/codenextremote-agent-linux-amd64`,   format: 'binary' },
+            { platform: 'linux',   arch: 'arm64', url: `${base}/downloads/codenextremote-agent-linux-arm64`, format: 'binary' },
         ],
     });
 });

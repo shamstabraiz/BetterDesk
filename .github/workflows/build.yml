@@ -1,7 +1,7 @@
 # =============================================================================
-# Yomie Server - Automated Build Pipeline
+# codenextremote Server - Automated Build Pipeline
 # =============================================================================
-# This workflow builds Yomie enhanced binaries for multiple platforms.
+# This workflow builds codenextremote enhanced binaries for multiple platforms.
 #
 # Triggers:
 #   - Push to 'main' with changes to hbbs-patch-v2/src/**
@@ -14,7 +14,7 @@
 #   - Windows x86_64
 # =============================================================================
 
-name: Build Yomie Binaries
+name: Build codenextremote Binaries
 
 on:
   # Manual trigger with version selection
@@ -56,7 +56,7 @@ jobs:
   build-linux-x64:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Yomie
+      - name: Checkout codenextremote
         uses: actions/checkout@v4
         
       - name: Install dependencies
@@ -75,7 +75,7 @@ jobs:
           cd rustdesk-server
           git submodule update --init --recursive
           
-      - name: Apply Yomie modifications
+      - name: Apply codenextremote modifications
         run: |
           # Copy all modification files
           for file in main.rs http_api.rs database.rs database_fixed.rs peer.rs peer_fixed.rs rendezvous_server_core.rs; do
@@ -105,7 +105,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: yomie-linux-x86_64
+          name: codenextremote-linux-x86_64
           path: artifacts/*
           retention-days: 30
           
@@ -115,7 +115,7 @@ jobs:
   build-linux-arm64:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Yomie
+      - name: Checkout codenextremote
         uses: actions/checkout@v4
         
       - name: Install dependencies
@@ -136,7 +136,7 @@ jobs:
           cd rustdesk-server
           git submodule update --init --recursive
           
-      - name: Apply Yomie modifications
+      - name: Apply codenextremote modifications
         run: |
           for file in main.rs http_api.rs database.rs database_fixed.rs peer.rs peer_fixed.rs rendezvous_server_core.rs; do
             if [ -f "hbbs-patch-v2/src/$file" ]; then
@@ -174,7 +174,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: yomie-linux-aarch64
+          name: codenextremote-linux-aarch64
           path: artifacts/*
           retention-days: 30
           
@@ -184,7 +184,7 @@ jobs:
   build-windows-x64:
     runs-on: windows-latest
     steps:
-      - name: Checkout Yomie
+      - name: Checkout codenextremote
         uses: actions/checkout@v4
         
       - name: Setup Rust
@@ -198,7 +198,7 @@ jobs:
           cd rustdesk-server
           git submodule update --init --recursive
           
-      - name: Apply Yomie modifications
+      - name: Apply codenextremote modifications
         shell: pwsh
         run: |
           $files = @("main.rs", "http_api.rs", "database.rs", "database_fixed.rs", "peer.rs", "peer_fixed.rs", "rendezvous_server_core.rs")
@@ -233,7 +233,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: yomie-windows-x86_64
+          name: codenextremote-windows-x86_64
           path: artifacts/*
           retention-days: 30
           
@@ -268,9 +268,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.BETTERDESK_VERSION }}-${{ github.run_number }}
-          name: Yomie v${{ env.BETTERDESK_VERSION }} (Build ${{ github.run_number }})
+          name: codenextremote v${{ env.BETTERDESK_VERSION }} (Build ${{ github.run_number }})
           body: |
-            ## Yomie Server Binaries
+            ## codenextremote Server Binaries
             
             Based on RustDesk Server v${{ env.RUSTDESK_VERSION }}
             
@@ -321,13 +321,13 @@ jobs:
       - name: Download Linux x64 artifacts
         uses: actions/download-artifact@v4
         with:
-          name: yomie-linux-x86_64
+          name: codenextremote-linux-x86_64
           path: new-binaries/linux-x64
           
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          name: yomie-windows-x86_64
+          name: codenextremote-windows-x86_64
           path: new-binaries/windows
           
       - name: Update repository binaries
@@ -343,7 +343,7 @@ jobs:
           
           # Update checksums
           cd hbbs-patch-v2
-          echo "# Yomie Binary Checksums" > CHECKSUMS.md
+          echo "# codenextremote Binary Checksums" > CHECKSUMS.md
           echo "" >> CHECKSUMS.md
           echo "Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> CHECKSUMS.md
           echo "RustDesk Base: ${{ env.RUSTDESK_VERSION }}" >> CHECKSUMS.md
@@ -358,5 +358,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add hbbs-patch-v2/
-          git diff --staged --quiet || git commit -m "chore: Update Yomie binaries (Build #${{ github.run_number }})"
+          git diff --staged --quiet || git commit -m "chore: Update codenextremote binaries (Build #${{ github.run_number }})"
           git push

@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Toast Notifications
+ * codenextremote Console - Toast Notifications
  */
 
 const Notifications = (function() {

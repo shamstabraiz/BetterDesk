@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Input Validation Tests
+ * codenextremote Console - Input Validation Tests
  * Tests for security-critical input validation patterns.
  */
 

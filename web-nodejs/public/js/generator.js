@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Generator Page
+ * codenextremote Console - Generator Page
  */
 
 (function() {

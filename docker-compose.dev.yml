@@ -3,34 +3,34 @@
 # Usage (from repo root):
 #   docker compose -f docker-compose.dev.yml up --build
 #
-# Data directory (keys, sqlite, etc.) defaults to ./.yomie-dev-data — override with:
+# Data directory (keys, sqlite, etc.) defaults to ./.codenextremote-dev-data — override with:
 #   BETTERDESK_DATA=/path docker compose -f docker-compose.dev.yml up
 #
-# Stop any production Yomie stack first if it uses the same host ports (21114–21119, 5000, 21121).
+# Stop any production codenextremote stack first if it uses the same host ports (21114–21119, 5000, 21121).
 
-name: yomie-dev
+name: codenextremote-dev
 
 services:
   postgres:
-    container_name: yomie-dev-postgres
+    container_name: codenextremote-dev-postgres
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: yomie
-      POSTGRES_PASSWORD: yomie123
-      POSTGRES_DB: yomie
+      POSTGRES_USER: codenextremote
+      POSTGRES_PASSWORD: codenextremote123
+      POSTGRES_DB: codenextremote
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U yomie -d yomie"]
+      test: ["CMD-SHELL", "pg_isready -U codenextremote -d codenextremote"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
     networks:
-      - yomie-dev
+      - codenextremote-dev
 
   server:
-    container_name: yomie-dev-server
+    container_name: codenextremote-dev-server
     build:
       context: .
       dockerfile: Dockerfile.server.dev
@@ -44,13 +44,13 @@ services:
       - "21118:21118"
       - "21119:21119"
     volumes:
-      - ./yomie-server:/src
-      - ${BETTERDESK_DATA:-./.yomie-dev-data}:/opt/rustdesk
+      - ./codenextremote-server:/src
+      - ${BETTERDESK_DATA:-./.codenextremote-dev-data}:/opt/rustdesk
     working_dir: /src
     environment:
       - RELAY_SERVERS=${RELAY_SERVERS:-127.0.0.1}
       - INIT_ADMIN_PASS=${INIT_ADMIN_PASS:-dev-admin-change-me}
-      - DB_URL=postgres://yomie:yomie123@postgres:5432/yomie?sslmode=disable
+      - DB_URL=postgres://codenextremote:codenextremote123@postgres:5432/codenextremote?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,10 +62,10 @@ services:
       start_period: 90s
     restart: unless-stopped
     networks:
-      - yomie-dev
+      - codenextremote-dev
 
   console:
-    container_name: yomie-dev-console
+    container_name: codenextremote-dev-console
     build:
       context: .
       dockerfile: Dockerfile.console.dev
@@ -76,7 +76,7 @@ services:
     volumes:
       - ./web-nodejs:/app
       - console_dev_node_modules:/app/node_modules
-      - ${BETTERDESK_DATA:-./.yomie-dev-data}:/opt/rustdesk:ro
+      - ${BETTERDESK_DATA:-./.codenextremote-dev-data}:/opt/rustdesk:ro
       - console_dev_data:/app/data
     environment:
       - NODE_ENV=development
@@ -87,7 +87,7 @@ services:
       - RUSTDESK_PATH=/opt/rustdesk
       - HBBS_API_URL=http://server:21114/api
       - BETTERDESK_API_URL=http://server:21114/api
-      - SERVER_BACKEND=yomie
+      - SERVER_BACKEND=codenextremote
       - DATA_DIR=/app/data
       - DB_PATH=/opt/rustdesk/db_v2.sqlite3
       - PUB_KEY_PATH=/opt/rustdesk/id_ed25519.pub
@@ -101,7 +101,7 @@ services:
       - WS_HBBR_PORT=21117
       - DOCKER=true
       - DB_TYPE=postgresql
-      - DATABASE_URL=postgres://yomie:yomie123@postgres:5432/yomie?sslmode=disable
+      - DATABASE_URL=postgres://codenextremote:codenextremote123@postgres:5432/codenextremote?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,10 +115,10 @@ services:
       start_period: 90s
     restart: unless-stopped
     networks:
-      - yomie-dev
+      - codenextremote-dev
 
 networks:
-  yomie-dev:
+  codenextremote-dev:
     driver: bridge
 
 volumes:

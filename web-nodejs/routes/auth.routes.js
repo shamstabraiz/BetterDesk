@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Auth Routes
+ * codenextremote Console - Auth Routes
  * Login, logout, session verification
  */
 
@@ -16,7 +16,7 @@ const { loginLimiter, passwordChangeLimiter } = require('../middleware/rateLimit
  * (detected via localStorage preference or explicit ?desktop=1 query param).
  */
 router.get('/login', guestOnly, async (req, res) => {
-    const useDesktop = req.query.desktop === '1' || req.cookies.yomie_desktop_mode === 'true';
+    const useDesktop = req.query.desktop === '1' || req.cookies.codenextremote_desktop_mode === 'true';
 
     if (useDesktop) {
         // Fetch user list for multi-user selector (usernames + roles only, no secrets)
@@ -151,8 +151,8 @@ router.post('/api/auth/logout', async (req, res) => {
         if (err) {
             console.error('Session destroy error:', err);
         }
-        res.clearCookie(req.sessionID ? req.session?.cookie?.name : 'yomie.sid');
-        res.clearCookie('yomie.sid');
+        res.clearCookie(req.sessionID ? req.session?.cookie?.name : 'codenextremote.sid');
+        res.clearCookie('codenextremote.sid');
         res.clearCookie('bd.sid');
         res.json({ success: true });
     });
@@ -220,7 +220,7 @@ router.post('/api/auth/password', requireAuth, passwordChangeLimiter, async (req
  */
 router.get('/logout', (req, res) => {
     req.session.destroy(() => {
-        res.clearCookie('yomie.sid');
+        res.clearCookie('codenextremote.sid');
         res.clearCookie('bd.sid');
         res.redirect('/login');
     });

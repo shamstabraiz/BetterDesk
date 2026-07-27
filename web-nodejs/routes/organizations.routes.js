@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Organization Management Routes (v3.0.0)
+ * codenextremote Console — Organization Management Routes (v3.0.0)
  *
  * Proxies organization CRUD operations to the Go server REST API.
  * Provides page routes for the web panel and API routes for AJAX calls.
@@ -31,7 +31,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { apiClient } = require('../services/yomieApi');
+const { apiClient } = require('../services/codenextremoteApi');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
 // ---------------------------------------------------------------------------

@@ -1,52 +1,52 @@
 /**
- * Yomie Console - Server Backend Abstraction Layer
+ * codenextremote Console - Server Backend Abstraction Layer
  *
  * Provides a unified interface for device/peer operations.
- * Always uses Yomie Go server (yomie mode).
+ * Always uses codenextremote Go server (codenextremote mode).
  *
  * Legacy 'rustdesk' (hbbs/hbbr) backend has been removed.
- * All operations delegate to yomieApi.js (Go server REST API).
+ * All operations delegate to codenextremoteApi.js (Go server REST API).
  *
- * The active backend is always 'yomie'.
+ * The active backend is always 'codenextremote'.
  */
 
 const config = require('../config/config');
 const db = require('./database');
-const yomieApi = require('./yomieApi');
+const codenextremoteApi = require('./codenextremoteApi');
 
 /**
- * Return the active backend name: always 'yomie'
+ * Return the active backend name: always 'codenextremote'
  */
 async function getActiveBackend() {
-    return 'yomie';
+    return 'codenextremote';
 }
 
 /**
- * Change the active backend. Only 'yomie' is supported.
- * @param {'yomie'} name
+ * Change the active backend. Only 'codenextremote' is supported.
+ * @param {'codenextremote'} name
  */
 async function setActiveBackend(name) {
-    if (name !== 'yomie') {
-        throw new Error(`Invalid backend: ${name}. Only 'yomie' is supported.`);
+    if (name !== 'codenextremote') {
+        throw new Error(`Invalid backend: ${name}. Only 'codenextremote' is supported.`);
     }
     await db.setSetting('server_backend', name);
 }
 
 /**
- * Returns true — always Yomie (Go server).
+ * Returns true — always codenextremote (Go server).
  */
-async function isYomie() {
+async function iscodenextremote() {
     return true;
 }
 
 // ========================== Health / Stats ===================================
 
 async function getHealth() {
-    return yomieApi.getHealth();
+    return codenextremoteApi.getHealth();
 }
 
 async function getStats() {
-    const result = await yomieApi.getServerStats();
+    const result = await codenextremoteApi.getServerStats();
     if (result.success && result.data) {
         // Normalise Go shape → panel shape
         const d = result.data;
@@ -65,14 +65,14 @@ async function getStats() {
 }
 
 async function getServerInfo() {
-    return yomieApi.getServerInfo();
+    return codenextremoteApi.getServerInfo();
 }
 
 // ========================== Devices / Peers ==================================
 
 async function getAllDevices(filters = {}) {
-    if (await isYomie()) {
-        let peers = await yomieApi.getAllPeers();
+    if (await iscodenextremote()) {
+        let peers = await codenextremoteApi.getAllPeers();
 
         // Overlay folder_id from auth.db assignments (Go server doesn't track folders)
         try {
@@ -171,7 +171,7 @@ async function overlayRemotePasswordMeta(peers) {
 }
 
 async function getDeviceById(id) {
-    const peer = await yomieApi.getPeer(id);
+    const peer = await codenextremoteApi.getPeer(id);
     // Overlay folder_id from auth.db
     if (peer) {
         try {
@@ -195,13 +195,13 @@ async function getDeviceById(id) {
 }
 
 async function deleteDevice(id, options = {}) {
-    return yomieApi.deletePeer(id, options);
+    return codenextremoteApi.deletePeer(id, options);
 }
 
 async function setBanStatus(id, banned, reason = '') {
     return banned
-        ? yomieApi.banPeer(id, reason)
-        : yomieApi.unbanPeer(id);
+        ? codenextremoteApi.banPeer(id, reason)
+        : codenextremoteApi.unbanPeer(id);
 }
 
 async function updateDevice(id, data) {
@@ -212,7 +212,7 @@ async function updateDevice(id, data) {
     if (data.display_name !== undefined) fields.display_name = String(data.display_name);
 
     if (Object.keys(fields).length > 0) {
-        const result = await yomieApi.updatePeer(id, fields);
+        const result = await codenextremoteApi.updatePeer(id, fields);
         if (!result || !result.success) {
             return { changes: 0, error: result?.error || 'Failed to update peer' };
         }
@@ -227,51 +227,51 @@ async function updateDevice(id, data) {
 }
 
 async function changePeerId(oldId, newId) {
-    return yomieApi.changePeerId(oldId, newId);
+    return codenextremoteApi.changePeerId(oldId, newId);
 }
 
 // ========================== Online Status Sync ===============================
 
 async function syncOnlineStatus() {
-    // Yomie Go server owns the peer map — no sync needed.
-    return yomieApi.syncOnlineStatus();
+    // codenextremote Go server owns the peer map — no sync needed.
+    return codenextremoteApi.syncOnlineStatus();
 }
 
-// ========================== Yomie Features ==============================
+// ========================== codenextremote Features ==============================
 
 async function getStatusSummary() {
-    return yomieApi.getStatusSummary();
+    return codenextremoteApi.getStatusSummary();
 }
 
 async function getBlocklist() {
-    return yomieApi.getBlocklist();
+    return codenextremoteApi.getBlocklist();
 }
 
 async function addBlocklistEntry(entry) {
-    return yomieApi.addBlocklistEntry(entry);
+    return codenextremoteApi.addBlocklistEntry(entry);
 }
 
 async function removeBlocklistEntry(entry) {
-    return yomieApi.removeBlocklistEntry(entry);
+    return codenextremoteApi.removeBlocklistEntry(entry);
 }
 
 async function setPeerTags(id, tags) {
-    return yomieApi.setPeerTags(id, tags);
+    return codenextremoteApi.setPeerTags(id, tags);
 }
 
 async function getPeersByTag(tag) {
-    return yomieApi.getPeersByTag(tag);
+    return codenextremoteApi.getPeersByTag(tag);
 }
 
 async function getAuditEvents(limit) {
-    return yomieApi.getAuditEvents(limit);
+    return codenextremoteApi.getAuditEvents(limit);
 }
 
 module.exports = {
     // Backend management
     getActiveBackend,
     setActiveBackend,
-    isYomie,
+    iscodenextremote,
     // Health / Stats
     getHealth,
     getStats,
@@ -285,7 +285,7 @@ module.exports = {
     changePeerId,
     // Status sync
     syncOnlineStatus,
-    // Yomie-only
+    // codenextremote-only
     getStatusSummary,
     getBlocklist,
     addBlocklistEntry,

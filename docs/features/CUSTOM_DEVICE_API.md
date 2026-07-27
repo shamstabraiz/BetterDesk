@@ -1,7 +1,7 @@
-# Yomie Custom Device API Protocol (CDAP)
+# codenextremote Custom Device API Protocol (CDAP)
 
 > **Status:** RFC / Design Document  
-> **Author:** Yomie Team  
+> **Author:** codenextremote Team  
 > **Created:** 2026-03-19  
 > **Version:** 0.2.0 (Draft)  
 > **Last Updated:** 2026-03-19
@@ -44,12 +44,12 @@
 
 ## Executive Summary
 
-The **Custom Device API Protocol (CDAP)** extends Yomie into a universal device management platform with **two orthogonal capabilities**:
+The **Custom Device API Protocol (CDAP)** extends codenextremote into a universal device management platform with **two orthogonal capabilities**:
 
 1. **Control Plane** — Any networked device (industrial controllers, IoT, OS agents) registers, exposes interactive widgets, and receives commands through the web panel via JSON/WebSocket.
 2. **Media Plane** — Full remote desktop experience (screen streaming, input forwarding, clipboard, file transfer, audio) via a binary channel — completely independent of the RustDesk protocol.
 
-Together, these planes enable a **native Yomie client** that offers everything RustDesk does and more, while also supporting non-desktop devices (SCADA, IoT) through the same unified protocol.
+Together, these planes enable a **native codenextremote client** that offers everything RustDesk does and more, while also supporting non-desktop devices (SCADA, IoT) through the same unified protocol.
 
 **Key innovations**:
 - Lightweight **API Bridges** translate between existing device protocols (Modbus, OPC-UA, SNMP, REST) and CDAP in real-time (~50-200 LOC).
@@ -58,7 +58,7 @@ Together, these planes enable a **native Yomie client** that offers everything R
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Yomie Server (Go)                        │
+│                    codenextremote Server (Go)                        │
 │                                                                  │
 │  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌───────────────┐  │
 │  │ Signal   │  │ Relay    │  │ HTTP API  │  │ CDAP Gateway  │  │
@@ -79,7 +79,7 @@ Together, these planes enable a **native Yomie client** that offers everything R
               ┌───────────────┬───────────────┼───────────────────┐
               │               │               │                   │
         ┌─────┴─────┐  ┌─────┴─────┐  ┌─────┴───────┐   ┌──────┴──────┐
-        │ Yomie│  │  Modbus   │  │  OS Agent   │   │   REST      │
+        │ codenextremote│  │  Modbus   │  │  OS Agent   │   │   REST      │
         │ Native    │  │  Bridge   │  │  (daemon)   │   │   Bridge    │
         │ Client    │  └─────┬─────┘  └──────┬──────┘   └──────┬──────┘
         │(desktop+  │        │               │                  │
@@ -95,14 +95,14 @@ Together, these planes enable a **native Yomie client** that offers everything R
 
 ### Current Limitations
 
-Yomie today manages **RustDesk-compatible desktop clients** — Windows, macOS, Linux machines running the RustDesk remote desktop application. This covers one dimension of IT infrastructure: interactive desktop support.
+codenextremote today manages **RustDesk-compatible desktop clients** — Windows, macOS, Linux machines running the RustDesk remote desktop application. This covers one dimension of IT infrastructure: interactive desktop support.
 
 Modern infrastructure management requires visibility into:
 
-| Domain | Examples | Current Yomie Support |
+| Domain | Examples | Current codenextremote Support |
 |--------|----------|---------------------------|
 | Remote Desktops | Windows, macOS, Linux workstations | ✅ Full (via RustDesk protocol) |
-| Native Remote Desktop | Yomie's own client with extended features | ❌ Depends on RustDesk client |
+| Native Remote Desktop | codenextremote's own client with extended features | ❌ Depends on RustDesk client |
 | Industrial Control | PLCs, SCADA HMIs, RTUs | ❌ None |
 | IoT/Edge | Sensors, gateways, Raspberry Pi, ESP32 | ❌ None |
 | Network Infrastructure | Switches, routers, firewalls | ❌ None |
@@ -118,7 +118,7 @@ Instead, CDAP is designed so that **lightweight bridge programs** translate betw
 
 ```
 ┌─────────────┐     Native Protocol     ┌─────────────┐     CDAP/WebSocket     ┌─────────────┐
-│   Device     │ ──────────────────────► │   Bridge     │ ────────────────────► │  Yomie  │
+│   Device     │ ──────────────────────► │   Bridge     │ ────────────────────► │  codenextremote  │
 │ (PLC/SCADA)  │ ◄────────────────────── │  (50-200 LOC)│ ◄──────────────────── │   Server     │
 └─────────────┘     Modbus/OPC-UA/...   └─────────────┘     JSON over WS       └─────────────┘
 ```
@@ -127,7 +127,7 @@ A bridge is:
 - **Tiny**: 50-200 lines in Python, Node.js, Go, Rust, C — anything with WebSocket + native protocol library
 - **Stateless**: Server maintains all state; bridge just translates messages
 - **Deployable anywhere**: On the device itself, on a gateway, or on a separate machine
-- **Writable by anyone**: No Yomie SDK required — just JSON over WebSocket
+- **Writable by anyone**: No codenextremote SDK required — just JSON over WebSocket
 
 ---
 
@@ -137,7 +137,7 @@ A bridge is:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Yomie Server (Go)                │
+│                   codenextremote Server (Go)                │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │              CDAP Gateway (:21122)               │   │
@@ -654,14 +654,14 @@ Per-Frame Encryption:
 
 The server **cannot** decrypt media traffic — it only relays binary frames between viewer and device. True end-to-end encryption.
 
-### Native Yomie Client vs RustDesk
+### Native codenextremote Client vs RustDesk
 
-CDAP with media channel enables building a **fully native Yomie client** that replaces RustDesk:
+CDAP with media channel enables building a **fully native codenextremote client** that replaces RustDesk:
 
-| Feature | RustDesk Client | Yomie Native Client (CDAP) |
+| Feature | RustDesk Client | codenextremote Native Client (CDAP) |
 |---------|----------------|-------------------------------|
 | Protocol | RustDesk proprietary protobuf | CDAP (open, documented) |
-| Server dependency | Requires hbbs/hbbr compatible server | Yomie server only |
+| Server dependency | Requires hbbs/hbbr compatible server | codenextremote server only |
 | Video codecs | VP9, H.264, H.265, VP8, AV1 | Same + extensible via manifest |
 | Audio | Opus | Opus + extensible |
 | E2E encryption | NaCl secretbox | XSalsa20-Poly1305 (compatible) |
@@ -677,15 +677,15 @@ CDAP with media channel enables building a **fully native Yomie client** that re
 | Update mechanism | Manual | Server-pushed config updates |
 | Plugin system | None | Bridge/manifest-based extensibility |
 
-**Key advantage**: A Yomie native client is both a remote desktop tool AND a management agent. A single install gives operators remote screen access, system monitoring widgets, remote shell, file transfer, and custom integrations — all through the same protocol and panel.
+**Key advantage**: A codenextremote native client is both a remote desktop tool AND a management agent. A single install gives operators remote screen access, system monitoring widgets, remote shell, file transfer, and custom integrations — all through the same protocol and panel.
 
 ### Backward Compatibility with RustDesk Ecosystem
 
-CDAP does **not** replace RustDesk protocol support in Yomie server. Both protocols coexist:
+CDAP does **not** replace RustDesk protocol support in codenextremote server. Both protocols coexist:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                  Yomie Server                     │
+│                  codenextremote Server                     │
 │                                                        │
 │  ┌──────────────────┐    ┌───────────────────────┐   │
 │  │ RustDesk Protocol │    │   CDAP Protocol       │   │
@@ -709,7 +709,7 @@ CDAP does **not** replace RustDesk protocol support in Yomie server. Both protoc
 
 Migration path:
 1. **Phase 1**: Existing RustDesk clients continue working unchanged
-2. **Phase 2**: Yomie native client available as alternative with extra features
+2. **Phase 2**: codenextremote native client available as alternative with extra features
 3. **Phase 3**: Users can gradually migrate devices from RustDesk protocol to CDAP
 4. **Long term**: CDAP becomes the primary protocol; RustDesk support maintained for backward compatibility
 
@@ -737,7 +737,7 @@ The manifest is the core descriptor — it tells the server everything about the
     "description": "Main boiler room PLC controlling 3 gas boilers and circulation pumps"
   },
   "bridge": {
-    "name": "modbus-yomie-bridge",
+    "name": "modbus-codenextremote-bridge",
     "version": "1.2.0",
     "protocol": "modbus-tcp",
     "target_host": "192.168.10.50",
@@ -782,7 +782,7 @@ The manifest is the core descriptor — it tells the server everything about the
 | `os_agent` | OS Agent | `terminal` | OS-level management daemon |
 | `network` | Network Device | `globe` | Switch, router, firewall, AP |
 | `camera` | Camera/NVR | `video` | IP camera, NVR, DVR |
-| `desktop` | Yomie Desktop | `monitor-smartphone` | Native Yomie client (remote desktop + agent) |
+| `desktop` | codenextremote Desktop | `monitor-smartphone` | Native codenextremote client (remote desktop + agent) |
 | `custom` | Custom Device | `puzzle` | User-defined type |
 
 ### ID Format
@@ -1164,7 +1164,7 @@ Bridges send widget values in heartbeats (periodic) or via `state_update` messag
 
 An API Bridge is a small, standalone program that:
 
-1. **Connects upstream** to Yomie server via CDAP WebSocket (`:21122`)
+1. **Connects upstream** to codenextremote server via CDAP WebSocket (`:21122`)
 2. **Connects downstream** to the target device via its native protocol
 3. **Translates** between the two in real-time
 
@@ -1172,7 +1172,7 @@ An API Bridge is a small, standalone program that:
                     ┌─────────────────────────────────────┐
                     │            API Bridge                │
                     │                                      │
-  Yomie        │  ┌──────────┐     ┌──────────────┐  │        Device
+  codenextremote        │  ┌──────────┐     ┌──────────────┐  │        Device
   Server ◄──────────┤  │  CDAP    │◄───►│   Native     │  ├───────► (PLC,
   (:21122)  WS/JSON │  │  Client  │     │   Protocol   │  │ Modbus  sensor,
             ────────►│  │          │     │   Client     │  │◄─────── camera)
@@ -1200,17 +1200,17 @@ An API Bridge is a small, standalone program that:
 While bridges can be written from scratch (just JSON over WebSocket), optional SDKs reduce boilerplate:
 
 ```
-yomie-bridge-sdk/
-├── python/          # pip install yomie-bridge
-│   └── yomie_bridge/
+codenextremote-bridge-sdk/
+├── python/          # pip install codenextremote-bridge
+│   └── codenextremote_bridge/
 │       ├── __init__.py
 │       ├── client.py       # WebSocket client + reconnect
 │       ├── manifest.py     # Manifest builder
 │       ├── widgets.py      # Widget type helpers
 │       └── bridge.py       # Base bridge class
-├── nodejs/          # npm install yomie-bridge
-├── go/              # go get github.com/yomie/bridge-sdk-go
-├── rust/            # yomie-bridge = "0.1"
+├── nodejs/          # npm install codenextremote-bridge
+├── go/              # go get github.com/codenextremote/bridge-sdk-go
+├── rust/            # codenextremote-bridge = "0.1"
 └── c/               # Header-only library for embedded
 ```
 
@@ -1219,7 +1219,7 @@ yomie-bridge-sdk/
 ```
 Model A: Bridge on Dedicated Machine          Model B: Bridge on Device Itself
 ┌───────────┐    LAN    ┌──────────┐          ┌─────────────────────┐
-│ Yomie│◄─────────►│ Bridge   │          │       Device        │
+│ codenextremote│◄─────────►│ Bridge   │          │       Device        │
 │  Server   │   WS/TLS  │ Machine  │          │  ┌───────────────┐  │
 └───────────┘           └──────┬───┘          │  │  Bridge       │  │
                                │              │  │  (embedded)   │  │
@@ -1229,14 +1229,14 @@ Model A: Bridge on Dedicated Machine          Model B: Bridge on Device Itself
                           └────────┘          └─────────────────────┘
                                                         │
                                               ┌─────────┴─────────┐
-                                              │  Yomie Server │
+                                              │  codenextremote Server │
                                               └────────────────────┘
 
 Model C: Bridge as Docker Sidecar             Model D: Cloud-to-Cloud Bridge
 ┌──────────────────────────┐                  ┌───────────┐    API    ┌──────────┐
-│    Docker Host           │                  │ Yomie│◄────────►│  Bridge  │
+│    Docker Host           │                  │ codenextremote│◄────────►│  Bridge  │
 │  ┌─────────┐ ┌────────┐ │                  │  Server   │          │ (cloud)  │
-│  │Yomie│ │ Bridge │ │                  └───────────┘          └────┬─────┘
+│  │codenextremote│ │ Bridge │ │                  └───────────┘          └────┬─────┘
 │  │ Server  │◄┤ Sidecar│ │                                              │
 │  └─────────┘ └───┬────┘ │                                         ┌────┴─────┐
 │                   │      │                                         │ Vendor   │
@@ -1253,7 +1253,7 @@ Model C: Bridge as Docker Sidecar             Model D: Cloud-to-Cloud Bridge
    start    │  INIT   │
    ────────►│         │
             └────┬────┘
-                 │ connect to Yomie
+                 │ connect to codenextremote
                  ▼
             ┌─────────┐
             │  AUTH    │──── fail ──► retry with backoff
@@ -1288,7 +1288,7 @@ Model C: Bridge as Docker Sidecar             Model D: Cloud-to-Cloud Bridge
 
 ```python
 #!/usr/bin/env python3
-"""Yomie Bridge: Modbus TCP PLC → CDAP"""
+"""codenextremote Bridge: Modbus TCP PLC → CDAP"""
 
 import asyncio
 import json
@@ -1296,7 +1296,7 @@ import websockets
 from pymodbus.client import AsyncModbusTcpClient
 
 # Configuration
-BETTERDESK_URL = "ws://yomie-server:21122"
+BETTERDESK_URL = "ws://codenextremote-server:21122"
 API_KEY = "your-api-key-here"
 PLC_HOST = "192.168.10.50"
 PLC_PORT = 502
@@ -1388,7 +1388,7 @@ if __name__ == "__main__":
 ### Example 2: Linux OS Agent (Go, ~120 LOC concept)
 
 ```go
-// yomie-os-agent: kernel-level system management bridge
+// codenextremote-os-agent: kernel-level system management bridge
 package main
 
 // Manifest excerpt for OS Agent
@@ -1430,7 +1430,7 @@ var manifest = Manifest{
 ### Example 3: REST API Bridge (Node.js, ~60 LOC concept)
 
 ```javascript
-// Bridge: IP Camera REST API → Yomie CDAP
+// Bridge: IP Camera REST API → codenextremote CDAP
 const WebSocket = require('ws');
 const axios = require('axios');
 
@@ -1487,15 +1487,15 @@ const char* manifest = R"({
 // ~4KB RAM footprint for CDAP client
 ```
 
-### Example 5: Yomie Native Desktop Client (Rust/Go OS Agent, ~500 LOC)
+### Example 5: codenextremote Native Desktop Client (Rust/Go OS Agent, ~500 LOC)
 
-The Yomie native client is a **desktop bridge** — an OS agent that exposes the local machine as a CDAP device with full remote desktop capability PLUS system management widgets:
+The codenextremote native client is a **desktop bridge** — an OS agent that exposes the local machine as a CDAP device with full remote desktop capability PLUS system management widgets:
 
 ```rust
-// Conceptual Rust-based Yomie desktop agent
+// Conceptual Rust-based codenextremote desktop agent
 // Dual-purpose: remote desktop + system management
 
-struct YomieAgent {
+struct codenextremoteAgent {
     cdap: CdapClient,             // CDAP WebSocket connection
     screen_capture: DxgiCapture,  // Platform screen capture
     encoder: H264Encoder,         // Hardware-accelerated encoder
@@ -1509,7 +1509,7 @@ async fn connect() {
         "device": {
             "name": hostname(),
             "type": "desktop",
-            "vendor": "Yomie",
+            "vendor": "codenextremote",
             "model": os_info(),
             "firmware": env!("CARGO_PKG_VERSION")
         },
@@ -1578,7 +1578,7 @@ async fn on_media_session(session: MediaSession) {
 }
 ```
 
-**This is the key differentiator**: A Yomie native client is NOT just a remote desktop tool — it is a full management agent. From the panel, an operator can remote-control the screen, browse files, open a terminal, view CPU/RAM metrics, and manage system services — all from one device detail page, through one protocol, one port, one auth.
+**This is the key differentiator**: A codenextremote native client is NOT just a remote desktop tool — it is a full management agent. From the panel, an operator can remote-control the screen, browse files, open a terminal, view CPU/RAM metrics, and manage system services — all from one device detail page, through one protocol, one port, one auth.
 
 ---
 
@@ -1810,7 +1810,7 @@ CDAP and RustDesk clients sharing the same server must appear unified in the pan
 │           Unified Device & Identity Model                 │
 │                                                           │
 │  ┌─────────────────┐     ┌─────────────────────────┐    │
-│  │ RustDesk Client  │     │ Yomie Native Client│    │
+│  │ RustDesk Client  │     │ codenextremote Native Client│    │
 │  │ ID: 892734561    │     │ ID: CDAP-D2E9F4         │    │
 │  │ Protocol: Signal │     │ Protocol: CDAP          │    │
 │  │ Port: 21116      │     │ Port: 21122             │    │
@@ -1848,7 +1848,7 @@ CDAP and RustDesk clients sharing the same server must appear unified in the pan
 
 ### Critical Safety Principle
 
-> **CDAP is a control plane, NOT a safety system.** Physical safety interlocks (emergency stops, pressure relief valves, overcurrent protection) must ALWAYS be implemented in hardware or local PLC logic, NEVER rely on network commands from Yomie. CDAP commands are "requests" — the device/bridge has the authority to reject any command that violates safety constraints.
+> **CDAP is a control plane, NOT a safety system.** Physical safety interlocks (emergency stops, pressure relief valves, overcurrent protection) must ALWAYS be implemented in hardware or local PLC logic, NEVER rely on network commands from codenextremote. CDAP commands are "requests" — the device/bridge has the authority to reject any command that violates safety constraints.
 
 ### RBAC for Widgets
 
@@ -1964,7 +1964,7 @@ Sent by the server to a connected CDAP device when it is deleted:
 
 **Client behavior after receiving `revoke`:**
 
-1. **Desktop agent (Yomie native)**:
+1. **Desktop agent (codenextremote native)**:
    - Display notification: "This device has been removed from the server."
    - Clear stored: server address, API key, device token, JWT, cached keypair
    - Close WebSocket connection gracefully
@@ -1979,7 +1979,7 @@ Sent by the server to a connected CDAP device when it is deleted:
 
 3. **OS agent (daemon)**:
    - Close WebSocket connection
-   - If `wipe_config: true`: clear `/etc/yomie/config.json` or equivalent
+   - If `wipe_config: true`: clear `/etc/codenextremote/config.json` or equivalent
    - Stop service gracefully (no auto-restart)
    - Can be re-enrolled with new device token if needed
 
@@ -2040,7 +2040,7 @@ RustDesk's signal protocol does not have a revocation message. When a RustDesk d
 
 **Limitation**: RustDesk client **cannot** be remotely config-wiped. This is a protocol limitation of the existing RustDesk signal protocol. The device will retry forever (with backoff) but never successfully register. To fully remove, the end-user must manually reconfigure the client or uninstall it.
 
-> **Yomie native client advantage**: Unlike RustDesk, CDAP's `revoke` message with `wipe_config: true` enables full remote wipe — the device clears its configuration and stops all reconnect attempts. This is a key security improvement for enterprise environments.
+> **codenextremote native client advantage**: Unlike RustDesk, CDAP's `revoke` message with `wipe_config: true` enables full remote wipe — the device clears its configuration and stops all reconnect attempts. This is a key security improvement for enterprise environments.
 
 ### Panel Revocation UI
 
@@ -2088,7 +2088,7 @@ When a device has a `linked_peer_id`, revocation can cascade:
 Admin deletes CDAP-D2E9F4 (desktop, linked to 892734561)
   │
   ├── 1. Revoke CDAP-D2E9F4 → send "revoke" WS message
-  │       └── Yomie client clears config, disconnects
+  │       └── codenextremote client clears config, disconnects
   │
   ├── 2. Cascade: revoke 892734561 (RustDesk)
   │       ├── Remove from peer map
@@ -2301,9 +2301,9 @@ The main dashboard includes CDAP device counts:
 | Bridge auto-discovery (mDNS/SSDP) | 1-2 days | P3 |
 | Binary protocol option (MessagePack) | 1-2 days | P3 |
 
-### Phase 5: Media Channel (Native Yomie Client)
+### Phase 5: Media Channel (Native codenextremote Client)
 
-**Goal**: Full remote desktop capability over CDAP — enabling a native Yomie client.
+**Goal**: Full remote desktop capability over CDAP — enabling a native codenextremote client.
 
 | Task | Effort | Priority |
 |------|--------|----------|
@@ -2326,13 +2326,13 @@ The main dashboard includes CDAP device counts:
 | Session recording (server-side, optional) | 2-3 days | P2 |
 | P2P media (UDP hole-punch via signal server) | 3-5 days | P2 |
 
-**Deliverables**: Native Yomie desktop agent + panel viewer that fully replaces RustDesk client for managed devices, with remote desktop + system management in one tool.
+**Deliverables**: Native codenextremote desktop agent + panel viewer that fully replaces RustDesk client for managed devices, with remote desktop + system management in one tool.
 
 ---
 
 ## Comparison with Alternatives
 
-| Feature | Yomie CDAP | Node-RED | Grafana + IoT | Home Assistant | Custom SCADA |
+| Feature | codenextremote CDAP | Node-RED | Grafana + IoT | Home Assistant | Custom SCADA |
 |---------|----------------|----------|---------------|---------------|--------------|
 | Remote Desktop | ✅ Native | ❌ | ❌ | ❌ | ❌ |
 | Device Widgets | ✅ Declarative | ✅ Flow-based | ✅ Dashboard | ✅ Lovelace | ✅ Custom HMI |
@@ -2345,13 +2345,13 @@ The main dashboard includes CDAP device counts:
 | Self-Hosted | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Open Source | ✅ | ✅ | ✅ (core) | ✅ | ❌ Usually |
 
-**Yomie CDAP unique value**: Only platform that manages remote desktops AND industrial/IoT devices in a single panel with unified identity, permissions, and audit trail. With the media channel, CDAP enables a **native Yomie client** that combines remote desktop, system monitoring, file management, and custom integrations in a single agent — something no other platform offers.
+**codenextremote CDAP unique value**: Only platform that manages remote desktops AND industrial/IoT devices in a single panel with unified identity, permissions, and audit trail. With the media channel, CDAP enables a **native codenextremote client** that combines remote desktop, system monitoring, file management, and custom integrations in a single agent — something no other platform offers.
 
 ---
 
 ## FAQ
 
-### Q: Do I need to modify Yomie server to add a new device type?
+### Q: Do I need to modify codenextremote server to add a new device type?
 
 **No.** Device types are defined by the bridge manifest. The server renders widgets dynamically based on the manifest JSON. Adding a new device type (e.g., "weather_station") requires only writing a bridge — zero server changes.
 
@@ -2381,15 +2381,15 @@ A bridge is a single-process program with minimal resource requirements. An ESP3
 
 ### Q: Does CDAP replace the RustDesk protocol entirely?
 
-**No — both coexist.** Existing RustDesk clients continue to work unchanged on ports 21115-21119. CDAP runs on port 21122 as a separate gateway. Both device types appear in the same panel, same device list, same permissions system. Migration from RustDesk to native Yomie client is gradual and optional.
+**No — both coexist.** Existing RustDesk clients continue to work unchanged on ports 21115-21119. CDAP runs on port 21122 as a separate gateway. Both device types appear in the same panel, same device list, same permissions system. Migration from RustDesk to native codenextremote client is gradual and optional.
 
 ### Q: Can CDAP handle remote desktop at 60fps with encryption?
 
 **Yes.** The media channel uses binary WebSocket frames with XSalsa20-Poly1305 encryption (same algorithm as RustDesk). The server only relays opaque encrypted bytes — zero decode overhead. Video encoding/decoding happens at endpoints (hardware-accelerated H.264/VP9). Tested architecture supports 1080p60 at ~3-8 Mbps with <50ms latency through relay.
 
-### Q: What makes the native Yomie client better than RustDesk client?
+### Q: What makes the native codenextremote client better than RustDesk client?
 
-A Yomie native client is simultaneously a remote desktop tool AND a management agent. Single install provides: remote screen control, file browser, remote terminal, system metrics, service management, custom widgets — all through one protocol, one port, one auth. RustDesk is pure remote desktop; Yomie native client is remote desktop + device management.
+A codenextremote native client is simultaneously a remote desktop tool AND a management agent. Single install provides: remote screen control, file browser, remote terminal, system metrics, service management, custom widgets — all through one protocol, one port, one auth. RustDesk is pure remote desktop; codenextremote native client is remote desktop + device management.
 
 ### Q: Can I stream a camera feed without allowing input control?
 

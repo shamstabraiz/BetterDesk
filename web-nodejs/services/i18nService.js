@@ -1,5 +1,5 @@
 /**
- * Yomie Console - i18n Service
+ * codenextremote Console - i18n Service
  * Translation manager with JSON-based language files
  */
 

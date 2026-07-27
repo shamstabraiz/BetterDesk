@@ -1,6 +1,6 @@
 /**
- * Yomie Console - Remote Desktop Routes
- * Serves the web-based remote desktop viewer page (RustDesk compat + Yomie native)
+ * codenextremote Console - Remote Desktop Routes
+ * Serves the web-based remote desktop viewer page (RustDesk compat + codenextremote native)
  */
 
 const express = require('express');
@@ -120,7 +120,7 @@ router.get('/remote/:deviceId', requireAuth, async (req, res) => {
     let isCdapConnected = false;
     let goPeer = null;
     try {
-        const api = require('../services/yomieApi');
+        const api = require('../services/codenextremoteApi');
         goPeer = await api.getPeer(deviceId);
         if (goPeer) {
             isOsAgent = String(goPeer.device_type || '').toLowerCase() === 'os_agent';

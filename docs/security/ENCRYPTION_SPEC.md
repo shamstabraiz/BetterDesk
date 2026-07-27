@@ -1,11 +1,11 @@
-# Yomie — Encryption Specification
+# codenextremote — Encryption Specification
 
 > **Version:** 1.0
 > **Last Updated:** 2026-04-01
 
 ## Overview
 
-Yomie uses layered encryption to protect data in transit and at rest across all communication channels.
+codenextremote uses layered encryption to protect data in transit and at rest across all communication channels.
 
 ## Algorithms
 

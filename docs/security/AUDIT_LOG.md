@@ -1,4 +1,4 @@
-# Yomie — Security Audit Log
+# codenextremote — Security Audit Log
 
 > Chronological record of security audits, findings, and resolutions.
 
@@ -24,7 +24,7 @@
 
 ## Audit #2 — Go Server Security Review (2026-02-28)
 
-**Scope:** Go server (`yomie-server/`)
+**Scope:** Go server (`codenextremote-server/`)
 
 ### Findings
 
@@ -51,7 +51,7 @@
 
 ## Audit #4 — Installer Scripts Security Review (2026-03-15)
 
-**Scope:** `yomie.sh`, `yomie.ps1`
+**Scope:** `codenextremote.sh`, `codenextremote.ps1`
 
 ### Findings
 

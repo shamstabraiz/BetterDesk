@@ -1,6 +1,6 @@
-# Yomie Console - Update Scripts
+# codenextremote Console - Update Scripts
 
-This directory contains scripts to update Yomie Console from v1.0.0 to v1.1.0.
+This directory contains scripts to update codenextremote Console from v1.0.0 to v1.1.0.
 
 ## What's New in v1.1.0
 
@@ -27,7 +27,7 @@ With Ban Enforcer:
 ## Prerequisites
 
 ### Linux (update.sh)
-- Existing Yomie Console installation
+- Existing codenextremote Console installation
 - Root/sudo access
 - Python 3.x installed
 - SQLite3 database at `/opt/rustdesk/db_v2.sqlite3`
@@ -36,7 +36,7 @@ With Ban Enforcer:
 - PowerShell 5.1 or higher
 - SSH client (OpenSSH or similar)
 - SSH key-based authentication configured
-- Access to remote Linux server running Yomie
+- Access to remote Linux server running codenextremote
 
 ## Usage
 
@@ -53,7 +53,7 @@ sudo ./update.sh
 sudo ./update.sh --rustdesk-dir /custom/path/rustdesk
 
 # Custom console directory
-sudo ./update.sh --console-dir /var/www/yomie
+sudo ./update.sh --console-dir /var/www/codenextremote
 
 # Custom both directories
 sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
@@ -64,7 +64,7 @@ sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
 
 **Default paths:**
 - RustDesk: `/opt/rustdesk`
-- Console: `/opt/YomieConsole`
+- Console: `/opt/codenextremoteConsole`
 - Database: `{rustdesk-dir}/db_v2.sqlite3`
 
 **What it does:**
@@ -72,7 +72,7 @@ sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
 2. Creates backup of database and files
 3. Executes database migrations
 4. Updates web console files
-5. Restarts Yomie service
+5. Restarts codenextremote service
 6. Verifies installation
 
 ### Windows (Remote Update via SSH)
@@ -85,19 +85,19 @@ sudo ./update.sh --rustdesk-dir /custom/rustdesk --console-dir /custom/console
 .\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RustDeskPath "/custom/path/rustdesk"
 
 # With custom console path
-.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/yomie"
+.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/codenextremote"
 
 # With custom database path (overrides auto-detection)
 .\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -DbPath "/custom/db/path.sqlite3"
 
 # All custom paths
-.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/yomie" -RustDeskPath "/custom/rustdesk"
+.\update.ps1 -RemoteHost YOUR_SERVER_IP -RemoteUser YOUR_SSH_USER -RemotePath "/var/www/codenextremote" -RustDeskPath "/custom/rustdesk"
 ```
 
 **Parameters:**
 - `-RemoteHost` (required): Server hostname or IP
 - `-RemoteUser` (required): SSH username
-- `-RemotePath`: Console directory (default: `/opt/YomieConsole`)
+- `-RemotePath`: Console directory (default: `/opt/codenextremoteConsole`)
 - `-RustDeskPath`: RustDesk directory (default: `/opt/rustdesk`)
 - `-DbPath`: Database path (default: auto-set to `{RustDeskPath}/db_v2.sqlite3`)
 
@@ -132,25 +132,25 @@ Adds to `peer` table:
 
 ### Automatic Backup
 Both scripts create automatic backups:
-- **Location**: `/opt/yomie-backup-YYYYMMDD-HHMMSS/`
+- **Location**: `/opt/codenextremote-backup-YYYYMMDD-HHMMSS/`
 - **Contents**: Database, app.py, script.js, index.html
 
 ### Manual Rollback
 
 ```bash
 # 1. Stop service
-sudo systemctl stop yomie
+sudo systemctl stop codenextremote
 
 # 2. Restore database
-sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/db_v2.sqlite3.backup /opt/rustdesk/db_v2.sqlite3
+sudo cp /opt/codenextremote-backup-YYYYMMDD-HHMMSS/db_v2.sqlite3.backup /opt/rustdesk/db_v2.sqlite3
 
 # 3. Restore web files
-sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/app.py.backup /opt/YomieConsole/app.py
-sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/script.js.backup /opt/YomieConsole/static/script.js
-sudo cp /opt/yomie-backup-YYYYMMDD-HHMMSS/index.html.backup /opt/YomieConsole/templates/index.html
+sudo cp /opt/codenextremote-backup-YYYYMMDD-HHMMSS/app.py.backup /opt/codenextremoteConsole/app.py
+sudo cp /opt/codenextremote-backup-YYYYMMDD-HHMMSS/script.js.backup /opt/codenextremoteConsole/static/script.js
+sudo cp /opt/codenextremote-backup-YYYYMMDD-HHMMSS/index.html.backup /opt/codenextremoteConsole/templates/index.html
 
 # 4. Start service
-sudo systemctl start yomie
+sudo systemctl start codenextremote
 ```
 
 ## Troubleshooting
@@ -165,7 +165,7 @@ sudo ./update.sh
 
 **Service not found:**
 - Script will skip service restart
-- Manually restart: `sudo systemctl restart yomie`
+- Manually restart: `sudo systemctl restart codenextremote`
 
 **Migration fails:**
 - Check database permissions: `ls -l /opt/rustdesk/db_v2.sqlite3`
@@ -185,7 +185,7 @@ ssh-copy-id YOUR_SSH_USER@YOUR_SERVER_IP
 **SCP upload fails:**
 ```powershell
 # Check SSH access
-ssh YOUR_SSH_USER@YOUR_SERVER_IP "ls -la /opt/YomieConsole"
+ssh YOUR_SSH_USER@YOUR_SERVER_IP "ls -la /opt/codenextremoteConsole"
 
 # Verify file permissions
 ssh YOUR_SSH_USER@YOUR_SERVER_IP "whoami; groups"
@@ -209,7 +209,7 @@ After update, verify installation:
 sqlite3 /opt/rustdesk/db_v2.sqlite3 "PRAGMA table_info(peer);" | wc -l
 
 # Check service status
-systemctl status yomie
+systemctl status codenextremote
 
 # Test web console
 curl http://localhost:5000/api/stats
@@ -242,12 +242,12 @@ sudo python3 migrations/v1.0.1_soft_delete.py
 sudo python3 migrations/v1.1.0_device_bans.py
 
 # 3. Copy files
-sudo cp web/app.py /opt/YomieConsole/
-sudo cp web/static/script.js /opt/YomieConsole/static/
-sudo cp web/templates/index.html /opt/YomieConsole/templates/
+sudo cp web/app.py /opt/codenextremoteConsole/
+sudo cp web/static/script.js /opt/codenextremoteConsole/static/
+sudo cp web/templates/index.html /opt/codenextremoteConsole/templates/
 
 # 4. Restart
-sudo systemctl restart yomie
+sudo systemctl restart codenextremote
 ```
 
 ## Support
@@ -255,7 +255,7 @@ sudo systemctl restart yomie
 For issues or questions:
 - Check [CHANGELOG.md](CHANGELOG.md) for detailed changes
 - Review [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) for future plans
-- Check server logs: `journalctl -u yomie -f`
+- Check server logs: `journalctl -u codenextremote -f`
 
 ## License
 

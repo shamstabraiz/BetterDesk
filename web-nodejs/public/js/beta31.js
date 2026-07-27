@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Beta 3.1 Panel Controller
+ * codenextremote Console — Beta 3.1 Panel Controller
  * Manages the ISPmanager-inspired shell: sidebar navigation, content loading
  */
 
@@ -79,7 +79,7 @@
     function buildShell() {
         if (document.getElementById('beta31-shell')) return;
 
-        const appName = (window.Yomie && window.Yomie.branding && window.Yomie.branding.appName) || 'Yomie';
+        const appName = (window.codenextremote && window.codenextremote.branding && window.codenextremote.branding.appName) || 'codenextremote';
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         shell = document.createElement('div');

@@ -1,5 +1,5 @@
 /* ===================================================================
-   Yomie — Cross-Platform Compatibility  (frontend)
+   codenextremote — Cross-Platform Compatibility  (frontend)
    =================================================================== */
 (function () {
     'use strict';

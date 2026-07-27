@@ -1,5 +1,5 @@
 # ============================================================
-# Yomie Console — .gitignore
+# codenextremote Console — .gitignore
 # Organized by category, no duplicate patterns
 # ============================================================
 
@@ -143,48 +143,48 @@ _write_readme.py
 web-nodejs/_test_*.sh
 web-nodejs/_fix_*.sh
 
-# --- Yomie MGMT Client (Tauri + SolidJS, build artifacts) ---
-yomie-mgmt/node_modules/
-yomie-mgmt/dist/
-yomie-mgmt/src-tauri/target/
-# yomie-mgmt/src-tauri/Cargo.lock  # committed for reproducible builds
+# --- codenextremote MGMT Client (Tauri + SolidJS, build artifacts) ---
+codenextremote-mgmt/node_modules/
+codenextremote-mgmt/dist/
+codenextremote-mgmt/src-tauri/target/
+# codenextremote-mgmt/src-tauri/Cargo.lock  # committed for reproducible builds
 
-# --- Yomie Agent Client (Tauri + SolidJS, build artifacts) ---
-yomie-agent-client/node_modules/
-yomie-agent-client/dist/
-yomie-agent-client/src-tauri/target/
-# yomie-agent-client/src-tauri/Cargo.lock  # committed for reproducible builds
+# --- codenextremote Agent Client (Tauri + SolidJS, build artifacts) ---
+codenextremote-agent-client/node_modules/
+codenextremote-agent-client/dist/
+codenextremote-agent-client/src-tauri/target/
+# codenextremote-agent-client/src-tauri/Cargo.lock  # committed for reproducible builds
 
-# --- Yomie Agent binaries & config (compiled locally) ---
-yomie-agent/yomie-agent
-yomie-agent/yomie-agent-*
-yomie-agent/*.exe
-yomie-agent/deploy-config.json
-yomie-agent/*.json
-yomie-agent/create_key.py
-yomie-agent/fix_devid.py
-yomie-agent/fix_type.py
-yomie-agent/update_config.py
-!yomie-agent/package.json
+# --- codenextremote Agent binaries & config (compiled locally) ---
+codenextremote-agent/codenextremote-agent
+codenextremote-agent/codenextremote-agent-*
+codenextremote-agent/*.exe
+codenextremote-agent/deploy-config.json
+codenextremote-agent/*.json
+codenextremote-agent/create_key.py
+codenextremote-agent/fix_devid.py
+codenextremote-agent/fix_type.py
+codenextremote-agent/update_config.py
+!codenextremote-agent/package.json
 
-# --- Yomie Go server binaries (compiled locally) ---
-yomie-server/yomie-server
-yomie-server/yomie-server-*
-yomie-server/*.exe
-yomie-server/*.key
-yomie-server/*.pem
-yomie-server/id_ed25519*
-yomie-server/test_*.go
-yomie-server/_test_*
+# --- codenextremote Go server binaries (compiled locally) ---
+codenextremote-server/codenextremote-server
+codenextremote-server/codenextremote-server-*
+codenextremote-server/*.exe
+codenextremote-server/*.key
+codenextremote-server/*.pem
+codenextremote-server/id_ed25519*
+codenextremote-server/test_*.go
+codenextremote-server/_test_*
 
 # --- Root-level image duplicates (originals in web-nodejs/public/img/) ---
-/yomie.png
-/yomie_icon.png
-/yomie_wallpaper.png
+/codenextremote.png
+/codenextremote_icon.png
+/codenextremote_wallpaper.png
 
 # Local Docker dev stack data (docker-compose.dev.yml)
-.yomie-dev-data/
-.yomie-dev-data/
+.codenextremote-dev-data/
+.codenextremote-dev-data/
 
 # --- Screenshots ---
 screenshots/*.png

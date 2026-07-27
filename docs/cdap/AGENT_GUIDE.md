@@ -1,21 +1,21 @@
 # Building a CDAP Agent
 
-This guide walks through building a custom CDAP agent that connects to a Yomie server.
+This guide walks through building a custom CDAP agent that connects to a codenextremote server.
 
 ## Prerequisites
 
-- Yomie server running with CDAP enabled (`--cdap` flag or `CDAP_ENABLED=true`)
+- codenextremote server running with CDAP enabled (`--cdap` flag or `CDAP_ENABLED=true`)
 - API key created via `POST /api/keys` or the web console
 - WebSocket library for your language
 
 ## Quick Start (Go)
 
-The reference agent is at `yomie-agent/`. It demonstrates the full lifecycle:
+The reference agent is at `codenextremote-agent/`. It demonstrates the full lifecycle:
 
 ```bash
-cd yomie-agent
-go build -o yomie-agent .
-./yomie-agent \
+cd codenextremote-agent
+go build -o codenextremote-agent .
+./codenextremote-agent \
     --server ws://your-server:21122/cdap \
     --auth-method api_key \
     --api-key YOUR_KEY \
@@ -26,15 +26,15 @@ go build -o yomie-agent .
 
 ## Quick Start (Python)
 
-Using the Yomie Python SDK:
+Using the codenextremote Python SDK:
 
 ```bash
-pip install yomie-cdap   # or: pip install -e sdks/python/
+pip install codenextremote-cdap   # or: pip install -e sdks/python/
 ```
 
 ```python
 import asyncio
-from yomie_cdap import CDAPBridge, Widget
+from codenextremote_cdap import CDAPBridge, Widget
 
 class MyAgent(CDAPBridge):
     def __init__(self):
@@ -79,11 +79,11 @@ asyncio.run(MyAgent().run())
 ## Quick Start (Node.js)
 
 ```bash
-npm install yomie-cdap   # or: npm install ./sdks/nodejs/
+npm install codenextremote-cdap   # or: npm install ./sdks/nodejs/
 ```
 
 ```javascript
-const { CDAPBridge, Widget } = require('yomie-cdap');
+const { CDAPBridge, Widget } = require('codenextremote-cdap');
 
 const agent = new CDAPBridge({
     serverUrl: 'ws://your-server:21122/cdap',

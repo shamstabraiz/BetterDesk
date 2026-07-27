@@ -1,5 +1,5 @@
 /**
- * Yomie Console — Organizations List Page JavaScript
+ * codenextremote Console — Organizations List Page JavaScript
  *
  * Handles organization CRUD operations on the /organizations page.
  */
@@ -35,7 +35,7 @@
     //  Helpers
     // -----------------------------------------------------------------------
     async function api(method, path, body) {
-        const csrfToken = window.Yomie?.csrfToken || '';
+        const csrfToken = window.codenextremote?.csrfToken || '';
         const opts = {
             method,
             headers: { 'Content-Type': 'application/json' },

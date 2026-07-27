@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Backup & Restore Service
+ * codenextremote Console - Backup & Restore Service
  *
  * Creates/restores JSON snapshots of console configuration:
  *   - Console settings (key/value pairs)
@@ -10,7 +10,7 @@
  *   - Address books
  *   - Go server peers + blocklist + config (fetched via REST when available)
  *
- * Archive format: single JSON file (*.yomie-backup.json)
+ * Archive format: single JSON file (*.codenextremote-backup.json)
  */
 
 const db = require('./database');
@@ -44,12 +44,12 @@ async function createBackup() {
 
     // --- Go server data (best-effort) ---
     let goServer = null;
-    if (serverBackend.isYomie()) {
+    if (serverBackend.iscodenextremote()) {
         goServer = await fetchGoServerData();
     }
 
     return {
-        _format: 'yomie-backup',
+        _format: 'codenextremote-backup',
         _version: BACKUP_FORMAT_VERSION,
         _created: timestamp,
         _console_version: config.appVersion,
@@ -69,17 +69,17 @@ async function createBackup() {
 }
 
 /**
- * Fetch data from Yomie Go server via REST API.
+ * Fetch data from codenextremote Go server via REST API.
  * Non-critical — returns null on failure.
  */
 async function fetchGoServerData() {
     try {
-        const yomieApi = require('./yomieApi');
+        const codenextremoteApi = require('./codenextremoteApi');
         const [peersRes, blocklistRes, auditRes, healthRes] = await Promise.all([
-            yomieApi.getAllPeers().catch(() => []),
-            yomieApi.getBlocklist().catch(() => []),
-            yomieApi.getAuditEvents(500).catch(() => []),
-            yomieApi.getHealth().catch(() => ({}))
+            codenextremoteApi.getAllPeers().catch(() => []),
+            codenextremoteApi.getBlocklist().catch(() => []),
+            codenextremoteApi.getAuditEvents(500).catch(() => []),
+            codenextremoteApi.getHealth().catch(() => ({}))
         ]);
 
         return {
@@ -107,7 +107,7 @@ function validateBackup(data) {
         errors.push('Invalid backup file: not a JSON object');
         return { valid: false, errors };
     }
-    if (data._format !== 'yomie-backup') {
+    if (data._format !== 'codenextremote-backup') {
         errors.push('Invalid backup file: missing or wrong _format field');
     }
     if (typeof data._version !== 'number' || data._version > BACKUP_FORMAT_VERSION) {

@@ -1,4 +1,4 @@
-# Yomie v3.0 — Ultimate Remote & CDAP Solution
+# codenextremote v3.0 — Ultimate Remote & CDAP Solution
 
 > **Version**: 3.0.0  
 > **Codename**: Ultimate  
@@ -8,11 +8,11 @@
 
 ## What's New in v3.0
 
-Yomie v3.0 is a major release that transforms Yomie from a RustDesk-compatible server into a **complete device management ecosystem**. The key additions are:
+codenextremote v3.0 is a major release that transforms codenextremote from a RustDesk-compatible server into a **complete device management ecosystem**. The key additions are:
 
-1. **CDAP (Custom Device API Protocol)** — A WebSocket-based protocol for connecting IoT devices, SCADA controllers, network equipment, and custom agents to the Yomie panel alongside RustDesk clients.
+1. **CDAP (Custom Device API Protocol)** — A WebSocket-based protocol for connecting IoT devices, SCADA controllers, network equipment, and custom agents to the codenextremote panel alongside RustDesk clients.
 
-2. **Yomie Minimal Mode** — Server-only installation without the web console, for headless deployments or API-only usage.
+2. **codenextremote Minimal Mode** — Server-only installation without the web console, for headless deployments or API-only usage.
 
 3. **Media Channel** — Binary frame relay for remote desktop sessions between CDAP devices with E2E encryption.
 
@@ -26,10 +26,10 @@ Yomie v3.0 is a major release that transforms Yomie from a RustDesk-compatible s
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Yomie v3.0 Ecosystem                     │
+│                    codenextremote v3.0 Ecosystem                     │
 │                                                                   │
 │  ┌───────────────────────────────────────────────────────────┐   │
-│  │                  Yomie Go Server                      │   │
+│  │                  codenextremote Go Server                      │   │
 │  │                  (single binary)                           │   │
 │  │                                                            │   │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │   │
@@ -47,7 +47,7 @@ Yomie v3.0 is a major release that transforms Yomie from a RustDesk-compatible s
 │  └───────────────────────────────────────────────────────────┘   │
 │                                                                   │
 │  ┌───────────────────────────────────────────────────────────┐   │
-│  │              Yomie Web Console (Node.js)              │   │
+│  │              codenextremote Web Console (Node.js)              │   │
 │  │              Port 5000 (LAN) + 21121 (WAN)                │   │
 │  │                                                            │   │
 │  │  Dashboard │ Devices │ Users │ Automation │ CDAP │ Remote │   │
@@ -72,10 +72,10 @@ Installs Go server + Node.js web console + all features.
 
 ```bash
 # Linux
-sudo ./yomie.sh
+sudo ./codenextremote.sh
 
 # Windows (PowerShell as Administrator)
-.\yomie.ps1
+.\codenextremote.ps1
 ```
 
 ### Minimal Installation (new in v3.0)
@@ -87,10 +87,10 @@ Installs Go server only — no web console. Ideal for:
 
 ```bash
 # Linux
-sudo ./yomie.sh --minimal
+sudo ./codenextremote.sh --minimal
 
 # Windows
-.\yomie.ps1 -Minimal
+.\codenextremote.ps1 -Minimal
 ```
 
 ### Docker
@@ -123,14 +123,14 @@ docker compose build && docker compose up -d
 
 ## CDAP Overview
 
-The Custom Device API Protocol (CDAP) enables non-RustDesk devices to connect to Yomie:
+The Custom Device API Protocol (CDAP) enables non-RustDesk devices to connect to codenextremote:
 
 ### Supported Device Types
 
 | Type | Icon | Use Case |
 |------|------|----------|
 | `rustdesk` | 🖥️ | Standard RustDesk desktop client |
-| `desktop` | 💻 | Yomie native agent (remote desktop + management) |
+| `desktop` | 💻 | codenextremote native agent (remote desktop + management) |
 | `iot` | 📡 | IoT sensors and actuators |
 | `scada` | 🏭 | Industrial controllers (PLC, HMI) |
 | `os_agent` | 🖧 | OS-level system management agent |
@@ -171,7 +171,7 @@ import websockets
 import json
 
 async def connect():
-    uri = "ws://yomie.example.com:21122"
+    uri = "ws://codenextremote.example.com:21122"
     async with websockets.connect(uri) as ws:
         # Authenticate
         await ws.send(json.dumps({

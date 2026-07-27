@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Visual Tutorial System
+ * codenextremote Console - Visual Tutorial System
  * Spotlight-based guided tour with i18n support.
  * 
  * Usage:
@@ -16,8 +16,8 @@
 
     // ============ Constants ============
 
-    var STORAGE_SEEN = 'yomie_tutorial_seen';
-    var STORAGE_DISABLED = 'yomie_tutorial_disabled';
+    var STORAGE_SEEN = 'codenextremote_tutorial_seen';
+    var STORAGE_DISABLED = 'codenextremote_tutorial_disabled';
     
     // ============ State ============
 
@@ -38,9 +38,9 @@
             var result = window._(key);
             return result !== key ? result : fallback;
         }
-        if (window.Yomie && window.Yomie.translations) {
+        if (window.codenextremote && window.codenextremote.translations) {
             var keys = key.split('.');
-            var val = window.Yomie.translations;
+            var val = window.codenextremote.translations;
             for (var i = 0; i < keys.length; i++) {
                 if (val && typeof val === 'object' && keys[i] in val) {
                     val = val[keys[i]];
@@ -718,7 +718,7 @@
     };
 
     // Backward compatibility alias
-    window.YomieTutorial = window.Tutorial;
+    window.codenextremoteTutorial = window.Tutorial;
 
     // ============ Floating Help Button ============
 

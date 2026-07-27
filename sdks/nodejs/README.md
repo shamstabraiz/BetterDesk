@@ -1,13 +1,13 @@
-# Yomie CDAP — Node.js SDK
+# codenextremote CDAP — Node.js SDK
 
 Node.js SDK for the **Connected Device Automation Protocol (CDAP)** used by
-Yomie server. Build custom bridges, IoT gateways, or automation agents
-that expose widgets and handle commands through the Yomie web panel.
+codenextremote server. Build custom bridges, IoT gateways, or automation agents
+that expose widgets and handle commands through the codenextremote web panel.
 
 ## Installation
 
 ```bash
-npm install yomie-cdap
+npm install codenextremote-cdap
 # or from local path
 npm install ./sdks/nodejs
 ```
@@ -15,10 +15,10 @@ npm install ./sdks/nodejs
 ## Quick Start
 
 ```js
-const { CDAPBridge, gauge, toggle } = require('yomie-cdap');
+const { CDAPBridge, gauge, toggle } = require('codenextremote-cdap');
 
 const bridge = new CDAPBridge({
-  server: 'ws://your-yomie-server:21122/cdap',
+  server: 'ws://your-codenextremote-server:21122/cdap',
   apiKey: 'YOUR_API_KEY',
   deviceName: 'Room Sensor',
   deviceType: 'sensor',
@@ -110,7 +110,7 @@ bridge.onCommand('restart', async ({ params }) => {
 ### Widget Helpers
 
 ```js
-const { gauge, toggle, button, textWidget, led, slider, select, chart, table } = require('yomie-cdap');
+const { gauge, toggle, button, textWidget, led, slider, select, chart, table } = require('codenextremote-cdap');
 ```
 
 All helpers accept `(id, label, opts?)` and return a `Widget` object.
@@ -118,7 +118,7 @@ All helpers accept `(id, label, opts?)` and return a `Widget` object.
 ## Requirements
 
 - Node.js >= 18.0.0
-- Yomie server with CDAP enabled (port 21122)
+- codenextremote server with CDAP enabled (port 21122)
 
 ## License
 

@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Auth Middleware
+ * codenextremote Console - Auth Middleware
  * Protects routes that require authentication
  */
 

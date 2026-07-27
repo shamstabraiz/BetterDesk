@@ -1,5 +1,5 @@
 /**
- * Yomie Console - CDAP Devices List
+ * codenextremote Console - CDAP Devices List
  * Renders the CDAP device directory with live status, type filters, and search.
  */
 (function () {
@@ -71,7 +71,7 @@
     }
 
     function toggleCDAP(enable) {
-        var csrfToken = (window.Yomie && window.Yomie.csrfToken) || '';
+        var csrfToken = (window.codenextremote && window.codenextremote.csrfToken) || '';
         var headers = { 'Content-Type': 'application/json' };
         if (csrfToken) headers['x-csrf-token'] = csrfToken;
         fetch('/api/cdap/toggle', {
@@ -84,17 +84,17 @@
         .then(function (data) {
             if (data.success) {
                 var msg = enable ? _i18n('cdap.enabled_restart') : _i18n('cdap.disabled_restart');
-                if (window.Yomie && window.Yomie.notify) {
-                    window.Yomie.notify(msg, 'info');
-                } else if (window.parent !== window && window.parent.Yomie && window.parent.Yomie.notify) {
-                    window.parent.Yomie.notify(msg, 'info');
+                if (window.codenextremote && window.codenextremote.notify) {
+                    window.codenextremote.notify(msg, 'info');
+                } else if (window.parent !== window && window.parent.codenextremote && window.parent.codenextremote.notify) {
+                    window.parent.codenextremote.notify(msg, 'info');
                 } else {
                     console.log('[CDAP]', msg);
                 }
             } else {
                 var errMsg = data.error || 'Failed';
-                if (window.Yomie && window.Yomie.notify) {
-                    window.Yomie.notify(errMsg, 'error');
+                if (window.codenextremote && window.codenextremote.notify) {
+                    window.codenextremote.notify(errMsg, 'error');
                 }
             }
         })

@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Dashboard Routes
+ * codenextremote Console - Dashboard Routes
  */
 
 const express = require('express');
@@ -54,19 +54,19 @@ router.get('/api/stats', requireAuth, async (req, res) => {
 
 /**
  * GET /api/server/status - Get server status
- * In yomie mode: probes the Go server /api/health (single binary serves all).
+ * In codenextremote mode: probes the Go server /api/health (single binary serves all).
  * In rustdesk mode: probes hbbs (health) + hbbr (TCP connect).
  * Returns a unified shape consumed by dashboard.js.
  */
 router.get('/api/server/status', requireAuth, async (req, res) => {
     try {
-        const isBD = serverBackend.isYomie();
+        const isBD = serverBackend.iscodenextremote();
 
         // Primary check: always try the API health endpoint
         const hbbsHealth = await serverBackend.getHealth();
         const apiRunning = hbbsHealth && hbbsHealth.status === 'running';
 
-        // In Yomie mode, all services run in a single binary.
+        // In codenextremote mode, all services run in a single binary.
         // If the API health check passes, signal + relay are also running.
         // Raw TCP probes on signal/relay ports would cause spurious
         // NaCl handshake failure log entries in the Go server.
@@ -108,13 +108,13 @@ router.get('/api/server/status', requireAuth, async (req, res) => {
 
         // Build port map for the UI
         const apiPort = parseInt(new URL(
-            isBD ? config.yomieApiUrl : config.hbbsApiUrl
+            isBD ? config.codenextremoteApiUrl : config.hbbsApiUrl
         ).port, 10) || 21114;
 
         res.json({
             success: true,
             data: {
-                backend: isBD ? 'yomie' : 'rustdesk',
+                backend: isBD ? 'codenextremote' : 'rustdesk',
                 uptime: Math.floor(process.uptime()),
                 // Main status indicators
                 hbbs: apiRunning ? { status: 'running' } : { status: 'stopped' },
@@ -145,8 +145,8 @@ router.get('/api/server/status', requireAuth, async (req, res) => {
  */
 router.get('/api/server/bandwidth', requireAuth, async (req, res) => {
     try {
-        const yomieApi = require('../services/yomieApi');
-        const stats = await yomieApi.getServerStats();
+        const codenextremoteApi = require('../services/codenextremoteApi');
+        const stats = await codenextremoteApi.getServerStats();
         if (!stats || !stats.success) {
             return res.json({ success: true, data: { relay_active: 0, total_relayed: 0, bytes_transferred: 0, active_sessions: 0, throttle_hits: 0 } });
         }
@@ -197,8 +197,8 @@ router.get('/api/dashboard/activity', requireAuth, async (req, res) => {
         
         // Try Go server audit endpoint
         try {
-            const yomieApi = require('../services/yomieApi');
-            const audit = await yomieApi.getAuditEvents(10);
+            const codenextremoteApi = require('../services/codenextremoteApi');
+            const audit = await codenextremoteApi.getAuditEvents(10);
             const entries = audit?.data?.entries || audit?.entries || (Array.isArray(audit?.data) ? audit.data : []);
             for (const entry of entries.slice(0, 10)) {
                 events.push({

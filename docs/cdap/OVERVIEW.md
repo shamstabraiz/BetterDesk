@@ -2,7 +2,7 @@
 
 ## Overview
 
-CDAP (Connected Device Access Protocol) is Yomie's unified WebSocket-based protocol for
+CDAP (Connected Device Access Protocol) is codenextremote's unified WebSocket-based protocol for
 bidirectional communication between the management server and endpoint agents. It enables:
 
 - **Real-time telemetry** — CPU, memory, disk, and custom metrics streamed continuously
@@ -71,12 +71,12 @@ Each agent declares its capabilities in the manifest:
 
 | File | Description |
 |------|-------------|
-| `yomie-server/cdap/gateway.go` | WebSocket gateway, connection management |
-| `yomie-server/cdap/handler.go` | Message dispatch, command routing |
-| `yomie-server/cdap/audio.go` | Audio session management |
-| `yomie-server/cdap/clipboard.go` | Clipboard sync logic |
-| `yomie-server/cdap/media_control.go` | Cursor, quality, codec, multi-monitor |
-| `yomie-server/api/cdap_handlers.go` | REST + WS HTTP handlers |
+| `codenextremote-server/cdap/gateway.go` | WebSocket gateway, connection management |
+| `codenextremote-server/cdap/handler.go` | Message dispatch, command routing |
+| `codenextremote-server/cdap/audio.go` | Audio session management |
+| `codenextremote-server/cdap/clipboard.go` | Clipboard sync logic |
+| `codenextremote-server/cdap/media_control.go` | Cursor, quality, codec, multi-monitor |
+| `codenextremote-server/api/cdap_handlers.go` | REST + WS HTTP handlers |
 | `web-nodejs/routes/cdap.routes.js` | Node.js proxy routes |
 | `web-nodejs/services/cdapMediaProxy.js` | WebSocket proxy factory |
 

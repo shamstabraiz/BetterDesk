@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Desktop Widget Layout Routes
+ * codenextremote Console - Desktop Widget Layout Routes
  * Persists per-user widget layouts and wallpaper selection server-side.
  */
 

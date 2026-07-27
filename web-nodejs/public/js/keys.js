@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Keys Page
+ * codenextremote Console - Keys Page
  */
 
 (function() {

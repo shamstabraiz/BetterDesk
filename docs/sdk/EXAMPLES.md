@@ -7,7 +7,7 @@ Monitors PLC registers and exposes them as CDAP widgets.
 ```python
 # bridges/modbus/bridge.py
 import asyncio, os
-from yomie_cdap import CDAPBridge, Widget
+from codenextremote_cdap import CDAPBridge, Widget
 
 class ModbusBridge(CDAPBridge):
     def __init__(self, config):
@@ -49,7 +49,7 @@ Polls SNMP OIDs from network devices.
 ```python
 # bridges/snmp/bridge.py
 import asyncio
-from yomie_cdap import CDAPBridge, Widget
+from codenextremote_cdap import CDAPBridge, Widget
 
 class SNMPBridge(CDAPBridge):
     def __init__(self, config):
@@ -88,7 +88,7 @@ Periodically fetches data from a REST API.
 
 ```javascript
 // bridges/rest-webhook/bridge.js
-const { CDAPBridge, Widget } = require('yomie-cdap');
+const { CDAPBridge, Widget } = require('codenextremote-cdap');
 
 const bridge = new CDAPBridge({
     serverUrl: process.env.CDAP_SERVER,
@@ -129,7 +129,7 @@ One bridge process managing multiple hardware devices:
 
 ```python
 import asyncio
-from yomie_cdap import CDAPBridge, Widget
+from codenextremote_cdap import CDAPBridge, Widget
 
 async def main():
     bridges = []

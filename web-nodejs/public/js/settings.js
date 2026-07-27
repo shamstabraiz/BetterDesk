@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Settings Page
+ * codenextremote Console - Settings Page
  */
 
 (function() {
@@ -621,7 +621,7 @@
         if (!preview) return;
         
         const type = document.querySelector('input[name="logo-type"]:checked')?.value || 'icon';
-        const name = document.getElementById('brand-name')?.value || 'Yomie';
+        const name = document.getElementById('brand-name')?.value || 'codenextremote';
         
         if (type === 'text') {
             const logoText = document.getElementById('logo-text-input')?.value || name;
@@ -686,7 +686,7 @@
         try {
             const resp = await fetch('/api/settings/branding/upload-logo', {
                 method: 'POST',
-                headers: { 'x-csrf-token': window.Yomie?.csrfToken || '' },
+                headers: { 'x-csrf-token': window.codenextremote?.csrfToken || '' },
                 body: formData
             });
             const result = await resp.json();
@@ -732,7 +732,7 @@
      */
     function collectBrandingData() {
         const data = {
-            appName: document.getElementById('brand-name')?.value || 'Yomie',
+            appName: document.getElementById('brand-name')?.value || 'codenextremote',
             appDescription: document.getElementById('brand-description')?.value || '',
             logoType: document.querySelector('input[name="logo-type"]:checked')?.value || 'icon',
             logoIcon: document.getElementById('logo-icon-name')?.value || 'dns',
@@ -977,7 +977,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'yomie-theme.json';
+                a.download = 'codenextremote-theme.json';
                 a.click();
                 URL.revokeObjectURL(url);
                 Notifications.success(_('branding.exported'));
@@ -1039,8 +1039,8 @@
             
             try {
                 const fetchHeaders = {};
-                if (window.Yomie && window.Yomie.csrfToken) {
-                    fetchHeaders['X-CSRF-Token'] = window.Yomie.csrfToken;
+                if (window.codenextremote && window.codenextremote.csrfToken) {
+                    fetchHeaders['X-CSRF-Token'] = window.codenextremote.csrfToken;
                 }
                 const response = await fetch('/api/settings/backup', {
                     credentials: 'same-origin',
@@ -1053,7 +1053,7 @@
                 const a = document.createElement('a');
                 a.href = url;
                 const date = new Date().toISOString().slice(0, 10);
-                a.download = `yomie-backup-${date}.json`;
+                a.download = `codenextremote-backup-${date}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
                 
@@ -1097,7 +1097,7 @@
                     return;
                 }
                 
-                if (data._format !== 'yomie-backup') {
+                if (data._format !== 'codenextremote-backup') {
                     Notifications.error(_('backup.invalid_format'));
                     e.target.value = '';
                     return;
@@ -1116,8 +1116,8 @@
                 if (label) label.classList.add('loading');
                 
                 const headers = {};
-                if (window.Yomie && window.Yomie.csrfToken) {
-                    headers['X-CSRF-Token'] = window.Yomie.csrfToken;
+                if (window.codenextremote && window.codenextremote.csrfToken) {
+                    headers['X-CSRF-Token'] = window.codenextremote.csrfToken;
                 }
                 
                 const response = await fetch('/api/settings/restore', {
@@ -1159,7 +1159,7 @@
             setVal('backup-stat-folders', data.folders || 0);
             setVal('backup-stat-groups', (data.userGroups || 0) + (data.deviceGroups || 0));
             setVal('backup-stat-strategies', data.strategies || 0);
-            setVal('backup-stat-backend', data.backend === 'yomie' ? 'Yomie Go' : 'RustDesk');
+            setVal('backup-stat-backend', data.backend === 'codenextremote' ? 'codenextremote Go' : 'RustDesk');
         } catch { /* silent */ }
     }
     
@@ -1193,7 +1193,7 @@
 
         // Read current state from Tutorial system (localStorage)
         const tutorialDisabled = typeof Tutorial !== 'undefined' ? Tutorial.isDisabled() : 
-            localStorage.getItem('yomie_tutorial_disabled') === 'true';
+            localStorage.getItem('codenextremote_tutorial_disabled') === 'true';
         toggle.checked = !tutorialDisabled;
 
         toggle.addEventListener('change', function() {
@@ -1201,7 +1201,7 @@
             if (typeof Tutorial !== 'undefined') {
                 Tutorial.setDisabled(disabled);
             } else {
-                localStorage.setItem('yomie_tutorial_disabled', disabled ? 'true' : 'false');
+                localStorage.setItem('codenextremote_tutorial_disabled', disabled ? 'true' : 'false');
             }
             // Notify tutorial.js to show/hide help button
             window.dispatchEvent(new CustomEvent('tutorial:stateChanged', { detail: { disabled: disabled } }));
@@ -1226,7 +1226,7 @@
                 if (typeof Tutorial !== 'undefined') {
                     Tutorial.resetTutorial();
                 } else {
-                    localStorage.removeItem('yomie_tutorial_seen');
+                    localStorage.removeItem('codenextremote_tutorial_seen');
                 }
                 if (typeof Toast !== 'undefined') {
                     Toast.success(_('settings.tutorials_reset_toast'), '', 3000);

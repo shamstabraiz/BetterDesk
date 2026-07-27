@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client - Canvas Renderer
+ * codenextremote Web Remote Client - Canvas Renderer
  * Renders decoded video frames on canvas with cursor overlay
  */
 

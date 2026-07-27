@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Server Entry Point
+ * codenextremote Console - Server Entry Point
  * Professional Web Management Panel for RustDesk Server
  * 
  * @author shamstabraiz
@@ -27,7 +27,7 @@ const db = require('./services/database');
 const { initWsProxy } = require('./services/wsRelay');
 const { initBdRelay } = require('./services/bdRelay');
 const { initChatRelay } = require('./services/chatRelay');
-const { apiClient: goApiClient } = require('./services/yomieApi');
+const { apiClient: goApiClient } = require('./services/codenextremoteApi');
 const { initRemoteRelay } = require('./services/remoteRelay');
 const { initCdapTerminalProxy } = require('./services/cdapTerminalProxy');
 const { initCdapMediaProxies } = require('./services/cdapMediaProxy');
@@ -62,7 +62,7 @@ if (!fs.existsSync(config.dataDir)) {
 // Security headers (Helmet)
 app.use(securityMiddleware);
 
-// CORS for Yomie desktop clients (Tauri webview origins)
+// CORS for codenextremote desktop clients (Tauri webview origins)
 app.use('/api/', (req, res, next) => {
     const origin = req.headers.origin || '';
     const allowed = [
@@ -91,7 +91,7 @@ app.use(cookieParser());
 // Session management — also kept as a standalone middleware ref for WebSocket upgrades
 // Use a different cookie name in HTTP mode to avoid collision with stale
 // Secure cookies left over from a previous HTTPS configuration (Issue #82).
-const SESSION_COOKIE = config.httpsEnabled ? 'yomie.sid' : 'bd.sid';
+const SESSION_COOKIE = config.httpsEnabled ? 'codenextremote.sid' : 'bd.sid';
 const sessionMiddleware = session({
     secret: config.sessionSecret,
     name: SESSION_COOKIE,
@@ -145,7 +145,7 @@ app.use('/api/', apiLimiter);
 // dedicated WAN-facing port (21121) with additional hardening.
 app.use(rustdeskApiRoutes);
 
-// Yomie Desktop Client API — device-facing endpoints that use
+// codenextremote Desktop Client API — device-facing endpoints that use
 // Bearer token or X-Device-Id header, not browser CSRF cookies.
 app.use('/api/bd', bdApiRoutes);
 
@@ -175,7 +175,7 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api/bd/')) {
         return next();
     }
-    // Skip CSRF for Yomie desktop clients (Tauri) — they are not
+    // Skip CSRF for codenextremote desktop clients (Tauri) — they are not
     // vulnerable to CSRF attacks (not browser tabs). Identified by origin.
     const origin = req.headers.origin || '';
     const tauriOrigins = ['http://localhost:1420', 'tauri://localhost', 'https://tauri.localhost'];
@@ -438,7 +438,7 @@ async function startServer() {
         // Initialize WebSocket proxy for remote desktop client
         initWsProxy(server, sessionMiddleware);
 
-        // Initialize Yomie native relay (WebSocket)
+        // Initialize codenextremote native relay (WebSocket)
         initBdRelay(server);
 
         // Initialize Chat relay (WebSocket — agent ↔ operator, persistent via Go API)
@@ -454,7 +454,7 @@ async function startServer() {
         initCdapMediaProxies(server, sessionMiddleware);
 
         // Initialize real-time device status push (Go event bus → browser)
-        initDeviceStatusPush(server, sessionMiddleware, config.yomieApiUrl, config.yomieApiKey);
+        initDeviceStatusPush(server, sessionMiddleware, config.codenextremoteApiUrl, config.codenextremoteApiKey);
 
         // Start LAN Discovery UDP service
         startDiscoveryService();
@@ -654,7 +654,7 @@ function printStartupBanner(protocol, port) {
     console.log('');
     console.log('  ╔══════════════════════════════════════════════════╗');
     console.log('  ║                                                  ║');
-    console.log('  ║   🖥️  Yomie Console v' + config.appVersion.padEnd(23) + '  ║');
+    console.log('  ║   🖥️  codenextremote Console v' + config.appVersion.padEnd(23) + '  ║');
     console.log('  ║                                                  ║');
     console.log('  ╠══════════════════════════════════════════════════╣');
     console.log('  ║                                                  ║');

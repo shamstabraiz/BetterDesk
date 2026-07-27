@@ -1,11 +1,11 @@
-# Yomie Console - Project Structure
+# codenextremote Console - Project Structure
 
-This document describes the organization of the Yomie Console project.
+This document describes the organization of the codenextremote Console project.
 
 ## 📁 Directory Structure
 
 ```
-YomieConsole/
+codenextremoteConsole/
 │
 ├── 📄 README.md                    # Main project documentation
 ├── 📄 LICENSE                      # Apache-2.0 License
@@ -21,7 +21,7 @@ YomieConsole/
 │   ├── app.py                      # Flask backend with ban management
 │   ├── app_demo.py                 # Demo version (no database)
 │   ├── requirements.txt            # Python dependencies
-│   ├── yomie.service          # Systemd service file
+│   ├── codenextremote.service          # Systemd service file
 │   ├── templates/                  # HTML templates
 │   │   └── index.html             # Main dashboard
 │   └── static/                     # Static assets

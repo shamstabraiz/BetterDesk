@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Main Application
+ * codenextremote Console - Main Application
  */
 
 (function() {

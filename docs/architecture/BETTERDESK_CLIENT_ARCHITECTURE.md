@@ -1,7 +1,7 @@
-# Yomie Desktop Client — Architecture & Roadmap
+# codenextremote Desktop Client — Architecture & Roadmap
 
 > Independent remote desktop solution — no RustDesk code, no AGPLv3 restrictions.  
-> Fully compatible with Yomie Go server.
+> Fully compatible with codenextremote Go server.
 
 ---
 
@@ -9,7 +9,7 @@
 
 ```
 ┌───────────────────────┐        ┌─────────────────────────┐        ┌───────────────────────────┐
-│  Yomie Viewer    │        │  Yomie Go Server   │        │  Yomie Agent         │
+│  codenextremote Viewer    │        │  codenextremote Go Server   │        │  codenextremote Agent         │
 │  (Tauri Desktop App)  │        │  (Signal + Relay + API) │        │  (Tauri Service/Tray)     │
 │                       │        │                         │        │                           │
 │  ┌─────────────────┐  │        │  ┌─────────────────┐    │        │  ┌─────────────────────┐  │
@@ -39,7 +39,7 @@
 2. **WebRTC-first** — leverages battle-tested NAT traversal, encryption, and media transport
 3. **Enterprise-ready** — RBAC, audit logs, device policies, SSO integration
 4. **Cross-platform** — Windows, Linux, macOS via Tauri (Rust + WebView)
-5. **Backward compatible** — existing Yomie server protocol supported for device registration
+5. **Backward compatible** — existing codenextremote server protocol supported for device registration
 
 ---
 
@@ -79,7 +79,7 @@ serde = "1"                  # Serialization (MIT/Apache 2.0)
 
 ### 3.1 Signaling (WebSocket)
 
-The viewer and agent connect to Yomie Go server via WebSocket for signaling.
+The viewer and agent connect to codenextremote Go server via WebSocket for signaling.
 Authentication uses the existing API key + device ID system.
 
 ```
@@ -140,7 +140,7 @@ Viewer                    Server                    Agent
 - [ ] Basic input forwarding (mouse + keyboard via DataChannel)
 - [ ] Simple connection UI (enter device ID → connect)
 
-**Deliverable:** Working screen sharing between two Yomie clients on LAN/WAN.
+**Deliverable:** Working screen sharing between two codenextremote clients on LAN/WAN.
 
 ### Phase 2: Enterprise Core (4-6 weeks)
 **Goal: Production-ready with device management**
@@ -182,7 +182,7 @@ Viewer                    Server                    Agent
 ## 5. Project Structure
 
 ```
-yomie-client/
+codenextremote-client/
 ├── src-tauri/                    # Rust backend (Tauri)
 │   ├── src/
 │   │   ├── main.rs              # Tauri entry point
@@ -223,7 +223,7 @@ yomie-client/
 │   │   ├── webrtc.ts            # WebRTC client-side logic
 │   │   ├── signaling.ts         # WebSocket signaling
 │   │   ├── input.ts             # Input event serialization
-│   │   └── api.ts               # Yomie API client
+│   │   └── api.ts               # codenextremote API client
 │   └── styles/
 ├── package.json
 ├── vite.config.ts
@@ -234,7 +234,7 @@ yomie-client/
 
 ## 6. Server Extensions Required
 
-The Yomie Go server needs these new endpoints for the desktop client:
+The codenextremote Go server needs these new endpoints for the desktop client:
 
 ### WebRTC Signaling API
 
@@ -273,13 +273,13 @@ TURN on TLS :5349                       # TLS TURN for enterprise firewalls
 
 ## 7. Licensing
 
-All Yomie components use permissive licenses:
+All codenextremote components use permissive licenses:
 
 | Component | License | Commercial Use |
 |-----------|---------|---------------|
-| Yomie Server (Go) | Proprietary | ✅ Full rights |
-| Yomie Client (Tauri) | Proprietary | ✅ Full rights |
-| Yomie Web Panel | Proprietary | ✅ Full rights |
+| codenextremote Server (Go) | Proprietary | ✅ Full rights |
+| codenextremote Client (Tauri) | Proprietary | ✅ Full rights |
+| codenextremote Web Panel | Proprietary | ✅ Full rights |
 | Pion WebRTC (dependency) | MIT | ✅ No restrictions |
 | Tauri (dependency) | MIT/Apache 2.0 | ✅ No restrictions |
 | SolidJS (dependency) | MIT | ✅ No restrictions |
@@ -292,7 +292,7 @@ All Yomie components use permissive licenses:
 
 ## 8. Comparison with RustDesk
 
-| Feature | RustDesk | Yomie (planned) |
+| Feature | RustDesk | codenextremote (planned) |
 |---------|----------|---------------------|
 | License | AGPLv3 (copyleft) | Proprietary (full control) |
 | Protocol | Custom TCP + NaCl | WebRTC (DTLS/SRTP) + custom signal |
@@ -308,4 +308,4 @@ All Yomie components use permissive licenses:
 ---
 
 *Created: 2026-02-24*  
-*Author: Yomie Team*
+*Author: codenextremote Team*

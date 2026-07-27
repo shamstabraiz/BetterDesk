@@ -1,11 +1,11 @@
-# Yomie CDAP Python SDK
+# codenextremote CDAP Python SDK
 
 Build CDAP device bridges in Python for IoT sensors, industrial equipment, and automation systems.
 
 ## Installation
 
 ```bash
-pip install yomie-cdap
+pip install codenextremote-cdap
 # or from source
 pip install -e sdks/python/
 ```
@@ -14,7 +14,7 @@ pip install -e sdks/python/
 
 ```python
 import asyncio
-from yomie_cdap import CDAPBridge, gauge, toggle, button
+from codenextremote_cdap import CDAPBridge, gauge, toggle, button
 
 # Create bridge
 bridge = CDAPBridge(

@@ -1,5 +1,5 @@
 /**
- * Yomie Web Remote Client - Main Client Orchestrator
+ * codenextremote Web Remote Client - Main Client Orchestrator
  * Ties together all rdclient modules: connection, protocol, crypto,
  * video, audio, renderer, and input.
  *
@@ -54,7 +54,7 @@ class RDClient {
         /** @type {string|null} Last desktop 2FA code (reuse on FT side session) */
         this._last2faCode = null;
         /** @type {string} Stable peer-facing id (shared with FILE_TRANSFER session) */
-        this._myId = 'yomie-web-' + Date.now().toString(36);
+        this._myId = 'codenextremote-web-' + Date.now().toString(36);
         /** @type {number} Stable session_id (shared with FILE_TRANSFER for recent-session auth) */
         this._sessionId = Date.now();
         /** @type {RDFileSession|null} */
@@ -269,7 +269,7 @@ class RDClient {
             const loginReq = this.proto.buildLoginRequest(hash, {
                 username: this.deviceId,
                 myId: this._myId,
-                myName: this.opts.myName || 'Yomie Web',
+                myName: this.opts.myName || 'codenextremote Web',
                 sessionId: this._sessionId,
                 disableAudio: this.opts.disableAudio || false,
                 fps: this.opts.fps || 60,
@@ -1272,7 +1272,7 @@ class RDClient {
             deviceId: this.deviceId,
             proto: this.proto,
             serverPubKey: this.opts.serverPubKey || '',
-            myName: this.opts.myName || 'Yomie Web',
+            myName: this.opts.myName || 'codenextremote Web',
             myId: this._myId,
             sessionId: this._sessionId,
             cached2faCode: this._last2faCode,
@@ -1375,8 +1375,8 @@ class RDClient {
             payload.path != null ? 'path=' + JSON.stringify(payload.path) : '');
         try {
             const headers = { 'Content-Type': 'application/json' };
-            if (window.Yomie && window.Yomie.csrfToken) {
-                headers['X-CSRF-Token'] = window.Yomie.csrfToken;
+            if (window.codenextremote && window.codenextremote.csrfToken) {
+                headers['X-CSRF-Token'] = window.codenextremote.csrfToken;
             }
             fetch('/api/diag/remote-file', {
                 method: 'POST',

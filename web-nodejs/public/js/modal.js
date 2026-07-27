@@ -1,5 +1,5 @@
 /**
- * Yomie Console - Modal Dialog System
+ * codenextremote Console - Modal Dialog System
  */
 
 const Modal = (function() {
