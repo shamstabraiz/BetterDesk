@@ -8,7 +8,8 @@ const router = express.Router();
 const fs = require('fs');
 const db = require('../services/database');
 const config = require('../config/config');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, assertSignageAllowsPeer, getSignageControl } = require('../middleware/auth');
+const signageControlLinks = require('../services/signageControlLinks');
 
 // Lazy-loaded relay helper — avoid circular require at module load time
 function getRemoteRelay() {
@@ -33,6 +34,45 @@ router.get('/remote', requireAuth, (req, res) => {
 });
 
 /**
+ * GET /remote/signage/:signageDeviceId — Redeem a short-lived control-link token
+ * and open the unified remote viewer for the resolved peer (no panel login).
+ *
+ * Query: ?token=<opaque hex>
+ * On success: scoped guest session + 302 → /remote/:peerId
+ */
+router.get('/remote/signage/:signageDeviceId', async (req, res) => {
+    const signageDeviceId = String(req.params.signageDeviceId || '').trim();
+    const token = String(req.query.token || '').trim();
+
+    if (!signageDeviceId || signageDeviceId.length > 128) {
+        return res.status(400).send('Invalid signage device id');
+    }
+    if (!token) {
+        return res.status(400).send('Missing token');
+    }
+
+    try {
+        const redeemed = await signageControlLinks.redeem(signageDeviceId, token);
+        const sessionFields = signageControlLinks.buildSignageSession(redeemed);
+
+        // Clear any prior panel identity; this session is scoped to one peer only.
+        req.session.userId = sessionFields.userId;
+        req.session.user = sessionFields.user;
+        req.session.signageControl = sessionFields.signageControl;
+
+        await new Promise((resolve, reject) => {
+            req.session.save((err) => (err ? reject(err) : resolve()));
+        });
+
+        return res.redirect(`/remote/${encodeURIComponent(redeemed.peerId)}`);
+    } catch (err) {
+        const status = err.status || 403;
+        console.warn(`[remote] signage redeem failed: ${err.code || err.message}`);
+        return res.status(status).send(err.message || 'Control link rejected');
+    }
+});
+
+/**
  * GET /remote/:deviceId - Unified remote desktop viewer (single entry point).
  *
  * Phase 2.1 of the unification plan: this route is now the only canonical
@@ -54,6 +94,17 @@ router.get('/remote/:deviceId', requireAuth, async (req, res) => {
 
     if (!deviceId || !/^[A-Za-z0-9_-]{3,64}$/.test(deviceId)) {
         return res.redirect('/devices');
+    }
+
+    // Signage guest sessions may only open their granted peer.
+    if (req.session.signageControl) {
+        const sc = getSignageControl(req);
+        if (!sc || !assertSignageAllowsPeer(req, deviceId)) {
+            await new Promise((resolve) => {
+                req.session.destroy(() => resolve());
+            });
+            return res.status(403).send('Signage control session expired or not authorized for this device');
+        }
     }
 
     let device = null;

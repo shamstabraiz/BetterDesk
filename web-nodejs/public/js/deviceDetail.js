@@ -287,6 +287,9 @@ const DeviceDetail = (function () {
                 ${d.uuid ? _infoRow('UUID', `<span class="mono">${Utils.escapeHtml(d.uuid)}</span>`) : ''}
                 ${_infoRow(_('devices.platform'), Utils.escapeHtml(d.platform || d.os || (d.sysinfo && d.sysinfo.platform) || '-'))}
                 ${d.sysinfo && d.sysinfo.version ? _infoRow(_('device_detail.version'), Utils.escapeHtml(d.sysinfo.version)) : ''}
+                ${_infoRow(_('devices.hex_code') || 'Hex Code', d.hex_code ? `<span class="mono">${Utils.escapeHtml(d.hex_code)}</span>` : '-', d.hex_code)}
+                ${_infoRow(_('devices.company_id') || 'Company ID', d.company_id ? `<span class="mono">${Utils.escapeHtml(d.company_id)}</span>` : '-', d.company_id)}
+                ${_infoRow(_('devices.signage_device_id') || 'Signage Device ID', d.signage_device_id ? `<span class="mono">${Utils.escapeHtml(d.signage_device_id)}</span>` : '-', d.signage_device_id)}
             </div>
         </div>`;
 

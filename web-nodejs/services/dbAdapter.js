@@ -424,9 +424,41 @@ function createSqliteAdapter(config) {
             CREATE TABLE IF NOT EXISTS peer_remote_password (
                 peer_id TEXT PRIMARY KEY,
                 ciphertext TEXT NOT NULL,
-                updated_at TEXT DEFAULT (datetime('now'))
+                updated_at TEXT DEFAULT (datetime('now')),
+                hex_code TEXT DEFAULT '',
+                company_id TEXT DEFAULT '',
+                signage_device_id TEXT DEFAULT ''
             );
+            CREATE TABLE IF NOT EXISTS signage_control_token (
+                token_hash TEXT PRIMARY KEY,
+                peer_id TEXT NOT NULL,
+                signage_device_id TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                consumed_at TEXT DEFAULT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_signage_control_token_expires
+                ON signage_control_token (expires_at);
         `);
+
+        // Migration: Add signage metadata columns to peer_remote_password
+        try {
+            const prpCols = new Set(db.prepare('PRAGMA table_info(peer_remote_password)').all().map(c => c.name));
+            if (prpCols.size > 0) {
+                for (const c of [
+                    { name: 'hex_code', sql: "TEXT DEFAULT ''" },
+                    { name: 'company_id', sql: "TEXT DEFAULT ''" },
+                    { name: 'signage_device_id', sql: "TEXT DEFAULT ''" },
+                ]) {
+                    if (!prpCols.has(c.name)) {
+                        try {
+                            db.exec(`ALTER TABLE peer_remote_password ADD COLUMN ${c.name} ${c.sql}`);
+                            console.log(`[DB] Migration: added peer_remote_password.${c.name}`);
+                        } catch (_) {}
+                    }
+                }
+            }
+        } catch (e) { console.warn('[DB] Migration peer_remote_password columns error:', e.message); }
 
         // Migration: Add missing columns to existing users table (for upgrades from older versions)
         const userColsMigration = [
@@ -1082,25 +1114,92 @@ function createSqliteAdapter(config) {
             db.prepare(`UPDATE peer SET status_online = 1, last_online = datetime('now') WHERE id IN (${placeholders})`).run(...ids);
         },
 
-        async upsertPeerRemotePassword(peerId, ciphertext) {
-            openAuth().prepare(`
-                INSERT INTO peer_remote_password (peer_id, ciphertext, updated_at)
-                VALUES (?, ?, datetime('now'))
+        async upsertPeerRemotePassword(peerId, ciphertext, meta = {}) {
+            const db = openAuth();
+            const existing = db.prepare(
+                'SELECT hex_code, company_id, signage_device_id FROM peer_remote_password WHERE peer_id = ?'
+            ).get(peerId);
+            const hexCode = meta.hex_code !== undefined
+                ? String(meta.hex_code)
+                : (existing ? (existing.hex_code || '') : '');
+            const companyId = meta.company_id !== undefined
+                ? String(meta.company_id)
+                : (existing ? (existing.company_id || '') : '');
+            const signageDeviceId = meta.signage_device_id !== undefined
+                ? String(meta.signage_device_id)
+                : (existing ? (existing.signage_device_id || '') : '');
+            db.prepare(`
+                INSERT INTO peer_remote_password (peer_id, ciphertext, updated_at, hex_code, company_id, signage_device_id)
+                VALUES (?, ?, datetime('now'), ?, ?, ?)
                 ON CONFLICT(peer_id) DO UPDATE SET
                     ciphertext = excluded.ciphertext,
-                    updated_at = datetime('now')
-            `).run(peerId, ciphertext);
+                    updated_at = datetime('now'),
+                    hex_code = excluded.hex_code,
+                    company_id = excluded.company_id,
+                    signage_device_id = excluded.signage_device_id
+            `).run(peerId, ciphertext, hexCode, companyId, signageDeviceId);
         },
 
         async getPeerRemotePassword(peerId) {
             const row = openAuth().prepare(
-                'SELECT peer_id, ciphertext, updated_at FROM peer_remote_password WHERE peer_id = ?'
+                'SELECT peer_id, ciphertext, updated_at, hex_code, company_id, signage_device_id FROM peer_remote_password WHERE peer_id = ?'
             ).get(peerId);
             return row || null;
         },
 
+        async getAllPeerRemotePasswordMeta() {
+            return openAuth().prepare(
+                'SELECT peer_id, hex_code, company_id, signage_device_id FROM peer_remote_password'
+            ).all();
+        },
+
         async deletePeerRemotePassword(peerId) {
             openAuth().prepare('DELETE FROM peer_remote_password WHERE peer_id = ?').run(peerId);
+        },
+
+        async getPeerIdsBySignageDeviceId(signageDeviceId) {
+            const id = String(signageDeviceId || '').trim();
+            if (!id) return [];
+            return openAuth().prepare(
+                'SELECT peer_id FROM peer_remote_password WHERE signage_device_id = ? AND signage_device_id != \'\''
+            ).all(id).map((r) => r.peer_id);
+        },
+
+        async createSignageControlToken({ tokenHash, peerId, signageDeviceId, expiresAt }) {
+            openAuth().prepare(`
+                INSERT INTO signage_control_token (token_hash, peer_id, signage_device_id, expires_at, created_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
+            `).run(tokenHash, peerId, signageDeviceId, expiresAt);
+        },
+
+        async consumeSignageControlToken(tokenHash, signageDeviceId) {
+            const db = openAuth();
+            const row = db.prepare(`
+                SELECT token_hash, peer_id, signage_device_id, expires_at, consumed_at
+                FROM signage_control_token WHERE token_hash = ?
+            `).get(tokenHash);
+            if (!row) return null;
+            if (row.consumed_at) return { error: 'consumed' };
+            if (String(row.signage_device_id) !== String(signageDeviceId)) return { error: 'mismatch' };
+            const expiresMs = Date.parse(String(row.expires_at).includes('T') || String(row.expires_at).includes('Z')
+                ? row.expires_at
+                : String(row.expires_at).replace(' ', 'T') + 'Z');
+            if (!Number.isFinite(expiresMs) || Date.now() > expiresMs) return { error: 'expired' };
+            const result = db.prepare(`
+                UPDATE signage_control_token
+                SET consumed_at = datetime('now')
+                WHERE token_hash = ? AND consumed_at IS NULL
+            `).run(tokenHash);
+            if (!result.changes) return { error: 'consumed' };
+            return { peerId: row.peer_id, signageDeviceId: row.signage_device_id };
+        },
+
+        async cleanupExpiredSignageControlTokens() {
+            const nowIso = new Date().toISOString();
+            openAuth().prepare(`
+                DELETE FROM signage_control_token
+                WHERE expires_at < ? OR consumed_at IS NOT NULL
+            `).run(nowIso);
         },
 
         // ---- Users ----
@@ -3018,9 +3117,24 @@ function createPostgresAdapter() {
             CREATE TABLE IF NOT EXISTS peer_remote_password (
                 peer_id TEXT PRIMARY KEY,
                 ciphertext TEXT NOT NULL,
-                updated_at TIMESTAMPTZ DEFAULT NOW()
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                hex_code TEXT DEFAULT '',
+                company_id TEXT DEFAULT '',
+                signage_device_id TEXT DEFAULT ''
             )
         `);
+
+        await q(`
+            CREATE TABLE IF NOT EXISTS signage_control_token (
+                token_hash TEXT PRIMARY KEY,
+                peer_id TEXT NOT NULL,
+                signage_device_id TEXT NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                consumed_at TIMESTAMPTZ DEFAULT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+        await q('CREATE INDEX IF NOT EXISTS idx_signage_control_token_expires ON signage_control_token (expires_at)');
 
         await q(`
             CREATE TABLE IF NOT EXISTS peer_metrics (
@@ -3178,6 +3292,13 @@ function createPostgresAdapter() {
             if (settingsCols.size > 0 && !settingsCols.has('updated_at')) {
                 await q('ALTER TABLE settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()');
             }
+        } catch (_) {}
+
+        // Migration: Add signage metadata columns to peer_remote_password
+        try {
+            await q("ALTER TABLE peer_remote_password ADD COLUMN IF NOT EXISTS hex_code TEXT DEFAULT ''");
+            await q("ALTER TABLE peer_remote_password ADD COLUMN IF NOT EXISTS company_id TEXT DEFAULT ''");
+            await q("ALTER TABLE peer_remote_password ADD COLUMN IF NOT EXISTS signage_device_id TEXT DEFAULT ''");
         } catch (_) {}
     }
 
@@ -3447,22 +3568,89 @@ function createPostgresAdapter() {
             await q(`UPDATE peer SET status_online = TRUE, last_online = NOW() WHERE id IN (${placeholders})`, ids);
         },
 
-        async upsertPeerRemotePassword(peerId, ciphertext) {
+        async upsertPeerRemotePassword(peerId, ciphertext, meta = {}) {
+            const existing = await one(
+                'SELECT hex_code, company_id, signage_device_id FROM peer_remote_password WHERE peer_id = $1',
+                [peerId]
+            );
+            const hexCode = meta.hex_code !== undefined
+                ? String(meta.hex_code)
+                : (existing ? (existing.hex_code || '') : '');
+            const companyId = meta.company_id !== undefined
+                ? String(meta.company_id)
+                : (existing ? (existing.company_id || '') : '');
+            const signageDeviceId = meta.signage_device_id !== undefined
+                ? String(meta.signage_device_id)
+                : (existing ? (existing.signage_device_id || '') : '');
             await q(`
-                INSERT INTO peer_remote_password (peer_id, ciphertext, updated_at)
-                VALUES ($1, $2, NOW())
+                INSERT INTO peer_remote_password (peer_id, ciphertext, updated_at, hex_code, company_id, signage_device_id)
+                VALUES ($1, $2, NOW(), $3, $4, $5)
                 ON CONFLICT(peer_id) DO UPDATE SET
                     ciphertext = EXCLUDED.ciphertext,
-                    updated_at = NOW()
-            `, [peerId, ciphertext]);
+                    updated_at = NOW(),
+                    hex_code = EXCLUDED.hex_code,
+                    company_id = EXCLUDED.company_id,
+                    signage_device_id = EXCLUDED.signage_device_id
+            `, [peerId, ciphertext, hexCode, companyId, signageDeviceId]);
         },
 
         async getPeerRemotePassword(peerId) {
-            return one('SELECT peer_id, ciphertext, updated_at FROM peer_remote_password WHERE peer_id = $1', [peerId]);
+            return one(
+                'SELECT peer_id, ciphertext, updated_at, hex_code, company_id, signage_device_id FROM peer_remote_password WHERE peer_id = $1',
+                [peerId]
+            );
+        },
+
+        async getAllPeerRemotePasswordMeta() {
+            return all('SELECT peer_id, hex_code, company_id, signage_device_id FROM peer_remote_password');
         },
 
         async deletePeerRemotePassword(peerId) {
             await q('DELETE FROM peer_remote_password WHERE peer_id = $1', [peerId]);
+        },
+
+        async getPeerIdsBySignageDeviceId(signageDeviceId) {
+            const id = String(signageDeviceId || '').trim();
+            if (!id) return [];
+            const rows = await all(
+                "SELECT peer_id FROM peer_remote_password WHERE signage_device_id = $1 AND signage_device_id != ''",
+                [id]
+            );
+            return rows.map((r) => r.peer_id);
+        },
+
+        async createSignageControlToken({ tokenHash, peerId, signageDeviceId, expiresAt }) {
+            await q(`
+                INSERT INTO signage_control_token (token_hash, peer_id, signage_device_id, expires_at, created_at)
+                VALUES ($1, $2, $3, $4::timestamptz, NOW())
+            `, [tokenHash, peerId, signageDeviceId, expiresAt]);
+        },
+
+        async consumeSignageControlToken(tokenHash, signageDeviceId) {
+            const row = await one(`
+                SELECT token_hash, peer_id, signage_device_id, expires_at, consumed_at
+                FROM signage_control_token WHERE token_hash = $1
+            `, [tokenHash]);
+            if (!row) return null;
+            if (row.consumed_at) return { error: 'consumed' };
+            if (String(row.signage_device_id) !== String(signageDeviceId)) return { error: 'mismatch' };
+            const expiresMs = new Date(row.expires_at).getTime();
+            if (!Number.isFinite(expiresMs) || Date.now() > expiresMs) return { error: 'expired' };
+            const updated = await one(`
+                UPDATE signage_control_token
+                SET consumed_at = NOW()
+                WHERE token_hash = $1 AND consumed_at IS NULL
+                RETURNING peer_id, signage_device_id
+            `, [tokenHash]);
+            if (!updated) return { error: 'consumed' };
+            return { peerId: updated.peer_id, signageDeviceId: updated.signage_device_id };
+        },
+
+        async cleanupExpiredSignageControlTokens() {
+            await q(`
+                DELETE FROM signage_control_token
+                WHERE expires_at < NOW() OR consumed_at IS NOT NULL
+            `);
         },
 
         // ---- Users ----

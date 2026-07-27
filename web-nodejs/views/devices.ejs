@@ -67,6 +67,18 @@
                             <span>${_('devices.platform')}</span>
                         </label>
                         <label class="column-toggle">
+                            <input type="checkbox" data-column="hex_code" checked>
+                            <span>${_('devices.hex_code') || 'Hex Code'}</span>
+                        </label>
+                        <label class="column-toggle">
+                            <input type="checkbox" data-column="company_id" checked>
+                            <span>${_('devices.company_id') || 'Company ID'}</span>
+                        </label>
+                        <label class="column-toggle">
+                            <input type="checkbox" data-column="signage_device_id" checked>
+                            <span>${_('devices.signage_device_id') || 'Signage Device ID'}</span>
+                        </label>
+                        <label class="column-toggle">
                             <input type="checkbox" data-column="last_online" checked>
                             <span>${_('devices.last_seen')}</span>
                         </label>
@@ -87,6 +99,9 @@
                             <th class="sortable" data-sort="hostname" data-column="hostname">${_('devices.hostname')}</th>
                             <th class="sortable" data-sort="device_type" data-column="device_type">${_('devices.device_type')}</th>
                             <th class="sortable" data-sort="platform" data-column="platform">${_('devices.platform')}</th>
+                            <th data-column="hex_code">${_('devices.hex_code') || 'Hex Code'}</th>
+                            <th data-column="company_id">${_('devices.company_id') || 'Company ID'}</th>
+                            <th data-column="signage_device_id">${_('devices.signage_device_id') || 'Signage Device ID'}</th>
                             <th class="sortable" data-sort="last_online" data-column="last_online">${_('devices.last_seen')}</th>
                             <th data-column="status">${_('devices.status')}</th>
                             <th class="col-actions" data-column="actions"></th>
@@ -94,7 +109,7 @@
                     </thead>
                     <tbody id="devices-tbody">
                         <tr class="loading-row">
-                            <td colspan=\"7\" style=\"text-align: center; padding: 40px;\">
+                            <td colspan=\"10\" style=\"text-align: center; padding: 40px;\">
                                 <span class="skeleton skeleton-text" style="width: 200px;"></span>
                             </td>
                         </tr>

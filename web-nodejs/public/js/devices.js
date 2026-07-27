@@ -283,7 +283,10 @@
                     device.hostname?.toLowerCase().includes(q) ||
                     device.username?.toLowerCase().includes(q) ||
                     device.platform?.toLowerCase().includes(q) ||
-                    (device.device_type || 'rustdesk').toLowerCase().includes(q);
+                    (device.device_type || 'rustdesk').toLowerCase().includes(q) ||
+                    device.hex_code?.toLowerCase().includes(q) ||
+                    device.company_id?.toLowerCase().includes(q) ||
+                    device.signage_device_id?.toLowerCase().includes(q);
                 if (!match) return false;
             }
             
@@ -376,6 +379,9 @@
                         <span>${Utils.escapeHtml(device.platform || device.os || '-')}</span>
                     </div>
                 </td>
+                <td data-column="hex_code"><span class="mono">${Utils.escapeHtml(device.hex_code || '-')}</span></td>
+                <td data-column="company_id"><span class="mono">${Utils.escapeHtml(device.company_id || '-')}</span></td>
+                <td data-column="signage_device_id"><span class="mono">${Utils.escapeHtml(device.signage_device_id || '-')}</span></td>
                 <td data-column="last_online">
                     <span class="last-seen-text" title="${Utils.formatDate(device.last_online)}">${Utils.formatRelativeTime(device.last_online)}</span>
                 </td>
@@ -606,6 +612,18 @@
                     <div class="detail-row">
                         <span class="detail-label">${_('devices.platform')}:</span>
                         <span class="detail-value">${Utils.escapeHtml(device.platform || '-')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">${_('devices.hex_code') || 'Hex Code'}:</span>
+                        <span class="detail-value">${Utils.escapeHtml(device.hex_code || '-')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">${_('devices.company_id') || 'Company ID'}:</span>
+                        <span class="detail-value">${Utils.escapeHtml(device.company_id || '-')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">${_('devices.signage_device_id') || 'Signage Device ID'}:</span>
+                        <span class="detail-value">${Utils.escapeHtml(device.signage_device_id || '-')}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">${_('status.label')}:</span>

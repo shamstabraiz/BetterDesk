@@ -7,7 +7,7 @@ const router = express.Router();
 const db = require('../services/database');
 const serverBackend = require('../services/serverBackend');
 const remotePasswordVault = require('../services/remotePasswordVault');
-const { requireAuth, requirePermission } = require('../middleware/auth');
+const { requireAuth, requirePermission, assertSignageAllowsPeer, isSignageGuestSession } = require('../middleware/auth');
 
 /**
  * GET /devices - Devices list page
@@ -146,6 +146,9 @@ router.get('/api/devices/:id/remote-password', requireAuth, requirePermission('d
         if (!id || !/^[A-Za-z0-9_-]{3,64}$/.test(id)) {
             return res.status(400).json({ success: false, error: 'Invalid device id' });
         }
+        if (!assertSignageAllowsPeer(req, id)) {
+            return res.status(403).json({ success: false, error: 'Not authorized for this device' });
+        }
         if (!remotePasswordVault.isConfigured()) {
             return res.status(503).json({ success: false, error: 'Remote password vault not configured' });
         }
@@ -160,7 +163,9 @@ router.get('/api/devices/:id/remote-password', requireAuth, requirePermission('d
             console.error('[devices] remote-password decrypt:', decErr.message);
             return res.status(500).json({ success: false, error: 'Could not decrypt stored password' });
         }
-        await db.logAction(req.session.userId, 'remote_password.retrieve', `peer_id=${id}`, req.ip);
+        if (!isSignageGuestSession(req)) {
+            await db.logAction(req.session.userId, 'remote_password.retrieve', `peer_id=${id}`, req.ip);
+        }
         res.json({ stored: true, password });
     } catch (err) {
         console.error('Get remote-password error:', err);

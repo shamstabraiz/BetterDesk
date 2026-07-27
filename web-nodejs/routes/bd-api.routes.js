@@ -32,6 +32,8 @@ const remotePasswordVault = require('../services/remotePasswordVault');
 const bdRelay = require('../services/bdRelay');
 const brandingService = require('../services/brandingService');
 const authService = require('../services/authService');
+const config = require('../config/config');
+const signageControlLinks = require('../services/signageControlLinks');
 
 // ---------------------------------------------------------------------------
 //  In-memory help-request store (survives restarts via audit log for history)
@@ -297,17 +299,76 @@ router.put('/peers/:deviceId/remote-password', async (req, res) => {
         return res.status(503).json({ error: 'Remote password vault is not configured' });
     }
     try {
-        const password = req.body && req.body.password != null ? String(req.body.password) : '';
+        const body = req.body || {};
+        const password = body.password != null ? String(body.password) : '';
         if (password === '') {
             await db.deletePeerRemotePassword(deviceId);
             return res.json({ ok: true, deleted: true });
         }
+        const meta = {};
+        if (body.hexCode !== undefined || body.hex_code !== undefined) {
+            meta.hex_code = String(body.hexCode !== undefined ? body.hexCode : body.hex_code);
+        }
+        if (body.companyId !== undefined || body.company_id !== undefined) {
+            meta.company_id = String(body.companyId !== undefined ? body.companyId : body.company_id);
+        }
+        if (body.signageDeviceId !== undefined || body.signage_device_id !== undefined) {
+            meta.signage_device_id = String(
+                body.signageDeviceId !== undefined ? body.signageDeviceId : body.signage_device_id
+            );
+        }
         const ciphertext = remotePasswordVault.encrypt(password);
-        await db.upsertPeerRemotePassword(deviceId, ciphertext);
+        await db.upsertPeerRemotePassword(deviceId, ciphertext, meta);
         return res.json({ ok: true });
     } catch (err) {
         console.error('[BD-API] remote-password PUT:', err.message);
         return res.status(500).json({ error: 'Failed to save remote password' });
+    }
+});
+
+// ---------------------------------------------------------------------------
+//  POST /api/bd/signage/control-links — Mint short-lived direct-control URL
+// ---------------------------------------------------------------------------
+
+function requireYomieApiKey(req, res, next) {
+    const expected = String(config.yomieApiKey || '').trim();
+    if (!expected) {
+        return res.status(503).json({ error: 'API key not configured' });
+    }
+    const provided = String(req.headers['x-api-key'] || '').trim();
+    if (!provided) {
+        return res.status(401).json({ error: 'Missing X-API-Key' });
+    }
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return res.status(401).json({ error: 'Invalid API key' });
+    }
+    return next();
+}
+
+router.post('/signage/control-links', requireYomieApiKey, async (req, res) => {
+    try {
+        const body = req.body || {};
+        const signageDeviceId = body.signageDeviceId != null
+            ? body.signageDeviceId
+            : body.signage_device_id;
+        const ttlSeconds = body.ttlSeconds != null ? body.ttlSeconds : body.ttl_seconds;
+        const result = await signageControlLinks.mint({ signageDeviceId, ttlSeconds });
+        return res.json({
+            url: result.url,
+            expiresAt: result.expiresAt,
+            peerId: result.peerId,
+        });
+    } catch (err) {
+        const status = err.status || 500;
+        if (status >= 500) {
+            console.error('[BD-API] signage control-links:', err.message);
+        }
+        return res.status(status).json({
+            error: err.message || 'Failed to mint control link',
+            code: err.code || undefined,
+        });
     }
 });
 

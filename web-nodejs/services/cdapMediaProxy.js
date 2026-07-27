@@ -62,13 +62,31 @@ function createCdapMediaProxy(server, sessionMiddleware, opts) {
             const userRole = sessUser.role || req.session.role || '';
             const userName = sessUser.username || req.session.username || `user#${req.session.userId}`;
 
-            const userLevel = roleLevel[userRole] || 0;
-            const requiredLevel = roleLevel[minRole] || 3;
-            if (userLevel < requiredLevel) {
-                console.warn(`[CDAP ${label}] 403 upgrade rejected for ${url.pathname} (user=${userName} role=${userRole} level=${userLevel} < required=${requiredLevel})`);
-                socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-                socket.destroy();
-                return;
+            // Signage guest: only the granted peer; skip role floor for that match.
+            const sc = req.session.signageControl;
+            if (sc && sc.peerId) {
+                const expiresAt = Number(sc.expiresAt) || 0;
+                if (!expiresAt || Date.now() > expiresAt) {
+                    console.warn(`[CDAP ${label}] 403 upgrade rejected for ${url.pathname} (signage control expired)`);
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+                if (String(sc.peerId) !== String(deviceId)) {
+                    console.warn(`[CDAP ${label}] 403 upgrade rejected for ${url.pathname} (signage peer mismatch)`);
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+            } else {
+                const userLevel = roleLevel[userRole] || 0;
+                const requiredLevel = roleLevel[minRole] || 3;
+                if (userLevel < requiredLevel) {
+                    console.warn(`[CDAP ${label}] 403 upgrade rejected for ${url.pathname} (user=${userName} role=${userRole} level=${userLevel} < required=${requiredLevel})`);
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
             }
 
             console.log(`[CDAP ${label}] Upgrade accepted for device=${deviceId} user=${userName} role=${userRole}`);

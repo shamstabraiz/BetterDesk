@@ -106,6 +106,8 @@ async function getAllDevices(filters = {}) {
             console.error('Failed to overlay sysinfo:', err.message);
         }
 
+        await overlayRemotePasswordMeta(peers);
+
         // Apply client-side filtering (the Go API may not support all filter params)
         if (filters.search) {
             const s = filters.search.toLowerCase();
@@ -113,7 +115,10 @@ async function getAllDevices(filters = {}) {
                 (p.id && p.id.toLowerCase().includes(s)) ||
                 (p.username && p.username.toLowerCase().includes(s)) ||
                 (p.hostname && p.hostname.toLowerCase().includes(s)) ||
-                (p.note && p.note.toLowerCase().includes(s))
+                (p.note && p.note.toLowerCase().includes(s)) ||
+                (p.hex_code && p.hex_code.toLowerCase().includes(s)) ||
+                (p.company_id && p.company_id.toLowerCase().includes(s)) ||
+                (p.signage_device_id && p.signage_device_id.toLowerCase().includes(s))
             );
         }
         if (filters.status === 'online') {
@@ -136,7 +141,33 @@ async function getAllDevices(filters = {}) {
         });
         return peers;
     }
-    return await db.getAllDevices(filters);
+    const peers = await db.getAllDevices(filters);
+    await overlayRemotePasswordMeta(peers);
+    return peers;
+}
+
+async function overlayRemotePasswordMeta(peers) {
+    if (!peers || !peers.length) return;
+    try {
+        const rows = await db.getAllPeerRemotePasswordMeta();
+        const map = {};
+        for (const row of rows) {
+            map[row.peer_id] = row;
+        }
+        for (const peer of peers) {
+            const meta = map[peer.id];
+            peer.hex_code = meta ? (meta.hex_code || '') : '';
+            peer.company_id = meta ? (meta.company_id || '') : '';
+            peer.signage_device_id = meta ? (meta.signage_device_id || '') : '';
+        }
+    } catch (err) {
+        console.error('Failed to overlay remote password meta:', err.message);
+        for (const peer of peers) {
+            if (peer.hex_code === undefined) peer.hex_code = '';
+            if (peer.company_id === undefined) peer.company_id = '';
+            if (peer.signage_device_id === undefined) peer.signage_device_id = '';
+        }
+    }
 }
 
 async function getDeviceById(id) {
@@ -149,6 +180,16 @@ async function getDeviceById(id) {
                 peer.folder_id = assignments[peer.id];
             }
         } catch { /* non-critical */ }
+        try {
+            const row = await db.getPeerRemotePassword(peer.id);
+            peer.hex_code = row ? (row.hex_code || '') : '';
+            peer.company_id = row ? (row.company_id || '') : '';
+            peer.signage_device_id = row ? (row.signage_device_id || '') : '';
+        } catch {
+            peer.hex_code = '';
+            peer.company_id = '';
+            peer.signage_device_id = '';
+        }
     }
     return peer;
 }

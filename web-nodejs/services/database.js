@@ -190,9 +190,14 @@ const facade = {
     getDeviceGroupsForPeer: (peerId) => adapter.getDeviceGroupsForPeer(peerId),
 
     // ---- Peer remote password vault (RustDesk session password, encrypted at rest) ----
-    upsertPeerRemotePassword: (peerId, ciphertext) => adapter.upsertPeerRemotePassword(peerId, ciphertext),
+    upsertPeerRemotePassword: (peerId, ciphertext, meta) => adapter.upsertPeerRemotePassword(peerId, ciphertext, meta),
     getPeerRemotePassword: (peerId) => adapter.getPeerRemotePassword(peerId),
+    getAllPeerRemotePasswordMeta: () => adapter.getAllPeerRemotePasswordMeta(),
     deletePeerRemotePassword: (peerId) => adapter.deletePeerRemotePassword(peerId),
+    getPeerIdsBySignageDeviceId: (signageDeviceId) => adapter.getPeerIdsBySignageDeviceId(signageDeviceId),
+    createSignageControlToken: (row) => adapter.createSignageControlToken(row),
+    consumeSignageControlToken: (tokenHash, signageDeviceId) => adapter.consumeSignageControlToken(tokenHash, signageDeviceId),
+    cleanupExpiredSignageControlTokens: () => adapter.cleanupExpiredSignageControlTokens(),
 
     // ---- Strategies / Policies ----
     getAllStrategies:  () => adapter.getAllStrategies(),

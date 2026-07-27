@@ -102,6 +102,18 @@ function initWsProxy(server, sessionMiddleware) {
                 return;
             }
 
+            // Signage guest: reject if grant expired (device binding enforced on the page + password API).
+            const sc = request.session.signageControl;
+            if (sc && sc.peerId) {
+                const expiresAt = Number(sc.expiresAt) || 0;
+                if (!expiresAt || Date.now() > expiresAt) {
+                    console.warn(`WS proxy: Rejected upgrade to ${pathname} — signage control expired (ip: ${request.socket?.remoteAddress})`);
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+            }
+
             if (pathname === '/ws/rendezvous') {
                 rendezvousWss.handleUpgrade(request, socket, head, (ws) => {
                     rendezvousWss.emit('connection', ws, request);

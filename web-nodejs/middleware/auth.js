@@ -110,6 +110,30 @@ function requireAuth(req, res, next) {
         }
         return res.redirect('/login');
     }
+
+    // Signage control-link guests: only remote viewer + password for their peer.
+    if (req.session.signageControl) {
+        const sc = getSignageControl(req);
+        if (!sc) {
+            return req.session.destroy(() => {
+                if (req.path.startsWith('/api/')) {
+                    return res.status(403).json({ success: false, error: 'Signage control session expired' });
+                }
+                return res.status(403).send('Signage control session expired');
+            });
+        }
+        const p = req.path || '';
+        const allowed =
+            p === '/remote' ||
+            p.startsWith('/remote/') ||
+            /^\/api\/devices\/[^/]+\/remote-password$/.test(p);
+        if (!allowed) {
+            if (p.startsWith('/api/')) {
+                return res.status(403).json({ success: false, error: 'Signage session cannot access this resource' });
+            }
+            return res.status(403).send('Signage session cannot access this resource');
+        }
+    }
     
     // Add user info to locals for templates
     res.locals.user = req.session.user;
@@ -230,6 +254,43 @@ function requirePermission(permission) {
     };
 }
 
+/**
+ * Active signage control grant from a redeemed control-link token, or null.
+ * @param {import('express').Request} req
+ * @returns {{ peerId: string, signageDeviceId: string, expiresAt: number } | null}
+ */
+function getSignageControl(req) {
+    const sc = req.session && req.session.signageControl;
+    if (!sc || !sc.peerId) return null;
+    const expiresAt = Number(sc.expiresAt) || 0;
+    if (!expiresAt || Date.now() > expiresAt) return null;
+    return {
+        peerId: String(sc.peerId),
+        signageDeviceId: String(sc.signageDeviceId || ''),
+        expiresAt,
+    };
+}
+
+/**
+ * If this is a signage guest session, require peerId to match the grant.
+ * Normal (non-signage) sessions always pass.
+ * @returns {boolean} true if allowed
+ */
+function assertSignageAllowsPeer(req, peerId) {
+    const sc = req.session && req.session.signageControl;
+    if (!sc || !sc.peerId) return true; // not a signage session
+    const expiresAt = Number(sc.expiresAt) || 0;
+    if (!expiresAt || Date.now() > expiresAt) return false;
+    return String(sc.peerId) === String(peerId || '');
+}
+
+/**
+ * True when the session was created via a signage control-link redeem.
+ */
+function isSignageGuestSession(req) {
+    return !!(req.session && req.session.signageControl && req.session.signageControl.peerId);
+}
+
 module.exports = {
     requireAuth,
     requireRole,
@@ -238,5 +299,8 @@ module.exports = {
     optionalAuth,
     guestOnly,
     roleHasPermission,
-    isSuperAdminRole
+    isSuperAdminRole,
+    getSignageControl,
+    assertSignageAllowsPeer,
+    isSignageGuestSession,
 };
