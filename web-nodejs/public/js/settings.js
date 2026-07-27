@@ -732,7 +732,7 @@
      */
     function collectBrandingData() {
         const data = {
-            appName: document.getElementById('brand-name')?.value || 'codenextremote',
+            appName: document.getElementById('brand-name')?.value || 'Nini Enterprise',
             appDescription: document.getElementById('brand-description')?.value || '',
             logoType: document.querySelector('input[name="logo-type"]:checked')?.value || 'icon',
             logoIcon: document.getElementById('logo-icon-name')?.value || 'dns',

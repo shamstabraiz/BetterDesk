@@ -42,8 +42,8 @@ function sanitizeSvg(svg) {
 // Default branding (codenextremote original theme)
 const DEFAULT_BRANDING = {
     // Brand identity
-    appName: 'codenextremote',
-    appDescription: 'RustDesk Server Management',
+    appName: 'Nini Enterprise',
+    appDescription: 'Nini Enterprise Server Management',
     
     // Logo configuration
     logoType: 'image', // 'icon' | 'svg' | 'image' | 'text'

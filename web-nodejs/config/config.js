@@ -212,6 +212,6 @@ module.exports = {
     databaseUrl: process.env.DATABASE_URL || '',
 
     // App info
-    appName: 'codencodenextremoteextremote Console',
+    appName: 'Nini Enterprise Console',
     appVersion: pkgVersion
 };

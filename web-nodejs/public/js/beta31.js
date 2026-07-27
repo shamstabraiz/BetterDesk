@@ -79,7 +79,7 @@
     function buildShell() {
         if (document.getElementById('beta31-shell')) return;
 
-        const appName = (window.codenextremote && window.codenextremote.branding && window.codenextremote.branding.appName) || 'codenextremote';
+        const appName = (window.codenextremote && window.codenextremote.branding && window.codenextremote.branding.appName) || 'Nini Enterprise';
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         shell = document.createElement('div');
