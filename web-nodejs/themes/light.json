@@ -1,8 +1,8 @@
 {
   "version": "1.0",
-  "type": "Nini Enterprise-theme",
+  "type": "ExpoSports-theme",
   "branding": {
-    "appName": "Nini Enterprise",
+    "appName": "ExpoSports",
     "appDescription": "RustDesk Server Management",
     "logoType": "icon",
     "logoIcon": "dns",

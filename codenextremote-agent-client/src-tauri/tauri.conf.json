@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegram/nicegram-tauri/refs/heads/main/packages/tauri-utils/schema.json",
-  "productName": "Nini Enterprise Agent",
+  "productName": "ExpoSports Agent",
   "version": "1.0.0",
-  "identifier": "com.Nini Enterprise.agent",
+  "identifier": "com.ExpoSports.agent",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1421",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Nini Enterprise Agent",
+        "title": "ExpoSports Agent",
         "width": 480,
         "height": 520,
         "minWidth": 400,
@@ -41,7 +41,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/Nini Enterprise-agent"
+      "binaries/ExpoSports-agent"
     ],
     "windows": {
       "nsis": {

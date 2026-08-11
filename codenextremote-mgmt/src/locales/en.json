@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "Nini Enterprise MGMT",
+    "name": "ExpoSports MGMT",
     "version": "v2.0.0"
   },
   "login": {
     "title": "Sign In",
-    "subtitle": "Connect to your Nini Enterprise server",
+    "subtitle": "Connect to your ExpoSports server",
     "server_address": "Server address",
     "server_placeholder": "https://your-server:5000",
     "username": "Username",

@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegram/nicegram-tauri/refs/heads/main/packages/tauri-utils/schema.json",
-  "productName": "Nini Enterprise MGMT",
+  "productName": "ExpoSports MGMT",
   "version": "1.0.0",
-  "identifier": "com.Nini Enterprise.mgmt",
+  "identifier": "com.ExpoSports.mgmt",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Nini Enterprise MGMT",
+        "title": "ExpoSports MGMT",
         "width": 1280,
         "height": 800,
         "minWidth": 960,
@@ -52,7 +52,7 @@
           "Polish": "nsis/languages/pl.nsh"
         },
         "installMode": "both",
-        "startMenuFolder": "Nini Enterprise",
+        "startMenuFolder": "ExpoSports",
         "headerImage": "icons/nsis-header.bmp",
         "sidebarImage": "icons/nsis-sidebar.bmp",
         "installerIcon": "icons/icon.ico",

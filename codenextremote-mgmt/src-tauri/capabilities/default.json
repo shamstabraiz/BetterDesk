@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default Nini Enterprise capabilities",
+  "description": "Default ExpoSports capabilities",
   "windows": ["main"],
   "permissions": [
     "core:default",

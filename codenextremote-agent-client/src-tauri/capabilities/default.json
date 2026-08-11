@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default Nini Enterprise Agent capabilities",
+  "description": "Default ExpoSports Agent capabilities",
   "windows": ["main"],
   "permissions": [
     "core:default"

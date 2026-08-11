@@ -9,7 +9,7 @@
   "app": {
     "close_agent": "Close agent",
     "close_confirm": "Are you sure you want to close the agent? It will no longer be available for remote assistance.",
-    "quit_title": "Quit Nini Enterprise Agent",
+    "quit_title": "Quit ExpoSports Agent",
     "quit_sudo_hint": "Enter your user password to close the agent.",
     "admin_only": "Administrator only",
     "admin_only_hint": "This section is restricted to administrators. Run the agent with administrator privileges to access it."
@@ -61,9 +61,9 @@
   },
   "setup": {
     "title": "Server Setup",
-    "subtitle": "Connect this device to a Nini Enterprise server",
+    "subtitle": "Connect this device to a ExpoSports server",
     "server_address": "Server address",
-    "server_placeholder": "e.g. Nini Enterprise.example.com or 192.168.1.100",
+    "server_placeholder": "e.g. ExpoSports.example.com or 192.168.1.100",
     "next": "Next",
     "back": "Back",
     "finish": "Finish",
@@ -86,7 +86,7 @@
     "sync_ok": "Configuration synchronized",
     "sync_failed": "Synchronization failed",
     "complete_title": "Setup Complete",
-    "complete_message": "This device is now connected to the Nini Enterprise server and ready for remote management.",
+    "complete_message": "This device is now connected to the ExpoSports server and ready for remote management.",
     "error_empty": "Server address is required",
     "error_format": "Invalid server address format",
     "error_unreachable": "Server is not reachable",

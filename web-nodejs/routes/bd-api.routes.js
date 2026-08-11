@@ -556,7 +556,7 @@ router.get('/branding', (req, res) => {
     try {
         const branding = brandingService.getBranding();
         res.json({
-            company_name: branding.appName || 'Nini Enterprise',
+            company_name: branding.appName || 'ExpoSports',
             accent_color: branding.colors?.accentBlue || '#3b82f6',
             support_contact: branding.supportContact || '',
         });

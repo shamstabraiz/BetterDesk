@@ -1,9 +1,9 @@
 {
   "version": "1.0",
-  "type": "Nini Enterprise-theme",
+  "type": "ExpoSports-theme",
   "branding": {
-    "appName": "Nini Enterprise",
-    "appDescription": "Nini Enterprise Server Management",
+    "appName": "ExpoSports",
+    "appDescription": "ExpoSports Server Management",
     "logoType": "icon",
     "logoIcon": "dns",
     "logoSvg": "",
